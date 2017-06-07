@@ -2,6 +2,7 @@ require! 'net'
 require! './actor': {Actor}
 require! 'prelude-ls': {
     chars, take, split-at, drop
+    map, join
 }
 require! 'aea': {sleep}
 
@@ -81,15 +82,24 @@ class HostlinkActor extends Actor
             try
                 check-hostlink-packet packet
                 data-part = get-data packet
-                @read-handler data-part
+                @read-handler data-part if typeof! @read-handler is \Function 
             catch e
                 @log.err "Problem: ", e
 
-        <~ :lo(op) ~>
-            data <~ @read 0, A_TYPES.data, 1254, 15
-            @log.log "read function returned: ", data
-            <~ sleep 1000ms
-            lo(op)
+        ->
+            <~ :lo(op) ~>
+                data <~ @read 0, A_TYPES.data, 1254, 1
+                @log.log "read function returned: ", data
+                <~ sleep 1000ms
+                lo(op)
+        do ~>
+            @log.log "starting write loop"
+            <~ :lo(op) ~>
+                @log.log "sending write packet...."
+                @write 0, A_TYPES.data, 1254, [9999]
+                <~ sleep 1000ms
+                lo(op)
+
 
 
     read: (unit-no=0, address-type, address, size, handler) ->
@@ -103,9 +113,17 @@ class HostlinkActor extends Actor
         @socket.write _packet
         @read-handler = handler
 
-    write: (addres-type, address, data) ->
-        @socket.write "@00RD0000000157*\r"
-        #socket.pipe socket
+    write: (unit-no=0, address-type, address, data) ->
+        unit-no = "00#{unit-no}".slice -2
+        address = "0000#{address}".slice -4
+
+        data = map ((d) -> "0000#{d}".slice -4), data
+        data = join '', data
+
+        packet = "@#{unit-no}W#{address-type}#{address}#{data}"
+        _packet = "#{packet}#{calc-fcs packet}*\r"
+        @log.log "sending write packet: #{_packet}"
+        @socket.write _packet
 
 
 class Broker extends Actor
