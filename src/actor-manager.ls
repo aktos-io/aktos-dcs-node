@@ -1,10 +1,31 @@
 require! './core': {ActorBase}
-require! 'aea/debug-log': {debug-levels}
+require! 'aea/debug-log': {logger, debug-levels}
 require! 'prelude-ls': {empty}
 
 topic-match = (topic, keypath) ->
-    # returns true if keypath matches with topic
+    # returns true if keypath fits into topic
     # else, return false
+    topic-arr = topic.split '.'
+    keypath-arr = keypath.split '.'
+
+    for index of topic-arr
+        topic-part = try
+            topic-arr[index]
+        catch
+            '*'
+
+        keypath-part = try
+            keypath-arr[index]
+        catch
+            '*'
+
+        topic-part = '*' if keypath-part is '*'
+        keypath-part = '*' if topic-part is '*'
+
+        if topic-part isnt keypath-part
+            console.log "topic-part: #{topic-part}, keypath-part: #{keypath-part}"
+            return false
+    return true
 
 
 do test-topic-match = ->
@@ -20,8 +41,10 @@ do test-topic-match = ->
         * topic: "IoMessage.*", keypath: "IoMessage.my-pin1", expected: true
         * topic: "IoMessage.*", keypath: "IoMessage.my-pin1", expected: true
 
-    for num, example of examples
-        if (example.topic `topic-match` example.keypath) isnt example.expected
+    for num of examples
+        example = examples[num]
+        result = example.topic `topic-match` example.keypath
+        if result isnt example.expected
             throw "Test failed! (\##{num}) "
 
 class _ActorManager extends ActorBase
