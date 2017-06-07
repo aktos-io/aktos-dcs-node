@@ -2,6 +2,28 @@ require! './core': {ActorBase}
 require! 'aea/debug-log': {debug-levels}
 require! 'prelude-ls': {empty}
 
+topic-match = (topic, keypath) ->
+    # returns true if keypath matches with topic
+    # else, return false
+
+
+do test-topic-match = ->
+    examples =
+        * topic: "IoMessage.my-pin1", keypath: "IoMessage.*", expected: true
+        * topic: "IoMessage.my-pin1", keypath: "SomeOther.my-pin1", expected: false
+        * topic: "IoMessage.my-pin1", keypath: "*.my-pin1", expected: true
+        * topic: "IoMessage.my-pin1", keypath: "*.my-pin2", expected: false
+        * topic: "*.my-pin1", keypath: "SomeOther.my-pin1", expected: true
+        * topic: "*.my-pin1", keypath: "SomeOther.my-pin2", expected: false
+        * topic: "IoMessage.my-pin1", keypath: "*.*", expected: true
+        * topic: "IoMessage.*", keypath: "IoMessage.*", expected: true
+        * topic: "IoMessage.*", keypath: "IoMessage.my-pin1", expected: true
+        * topic: "IoMessage.*", keypath: "IoMessage.my-pin1", expected: true
+
+    for num, example of examples
+        if (example.topic `topic-match` example.keypath) isnt example.expected
+            throw "Test failed! (\##{num}) "
+
 class _ActorManager extends ActorBase
     ->
         super \ActorManager
@@ -14,7 +36,8 @@ class _ActorManager extends ActorBase
             #\vv
             #\vvv
             #\v3
-            \v4
+            #\v4
+            \dis-4
         ]
 
     register: (actor) ->
@@ -56,16 +79,18 @@ class _ActorManager extends ActorBase
 
     distribute-msg: (msg) ->
         # distribute subscribe-all messages
+        # log.section prefix: "dis"
         i = 0
-        @log.section \vv, "------------ forwarding message ---------------"
+        @log.section \dis-4, "Subscriptions: ", @subscription-list
+        @log.section \dis-vv, "------------ forwarding message ---------------"
         for topic, actors of @subscription-list
-            @log.section \v, "Distributing topic: #{topic}"
+            @log.section \dis-v, "Distributing topic: #{topic}"
             for actor in actors when actor.actor-id isnt msg.sender
-                @log.section \vv, "------------ forwarding #{topic} message to actor ---------------"
-                @log.section \v, "forwarding msg: #{msg.msg_id} to #{actor.name}"
-                @log.section \vv, "actor: ", actor
-                @log.section \vv, "message: ", msg
-                @log.section \vv, "------------- end of forwarding to actor ---------------"
+                @log.section \dis-vv, "------------ forwarding #{topic} message to actor ---------------"
+                @log.section \dis-v, "forwarding msg: #{msg.msg_id} to #{actor.name}"
+                @log.section \dis-vv, "actor: ", actor
+                @log.section \dis-vv, "message: ", msg
+                @log.section \dis-vv, "------------- end of forwarding to actor ---------------"
 
                 actor.recv msg
                 i++
