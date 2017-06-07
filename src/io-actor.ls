@@ -40,26 +40,20 @@ export class IoActor extends Actor
     sync: (ractive-var, topic=null) ->
         __ = @
         topic = "IoMessage.#{@pin-name}" unless topic
-
         @subscribe topic
 
         unless @ractive
             @log.err "set ractive variable first!"
             return
 
-        do ->
-            silenced = no
-            __.ractive.observe ractive-var, (_new) ->
-                if silenced
-                    silenced := no
-                    return
+        handle = __.ractive.observe ractive-var, (_new) ->
+            _obj = {}
+            _obj[topic] = _new
+            __.fps-exec._call this, __.send, _obj
 
-                _obj = {}
-                _obj[topic] = _new
-                __.fps-exec._call this, __.send, _obj
-
-            __.receive = (msg) ->
-                silenced := yes
-                if topic of msg.payload
-                    # payload has this topic
-                    __.ractive.set ractive-var, msg.payload[topic]
+        __.receive = (msg) ->
+            if topic of msg.payload
+                # payload has this topic
+                handle.silence!
+                __.ractive.set ractive-var, msg.payload[topic]
+                handle.resume!
