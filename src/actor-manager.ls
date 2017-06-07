@@ -1,6 +1,6 @@
 require! './core': {ActorBase}
 require! 'aea/debug-log': {logger, debug-levels}
-require! 'prelude-ls': {empty}
+require! 'prelude-ls': {empty, unique-by, flatten}
 
 topic-match = (topic, keypath) ->
     # returns true if keypath fits into topic
@@ -23,7 +23,7 @@ topic-match = (topic, keypath) ->
         keypath-part = '*' if topic-part is '*'
 
         if topic-part isnt keypath-part
-            console.log "topic-part: #{topic-part}, keypath-part: #{keypath-part}"
+            #console.log "topic-part: #{topic-part}, keypath-part: #{keypath-part}"
             return false
     return true
 
@@ -54,13 +54,15 @@ class _ActorManager extends ActorBase
         @subs-min-list = {}    # 'topic': [list of actors subscribed this topic]
         #@log.level = debug-levels.silent
         @subscription-list = {'*': []}
-        @log.sections =[
+        @log.sections ++= [
             #\v
             #\vv
             #\vvv
             #\v3
             #\v4
-            \dis-4
+            #\dis-4
+            #\dis-v
+            #\dis-vv
         ]
 
     register: (actor) ->
@@ -103,20 +105,27 @@ class _ActorManager extends ActorBase
     distribute-msg: (msg) ->
         # distribute subscribe-all messages
         # log.section prefix: "dis"
-        i = 0
-        @log.section \dis-4, "Subscriptions: ", @subscription-list
-        @log.section \dis-vv, "------------ forwarding message ---------------"
-        for topic, actors of @subscription-list
-            @log.section \dis-v, "Distributing topic: #{topic}"
-            for actor in actors when actor.actor-id isnt msg.sender
-                @log.section \dis-vv, "------------ forwarding #{topic} message to actor ---------------"
-                @log.section \dis-v, "forwarding msg: #{msg.msg_id} to #{actor.name}"
-                @log.section \dis-vv, "actor: ", actor
-                @log.section \dis-vv, "message: ", msg
-                @log.section \dis-vv, "------------- end of forwarding to actor ---------------"
 
-                actor.recv msg
-                i++
+        matching-subscriptions = [actors for topic, actors of @subscription-list
+            when topic `topic-match` msg.topic]
+
+        matching-actors = unique-by (.actor-id), flatten matching-subscriptions
+
+        i = 0
+        @log.section \dis-4, "Topic: #{msg.topic}, Matching actors: ", matching-actors
+        @log.section \dis-5, "Subscriptions: ", @subscription-list
+        @log.section \dis-vv, "------------ forwarding message ---------------"
+
+        @log.section \dis-v, "Distributing topic: #{topic}"
+        for actor in matching-actors when actor.actor-id isnt msg.sender
+            @log.section \dis-vv, "------------ forwarding #{topic} message to actor ---------------"
+            @log.section \dis-v, "forwarding msg: #{msg.msg_id} to #{actor.name}"
+            @log.section \dis-vv, "actor: ", actor
+            @log.section \dis-vv, "message: ", msg
+            @log.section \dis-vv, "------------- end of forwarding to actor ---------------"
+
+            actor.recv msg
+            i++
 
         @log.section \vv, "------------ end of forwarding message, total forward: #{i}---------------"
 

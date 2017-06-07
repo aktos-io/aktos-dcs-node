@@ -26,7 +26,6 @@ class _ProxyActor extends Actor
         __ = @
         super \ProxyActor
         #console.log "Proxy actor is created with id: ", @actor-id
-        @log.sections = []
 
         @token = null
         @connection-listener = (self, connect-str) ->
@@ -57,6 +56,12 @@ class _ProxyActor extends Actor
         @socket.on "disconnect", !~>
             @log.section \v1, "proxy actor says: disconnected"
 
+        @on-receive (msg) ~>
+            @log.section \debug-local, "received msg: ", msg
+            @network-send-raw msg
+
+
+
     update-io: ->
         @network-send UpdateIoMessage: {}
 
@@ -65,11 +70,6 @@ class _ProxyActor extends Actor
         # forward message to inner actors
         @log.section \debug-network, "proxy actor got network message: ", msg
         @send_raw msg
-
-    receive: (msg) ->
-        @log.section \debug-network, "received msg: ", msg
-        @network-send-raw msg
-
 
     network-send: (msg) ->
         @log.section \debug-network, "network-send msg: ", msg

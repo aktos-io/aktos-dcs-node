@@ -11,6 +11,8 @@ export class Actor extends ActorBase
         @mgr = new ActorManager!
 
         @actor-name = name
+        #@log.sections.push \s1
+
         @log.section \bare, "actor \"#{@name}\" created with id: #{@actor-id}"
 
         @msg-seq = 0
@@ -34,12 +36,15 @@ export class Actor extends ActorBase
         subj = [s.split \handle_ .1 for s in methods when s.match /^handle_.+/]
         @log.log "this actor has the following subjects: ", subj, name
 
-    send: (msg) ~>
+    send: (msg-payload, topic="*") ~>
+
+        @log.err "SET TOPIC!" if topic is \*
         try
-            msg-env = envelp msg, @msg-seq++
+            msg-env = envelp msg-payload, @msg-seq++
+            msg-env.topic = topic
             @send_raw msg-env
         catch
-            @log.err "sending message failed. msg: ", msg, "enveloped: ", msg-env, e
+            @log.err "sending message failed. msg: ", msg-payload, "enveloped: ", msg-env, e
 
     send_raw: (msg_raw) ->
         msg_raw.sender = @actor-id

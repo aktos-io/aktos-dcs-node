@@ -27,7 +27,6 @@ export class IoActor extends Actor
             @log.err "no pin_name supplied!"
             return
         @pin-name = pin-name
-        @fps = new FpsExec!
         @subscriptions =
             "IoMessage.#{pin-name}"
             "ConnectionStatus"
@@ -39,21 +38,22 @@ export class IoActor extends Actor
 
     sync: (ractive-var, topic=null) ->
         __ = @
-        topic = "IoMessage.#{@pin-name}" unless topic
-        @subscribe topic
-
         unless @ractive
             @log.err "set ractive variable first!"
             return
 
-        handle = @ractive.observe ractive-var, (_new) ~>
-            _obj = {}
-            _obj[topic] = _new
-            @fps.exec @send, _obj
+        unless topic
+            topic = "IoMessage.#{@pin-name}"
 
-        @receive = (msg) ~>
-            if topic of msg.payload
+        @subscribe topic
+
+        fps = new FpsExec!
+        handle = @ractive.observe ractive-var, (_new) ~>
+            fps.exec @send, _new, topic 
+
+        @on-receive (msg) ~>
+            if msg.topic in @subscriptions
                 # payload has this topic
                 handle.silence!
-                @ractive.set ractive-var, msg.payload[topic]
+                @ractive.set ractive-var, msg.payload
                 handle.resume!

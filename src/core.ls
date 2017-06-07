@@ -7,6 +7,7 @@ export envelp = (msg, msg-id) ->
         timestamp: Date.now! / 1000
         msg_id: msg-id    # {{.actor_id}}.{{serial}}
         payload: msg
+        topic: '*'
         token: ''
 
 export get-msg-body = (msg) ->
@@ -20,17 +21,20 @@ export class ActorBase
         @name = name
         @log = new logger (@name or @actor-id)
 
-    receive: (msg) ->
-        @log.log "catch-all received", msg.text
+        @receive-handlers = []
+
+    on-receive: (handler) ->
+        @log.section \debug1, "adding handler to run on-receive..."
+        if typeof! handler isnt \Function
+            @log.err "parameter passed to 'on-receive' should be a function."
+            return
+        @receive-handlers.push handler
 
     recv: (msg) ->
         try
-            subjects = [subj for subj of msg.payload]
-            for subject in subjects
-                try
-                    @log.debug-log "trying to call handle_#subject()"
-                    this['handle_' + subject] msg
-                catch
-                    @receive msg
+            # distribute according to subscriptions
+            for handler in @receive-handlers
+                @log.section \recv-debug, "firing receive handler..."
+                handler.call this, msg
         catch
-            @log.log "problem in handler: ", e
+            @log.err "problem in handler: ", e
