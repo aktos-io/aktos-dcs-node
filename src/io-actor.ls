@@ -46,14 +46,14 @@ export class IoActor extends Actor
             @log.err "set ractive variable first!"
             return
 
-        handle = @ractive.observe ractive-var, (_new) ->
+        handle = @ractive.observe ractive-var, (_new) ~>
             _obj = {}
             _obj[topic] = _new
-            __.fps.exec __.send, _obj
+            @fps.exec @send, _obj
 
-        @receive = (msg) ->
+        @receive = (msg) ~>
             if topic of msg.payload
                 # payload has this topic
                 handle.silence!
-                __.ractive.set ractive-var, msg.payload[topic]
+                @ractive.set ractive-var, msg.payload[topic]
                 handle.resume!
