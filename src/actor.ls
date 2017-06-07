@@ -18,9 +18,8 @@ export class Actor extends ActorBase
 
         # registering to ActorManager requires completion of this
         # constructor, so manually switch the context
-        _this = @
-        <- sleep 10ms
-        _this.mgr.register _this
+        <~ sleep 10ms
+        @mgr.register this
 
     subscribe: (topic) ->
         # log section prefix: s1
