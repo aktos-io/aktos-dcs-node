@@ -5,6 +5,7 @@ require! 'prelude-ls': {
     map, join
 }
 require! 'aea': {sleep}
+require! 'aea/signal': {watchdog, watchdog-kick}
 
 
 A_TYPES =
@@ -13,7 +14,7 @@ A_TYPES =
     holding: 'H'
 
 calc-fcs = (packet) ->
-    hex = (n) -> n.to-string 16
+    hex = (n) -> n.to-string 16 .to-upper-case!
     fcs = 0
     for c in chars packet
         fcs = fcs .^. c.charCodeAt(0)
@@ -23,6 +24,7 @@ do test-calc-fcs = ->
     examples =
         * packet: "@00RD00000001", expected: "57"
         * packet: "@00RD00000002", expected: "54"
+        * packet: "@00RD000008", expected: "5E"
 
     for index of examples
         example = examples[index]
@@ -78,25 +80,29 @@ class HostlinkActor extends Actor
 
         @socket.on \data, (data) ~>
             packet = data.to-string!
-            @log.log "packet received: ", packet
+            #@log.log "packet received: ", packet
             try
                 check-hostlink-packet packet
                 data-part = get-data packet
-                @read-handler data-part if typeof! @read-handler is \Function 
+                if typeof! @read-handler is \Function
+                    @read-handler data-part
             catch e
                 @log.err "Problem: ", e
 
-        ->
-            <~ :lo(op) ~>
-                data <~ @read 0, A_TYPES.data, 1254, 1
-                @log.log "read function returned: ", data
-                <~ sleep 1000ms
-                lo(op)
         do ~>
             @log.log "starting write loop"
             <~ :lo(op) ~>
-                @log.log "sending write packet...."
-                @write 0, A_TYPES.data, 1254, [9999]
+                @log.log "reading package...."
+                data <~ @read 0, A_TYPES.data, 1254, 1
+                @log.log "package has been read!"
+                try
+                    my = parse-int data.0
+                    throw 'not a number?' if my % 1 isnt 0
+                catch
+                    @log.log "is it a number: ", data.0
+                    my = 5
+                <~ sleep 1000ms 
+                <~ @write 0, A_TYPES.data, 1254, [++my]
                 <~ sleep 1000ms
                 lo(op)
 
@@ -109,11 +115,11 @@ class HostlinkActor extends Actor
 
         packet = "@#{unit-no}R#{address-type}#{address}#{size}"
         _packet = "#{packet}#{calc-fcs packet}*\r"
-        @log.log "packet sent: #{_packet}"
+        #@log.log "packet sent: #{_packet}"
         @socket.write _packet
         @read-handler = handler
 
-    write: (unit-no=0, address-type, address, data) ->
+    write: (unit-no=0, address-type, address, data, handler) ->
         unit-no = "00#{unit-no}".slice -2
         address = "0000#{address}".slice -4
 
@@ -124,6 +130,7 @@ class HostlinkActor extends Actor
         _packet = "#{packet}#{calc-fcs packet}*\r"
         @log.log "sending write packet: #{_packet}"
         @socket.write _packet
+        @read-handler = handler
 
 
 class Broker extends Actor
