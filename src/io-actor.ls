@@ -49,7 +49,7 @@ export class IoActor extends Actor
         handle = __.ractive.observe ractive-var, (_new) ->
             _obj = {}
             _obj[topic] = _new
-            __.fps-exec._call this, __.send, _obj
+            __.fps-exec.exec __.send, _obj
 
         __.receive = (msg) ->
             if topic of msg.payload
