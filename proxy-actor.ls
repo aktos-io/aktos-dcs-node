@@ -1,4 +1,5 @@
-require! './core': {Actor, envelp}
+require! './actor': {Actor}
+require! 'aea/debug-log': {debug-levels}
 require! 'prelude-ls': {
     initial,
     drop,
@@ -25,7 +26,8 @@ class _ProxyActor extends Actor
         __ = @
         super \ProxyActor
         #console.log "Proxy actor is created with id: ", @actor-id
-
+        @log.sections = []
+        
         @token = null
         @connection-listener = (self, connect-str) ->
 
@@ -37,7 +39,7 @@ class _ProxyActor extends Actor
         addr_port = arr.0 + "//" + arr.2
         socketio-path = [''] ++ (initial (drop 3, arr)) ++ ['socket.io']
         socketio-path = join '/' socketio-path
-        @log.log "socket-io path: #{socketio-path}, url: #{url}"
+        @log.section \conn1, "socket-io path: #{socketio-path}, url: #{url}"
         # FIXME: HARDCODED SOCKET.IO PATH
         socketio-path = "/socket.io"
 
@@ -46,13 +48,14 @@ class _ProxyActor extends Actor
             path: socketio-path
 
         # send to server via socket.io
-        @socket.on 'aktos-message', (msg) ~> @network-receive msg
+        @socket.on 'aktos-message', (msg) ~>
+            @network-receive msg
 
         @socket.on "connect", !~>
-            @log.log "Connected to server with id: ", __.socket.io.engine.id
+            @log.section \v1, "Connected to server with id: ", __.socket.io.engine.id
 
         @socket.on "disconnect", !~>
-            @log.log "proxy actor says: disconnected"
+            @log.section \v1, "proxy actor says: disconnected"
 
     update-io: ->
         @network-send UpdateIoMessage: {}
@@ -60,15 +63,16 @@ class _ProxyActor extends Actor
     network-receive: (msg) ->
         # receive from server via socket.io
         # forward message to inner actors
-        @log.debug-log "proxy actor got network message: ", msg
+        @log.section \debug-network, "proxy actor got network message: ", msg
         @send_raw msg
 
     receive: (msg) ->
-        @log.debug-log "received msg: ", msg
+        @log.section \debug-network, "received msg: ", msg
         @network-send-raw msg
 
 
     network-send: (msg) ->
+        @log.section \debug-network, "network-send msg: ", msg
         @network-send-raw (envelp msg, @get-msg-id!)
 
     network-send-raw: (msg) ->

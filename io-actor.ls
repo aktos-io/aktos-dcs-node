@@ -16,8 +16,7 @@ IoActor is an actor that subscribes IoMessage messages
 
  */
 
-require! './core': {get-msg-body, Actor}
-require! 'aea/debug-log': {logger}
+require! './actor': {Actor}
 
 export class IoActor extends Actor
     (pin-name) ->
@@ -34,14 +33,33 @@ export class IoActor extends Actor
 
         @log.log "actor is created with the following name: ", @actor-name, "and ID: #{@actor-id}"
 
-    send-val: (val) ->
-        @log.log "sending simple value: ", val
-        @send IoMessage:
-            pin_name: @pin-name
-            val: val
-
-    handle_IoMessage: (msg) ->
-        ...
-
     handle_ConnectionStatus: (msg) ->
         @log.log "Not implemented, message: ", msg
+
+    sync: (ractive-var, topic=null) ->
+        __ = @
+        topic = "IoMessage.#{@pin-name}" unless topic
+
+        @subscribe topic
+
+        unless @ractive
+            @log.err "set ractive variable first!"
+            return
+
+        do ->
+            silenced = no
+            __.ractive.observe ractive-var, (_new) ->
+                if silenced
+                    silenced := no
+                    return
+                __.log.log "sending #{_new}"
+
+                _obj = {}
+                _obj[topic] = _new
+                __.send _obj
+
+            __.receive = (msg) ->
+                silenced := yes
+                if topic of msg.payload
+                    # payload has this topic
+                    __.ractive.set ractive-var, msg.payload[topic]
