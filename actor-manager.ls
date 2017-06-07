@@ -9,17 +9,18 @@ class _ActorManager extends ActorBase
         @subs-min-list = {}    # 'topic': [list of actors subscribed this topic]
         #@log.level = debug-levels.silent
         @subscription-list = {'*': []}
-        @log.sections =
+        @log.sections =[
             #\v
             #\vv
             #\vvv
-            \v3
+            #\v3
             \v4
+        ]
 
     register: (actor) ->
         if actor.actor-id not in [..id for @actor-list]
-            @actor-list.push {id: actor.actor-id, actor: actor, subscriptions: []}
-            @log.log "\"#{actor.actor-id}\" has been registered. total: #{@actor-list.length}"
+            @actor-list.push {id: actor.actor-id, actor: actor}
+            @log.section \v, """\"#{actor.actor-id}\" #{"(#{actor.name})" if actor.name}has been registered. total: #{@actor-list.length}"""
         else
             @log.err "This actor has been registered before!", actor
 
@@ -29,22 +30,25 @@ class _ActorManager extends ActorBase
         # log section prefix: v3
         # update subscriptions
         for i in @actor-list
-            if '*' in i.subscriptions or empty i.subscriptions
-                @subscription-list['*'].push i.actor
+            if '*' in i.actor.subscriptions or empty i.actor.subscriptions
+                s = @subscription-list['*']
+                if i.actor.actor-id not in [..actor-id for s]
+                    s.push i.actor
                 continue
             else
-                for topic in i.subscriptions
-                    try
-                        @subscription-list[topic].push i.actor
-                    catch
-                        @subscription-list[topic] = [i.actor]
+                for topic in i.actor.subscriptions
+                    unless @subscription-list[topic]
+                        @subscription-list[topic] = []
+                    s = @subscription-list[topic]
+                    if i.actor.actor-id not in [..actor-id for s]
+                        s.push i.actor
+
         @log.section \v3, "Subscriptions: ", @subscription-list
 
     subscribe-actor: (actor) ->
         # log section prefix: v4
         entry = [.. for @actor-list when ..id is actor.actor-id]
         entry.subscriptions = actor.subscriptions
-        @log.section \v4,
         @update-subscriptions!
 
     inbox-put: (msg) ->

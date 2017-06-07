@@ -28,10 +28,10 @@ export class IoActor extends Actor
         @pin-name = pin-name
 
         @subscriptions =
-            "IoMessage.pin_name.#{pin-name}"
+            "IoMessage.#{pin-name}"
             "ConnectionStatus"
 
-        @log.log "actor is created with the following name: ", @actor-name, "and ID: #{@actor-id}"
+        @log.section \vvv, "actor is created with the following name: ", @actor-name, "and ID: #{@actor-id}"
 
     handle_ConnectionStatus: (msg) ->
         @log.log "Not implemented, message: ", msg
@@ -52,7 +52,6 @@ export class IoActor extends Actor
                 if silenced
                     silenced := no
                     return
-                __.log.log "sending #{_new}"
 
                 _obj = {}
                 _obj[topic] = _new
