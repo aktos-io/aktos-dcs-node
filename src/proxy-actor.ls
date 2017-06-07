@@ -27,7 +27,7 @@ class _ProxyActor extends Actor
         super \ProxyActor
         #console.log "Proxy actor is created with id: ", @actor-id
         @log.sections = []
-        
+
         @token = null
         @connection-listener = (self, connect-str) ->
 

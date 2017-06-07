@@ -35,7 +35,7 @@ export class Actor extends ActorBase
         subj = [s.split \handle_ .1 for s in methods when s.match /^handle_.+/]
         @log.log "this actor has the following subjects: ", subj, name
 
-    send: (msg) ->
+    send: (msg) ~>
         try
             msg-env = envelp msg, @msg-seq++
             @send_raw msg-env

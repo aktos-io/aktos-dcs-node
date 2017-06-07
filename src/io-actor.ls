@@ -17,6 +17,7 @@ IoActor is an actor that subscribes IoMessage messages
  */
 
 require! './actor': {Actor}
+require! './filters': {FpsExec}
 
 export class IoActor extends Actor
     (pin-name) ->
@@ -26,7 +27,7 @@ export class IoActor extends Actor
             @log.err "no pin_name supplied!"
             return
         @pin-name = pin-name
-
+        @fps-exec = new FpsExec!
         @subscriptions =
             "IoMessage.#{pin-name}"
             "ConnectionStatus"
@@ -55,7 +56,7 @@ export class IoActor extends Actor
 
                 _obj = {}
                 _obj[topic] = _new
-                __.send _obj
+                __.fps-exec._call this, __.send, _obj
 
             __.receive = (msg) ->
                 silenced := yes
