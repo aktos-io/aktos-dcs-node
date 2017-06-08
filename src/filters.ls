@@ -1,8 +1,8 @@
 require! 'aea': {sleep}
 
 export class FpsExec
-    ->
-        @period = 1000ms / 30fps
+    (fps=30fps) ->
+        @period = 1000ms / fps
         @timer = null
         @last-sent = 0
 
