@@ -2,9 +2,6 @@ require! 'net'
 require! './actor': {Actor}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {drop, reverse}
-argv = require 'yargs' .argv
-
-instance-name = argv.instance
 
 hex = (n) ->
     n.to-string 16 .to-upper-case!
@@ -75,7 +72,7 @@ class BrokerHandler extends Actor
         catch
             @kill!
 
-class Broker extends Actor
+export class Broker extends Actor
     ->
         super \Broker
         @server = null
@@ -133,23 +130,3 @@ class Broker extends Actor
 
             @log.log "Launching BrokerHandler for client mode..."
             @client-actor = new BrokerHandler @client
-
-new Broker!
-
-class Simulator extends Actor
-    ->
-        super ...
-
-        @on-receive (msg) ~>
-            @log.log "got message: ", msg.payload
-
-    action: ->
-        do ~>
-            <~ :lo(op) ~>
-                msg = "message from #{@name}...."
-                @log.log "sending #{msg}"
-                @send msg, '**' # send broadcast
-                <~ sleep 2000ms
-                lo(op)
-
-new Simulator "simulator-#{instance-name}"
