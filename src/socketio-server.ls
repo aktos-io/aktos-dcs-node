@@ -14,7 +14,7 @@ class SocketIOHandler extends Actor
 
         @log.sections ++= [
             #\debug-kill
-            #\debug-redirect
+            \debug-redirect
         ]
 
         # actor behaviours
