@@ -1,5 +1,6 @@
 require! 'net'
 require! 'aktos-dcs/src/actor': {Actor}
+require! 'aktos-dcs/src/filters': {FpsExec}
 require! 'prelude-ls': {
     chars, take, split-at, drop
     map, join
@@ -78,6 +79,7 @@ class HostlinkActor extends Actor
         @socket = socket
 
         @subscribe "IoMessage.my-test-pin3"
+        @fps = new FpsExec 2fps
 
         @socket.on \data, (data) ~>
             packet = data.to-string!
@@ -148,7 +150,8 @@ class HostlinkActor extends Actor
         packet = "@#{unit-no}W#{address-type}#{address}#{data}"
         _packet = "#{packet}#{calc-fcs packet}*\r"
         @log.log "sending write packet: #{_packet}"
-        @socket.write _packet
+        @fps.exec2 @socket, @socket.write, _packet
+        #@socket.write _packet
         @read-handler = handler
 
 

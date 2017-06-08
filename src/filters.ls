@@ -21,6 +21,17 @@ export class FpsExec
             func.apply this, args
 
 
+    exec2: (context, func, ...args) ->
+        try
+            # do not send repetative messages in the time window
+            if @now! > @last-sent + @period
+                @last-sent = @now!
+                # ready to send
+            else
+                clear-timeout @timer
+        @timer = sleep @period, ->
+            func.apply context, args
+
 # ------------------- CLEANUP BELOW --------------------------- #
 message-history = []    # msg_id, timestamp
 
