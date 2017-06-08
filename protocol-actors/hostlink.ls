@@ -76,7 +76,8 @@ class HostlinkActor extends Actor
     (socket) ->
         super!
         @socket = socket
-        @log.log "Device connected."
+
+        @subscribe "IoMessage.my-test-pin1"
 
         @socket.on \data, (data) ~>
             packet = data.to-string!
@@ -89,7 +90,17 @@ class HostlinkActor extends Actor
             catch e
                 @log.err "Problem: ", e
 
+
+        @on-receive (msg) ~>
+            @log.log "Hostlink actor got message from local interface: ", msg
+            <~ @write 0, A_TYPES.data, 1254, [msg.payload]
+            @log.log "...written"
+
     action: ->
+        @log.log "A Hostlink device is connected."
+
+    action-disabled: ->
+        @log.log "A Hostlink device is connected."
         /*
             TODO:
 
