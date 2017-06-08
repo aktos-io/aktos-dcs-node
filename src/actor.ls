@@ -68,7 +68,7 @@ export class Actor extends ActorBase
             return
         @kill-handlers.push handler
 
-    kill: (reason) ->
+    kill: (...reason) ->
         unless @_state.kill.started
             @_state.kill.started = yes
             @log.section \debug-kill, "deregistering from manager"
@@ -76,7 +76,7 @@ export class Actor extends ActorBase
             @log.section \debug-kill, "deregistered from manager"
             try
                 for handler in @kill-handlers
-                    handler.call this, reason
+                    handler.apply this, reason
             catch
                 @log.err "problem in kill handler: ", e
 

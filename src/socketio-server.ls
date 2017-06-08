@@ -17,22 +17,20 @@ class SocketIOHandler extends Actor
             #\debug-redirect
         ]
 
+        # actor behaviours
         @on-receive (msg) ~>
             @network-send msg
 
-        @on-kill ->
-            @socket.end!
-            @socket.destroy 'KILLED'
-
-        # socket actions
-        @socket.on \disconnect, ~>
+        @on-kill (reason, e) ->
+            @log.log "Killing actor: #{reason}", e
             @log.log "TODO: decrase total user count!"
+
+        # socket behaviours
+        @socket.on \disconnect, ~>
+            @log.log "Client disconnected, killing actor. "
             @kill!
 
-
         @socket.on "aktos-message", (msg) ~>
-            @log.log "aktos-message from browser: ", msg
-
             @network-receive msg
 
     action: ->
@@ -42,12 +40,12 @@ class SocketIOHandler extends Actor
         @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
         @send_raw msg
 
-    network-send: (data) ->
+    network-send: (msg) ->
         try
             @log.section \debug-redirect, "redirecting msg from 'local' interface to 'network' interface"
             @socket.emit 'aktos-message', msg
         catch
-            @kill "NETWORK_SEND_FAILED"
+            @kill "NETWORK_SEND_FAILED", e
 
 export class SocketIOServer extends Actor
     (io) ->
@@ -56,7 +54,7 @@ export class SocketIOServer extends Actor
         @connected-user-count = 0
 
         @io.on 'connection', (socket) ~>
-            # launch a new handler 
+            # launch a new handler
             new SocketIOHandler socket
 
             # track online users
