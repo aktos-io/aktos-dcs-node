@@ -22,7 +22,7 @@ ProxyActor is also responsible from security.
 */
 
 class _ProxyActor extends Actor
-    ->
+    (server-addr) ->
         __ = @
         super \ProxyActor
         #console.log "Proxy actor is created with id: ", @actor-id
@@ -33,6 +33,7 @@ class _ProxyActor extends Actor
         # calculate socket.io path
         # -----------------------------------------------------------
         /* initialize socket.io connections */
+        /*
         url = String window.location .split '#' .0
         arr = url.split "/"
         addr_port = arr.0 + "//" + arr.2
@@ -41,10 +42,9 @@ class _ProxyActor extends Actor
         @log.section \conn1, "socket-io path: #{socketio-path}, url: #{url}"
         # FIXME: HARDCODED SOCKET.IO PATH
         socketio-path = "/socket.io"
-
-        @socket = io.connect do
-            port: addr_port
-            path: socketio-path
+        */
+        a = server-addr
+        @socket = io.connect "#{a.host}:#{a.port}", resource: "#{a.path or "/socket.io"}"
 
         # send to server via socket.io
         @socket.on 'aktos-message', (msg) ~>
@@ -93,5 +93,5 @@ class _ProxyActor extends Actor
 export class ProxyActor
     instance = null
     ->
-        instance ?:= new _ProxyActor!
+        instance ?:= new _ProxyActor ...
         return instance
