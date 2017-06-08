@@ -89,7 +89,7 @@ class HostlinkActor extends Actor
             catch e
                 @log.err "Problem: ", e
 
-
+    action: ->
         /*
             TODO:
 
@@ -114,8 +114,6 @@ class HostlinkActor extends Actor
                 <~ @write 0, A_TYPES.data, 1254, [++my]
                 <~ sleep 1000ms
                 lo(op)
-
-
 
     read: (unit-no=0, address-type, address, size, handler) ->
         unit-no = "00#{unit-no}".slice -2
