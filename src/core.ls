@@ -30,6 +30,10 @@ export class ActorBase
             return
         @receive-handlers.push handler
 
+
+    receive: ->
+        ...
+
     recv: (msg) ->
         try
             # distribute according to subscriptions
