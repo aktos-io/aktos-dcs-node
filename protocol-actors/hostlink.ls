@@ -1,5 +1,5 @@
 require! 'net'
-require! './actor': {Actor}
+require! 'aktos-dcs/src/actor': {Actor}
 require! 'prelude-ls': {
     chars, take, split-at, drop
     map, join
@@ -140,7 +140,7 @@ class HostlinkActor extends Actor
         @read-handler = handler
 
 
-class HostlinkServerActor extends Actor
+export class HostlinkServerActor extends Actor
     ->
         super ...
         @server = null
@@ -152,22 +152,3 @@ class HostlinkServerActor extends Actor
 
         @server.listen 5522, '0.0.0.0', ~>
             @log.log "Broker started listening..."
-
-
-class Broker extends Actor
-    ->
-        super ...
-        @server = null
-        @create-server!
-
-    create-server: ->
-        @server = net.create-server (socket) ->
-            new HostlinkActor socket
-
-        @server.listen 5522, '0.0.0.0', ~>
-            @log.log "Broker started listening..."
-
-
-
-
-new HostlinkServerActor!
