@@ -1,5 +1,6 @@
 require! './core': {ActorBase}
 require! 'aea/debug-log': {logger, debug-levels}
+require! 'aea': {pack, unpack}
 require! 'prelude-ls': {empty, unique-by, flatten, reject, max}
 require! 'micromatch'
 
@@ -96,7 +97,8 @@ class _ActorManager extends ActorBase
         @actor-list = [] # actor-object
         @subs-min-list = {}    # 'topic': [list of actors subscribed this topic]
         #@log.level = debug-levels.silent
-        @subscription-list = {'**': []}
+        @update-subscriptions!
+
         @log.sections ++= [
             #\v
             #\vv
@@ -107,9 +109,11 @@ class _ActorManager extends ActorBase
             #\dis-v
             #\dis-vv
             #\dis-5
+            #\dis-vv7
+            #\deregister
         ]
 
-    register: (actor) ->
+    register: (actor) ~>
         if actor.actor-id not in [..actor-id for @actor-list]
             @actor-list.push actor
             @log.section \v, """\"#{actor.actor-id}\" #{"(#{actor.name})" if actor.name}has been registered. total: #{@actor-list.length}"""
@@ -118,16 +122,20 @@ class _ActorManager extends ActorBase
 
         @update-subscriptions!
 
-    deregister: (actor) ->
-        @log.log "deregistering actor: #{actor.actor-id}"
+    deregister: (actor) ~>
+        @log.section \deregister, "deregistering actor: #{actor.actor-id}"
+        @log.section \deregister, "actor count before: ", @actor-list.length
         @actor-list = reject (.actor-id is actor.actor-id), @actor-list
+        @log.section \deregister, "actor count after: ", @actor-list.length
         @update-subscriptions!
 
     update-subscriptions: ->
         # log section prefix: v3
         # update subscriptions
+        @subscription-list = unpack pack {'**': []}
+
         for actor in @actor-list
-            continue if actor.subscriptions is void 
+            continue if actor.subscriptions is void
             if '**' in actor.subscriptions or empty actor.subscriptions
                 s = @subscription-list['**']
                 if actor.actor-id not in [..actor-id for s]
@@ -169,7 +177,7 @@ class _ActorManager extends ActorBase
 
         @log.section \dis-v, "Distributing topic: #{msg.topic}"
         for actor in matching-actors
-            @log.section \dis-vv, "------------ forwarding #{msg.topic} message to actor ---------------"
+            @log.section \dis-vv7, "------------ forwarding #{msg.topic} message to actor #{actor.actor-id} ---------------"
             @log.section \dis-v, "forwarding msg: #{msg.msg_id} to #{actor.name}"
             @log.section \dis-vv, "actor: ", actor
             @log.section \dis-vv, "message: ", msg

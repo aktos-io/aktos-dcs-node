@@ -2,6 +2,9 @@ require! 'net'
 require! './actor': {Actor}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {drop, reverse}
+argv = require 'yargs' .argv
+
+instance-name = argv.instance
 
 hex = (n) ->
     n.to-string 16 .to-upper-case!
@@ -24,9 +27,14 @@ class BrokerHandler extends Actor
         This handler simply forwards from `network` interface to `local`
         interface and vice versa.
         """
-        socket.name = "H#{ip-to-hex (drop 7, socket.remoteAddress)}:#{hex socket.remotePort}"
-        super socket.name
         @socket = socket
+        @socket.name = "H#{ip-to-hex (drop 7, socket.remoteAddress)}:#{hex socket.remotePort}"
+        super @socket.name
+
+        @log.sections ++= [
+            #\debug-kill
+            #\debug-redirect
+        ]
 
         @on-receive (msg) ~>
             @network-send msg
@@ -37,7 +45,12 @@ class BrokerHandler extends Actor
 
         # socket actions
         @socket.on \error, (e) ~>
-            @log.err "Socket Error: ", e
+            if e.code in <[ EPIPE ECONNREFUSED ECONNRESET ETIMEDOUT ]>
+                @log.err "Socket Error: ", e.code
+            else
+                @log.err "Socket Error: ", e
+
+            @log.log "This actor should be killed!"
             @kill!
 
         @socket.on \data, (data) ~>
@@ -52,13 +65,14 @@ class BrokerHandler extends Actor
         @log.log "BrokerHandler is connected to remote point. This is: #{@name}"
 
     network-receive: (msg) ->
+        @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
         @send_raw msg
 
     network-send: (data) ->
         try
+            @log.section \debug-redirect, "redirecting msg from 'local' interface to 'network' interface"
             @socket.write pack data
         catch
-            @log.err "THIS ACTOR SHOULD HAVE BEEN KILLED!!!"
             @kill!
 
 class Broker extends Actor
@@ -132,13 +146,10 @@ class Simulator extends Actor
     action: ->
         do ~>
             <~ :lo(op) ~>
-                msg = "sending test message from #{@name}...."
-                @log.log msg
-                @send msg, '*' # send broadcast
+                msg = "message from #{@name}...."
+                @log.log "sending #{msg}"
+                @send msg, '**' # send broadcast
                 <~ sleep 2000ms
                 lo(op)
 
-
-
-new Simulator \one
-new Simulator \two
+new Simulator "simulator-#{instance-name}"

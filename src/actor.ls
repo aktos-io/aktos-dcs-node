@@ -11,14 +11,16 @@ export class Actor extends ActorBase
         @mgr = new ActorManager!
 
         @actor-name = name
-        #@log.sections.push \s1
+        @log.sections ++= [
+            #\s1
+        ]
 
         @log.section \bare, "actor \"#{@name}\" created with id: #{@actor-id}"
 
         @msg-seq = 0
         @subscriptions = [] # subscribe all topics by default.
         # if you want to unsubscribe from all topics, do teh following:
-        # @subscriptions = void 
+        # @subscriptions = void
 
         @kill-handlers = []
 
@@ -47,11 +49,7 @@ export class Actor extends ActorBase
         subj = [s.split \handle_ .1 for s in methods when s.match /^handle_.+/]
         @log.log "this actor has the following subjects: ", subj, name
 
-    send: (msg-payload, topic=null) ~>
-
-        unless topic
-            @log.err "send: SET TOPIC! (setting topic to '*')"
-            topic = "*"
+    send: (msg-payload, topic='') ~>
         try
             msg-env = envelp msg-payload, @msg-seq++
             msg-env.topic = topic
@@ -71,9 +69,11 @@ export class Actor extends ActorBase
         @kill-handlers.push handler
 
     kill: (reason) ->
-        @_state.kill.started = yes
         unless @_state.kill.started
+            @_state.kill.started = yes
+            @log.section \debug-kill, "deregistering from manager"
             @mgr.deregister this
+            @log.section \debug-kill, "deregistered from manager"
             try
                 for handler in @kill-handlers
                     handler.call this, reason
