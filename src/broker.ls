@@ -59,7 +59,7 @@ class BrokerHandler extends Actor
                 @log.err e
 
     action: ->
-        @log.log "BrokerHandler is connected to remote point. This is: #{@name}"
+        @log.log "BrokerHandler is launched."
 
     network-receive: (msg) ->
         @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
