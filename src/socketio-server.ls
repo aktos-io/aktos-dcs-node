@@ -1,7 +1,7 @@
 require! './actor': {Actor}
 
 class SocketIOHandler extends Actor
-    (socket, name) ->
+    (socket, opts) ->
         """
         SocketIO handler(s) are just simple forwarders between a socket.io client
         and the ActorManager.
@@ -10,8 +10,9 @@ class SocketIOHandler extends Actor
         interface and vice versa.
         """
         @socket = socket
-        super (name or @socket.id)
+        super (opts.name or @socket.id)
 
+        @online-counter = opts.counter
         @log.sections ++= [
             #\debug-kill
             #\debug-redirect
@@ -22,13 +23,13 @@ class SocketIOHandler extends Actor
             @network-send msg
 
         @on-kill (reason, e) ->
-            @log.log "Killing actor: #{reason}", e
-            @log.log "TODO: decrase total user count!"
+            @log.log "Killing actor. Reason: #{reason}"
+            @online-counter--
 
         # socket behaviours
         @socket.on \disconnect, ~>
-            @log.log "Client disconnected, killing actor. "
-            @kill!
+            #@log.log "Client disconnected, killing actor. "
+            @kill \disconnect, 0
 
         @socket.on "aktos-message", (msg) ~>
             @network-receive msg
@@ -55,12 +56,13 @@ export class SocketIOServer extends Actor
         @handler-counter = 0
 
         @io.on 'connection', (socket) ~>
-            # launch a new handler
-            new SocketIOHandler socket, "socketio-#{++@handler-counter}"
-
             # track online users
             @connected-user-count++
-            @log.log "Total online user count: #{@connected-user-count}"
+
+            # launch a new handler
+            new SocketIOHandler socket, do
+                name: "socketio-#{++@handler-counter}"
+                counter: @connected-user-count
 
     action: ->
         @log.log "SocketIO server started..."
