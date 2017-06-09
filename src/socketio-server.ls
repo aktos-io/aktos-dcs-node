@@ -1,7 +1,7 @@
 require! './actor': {Actor}
 
 class SocketIOHandler extends Actor
-    (socket) ->
+    (socket, name) ->
         """
         SocketIO handler(s) are just simple forwarders between a socket.io client
         and the ActorManager.
@@ -10,7 +10,7 @@ class SocketIOHandler extends Actor
         interface and vice versa.
         """
         @socket = socket
-        super @socket.id
+        super (name or @socket.id)
 
         @log.sections ++= [
             #\debug-kill
@@ -52,10 +52,11 @@ export class SocketIOServer extends Actor
         super 'SocketIO Server'
         @io = io
         @connected-user-count = 0
+        @handler-counter = 0
 
         @io.on 'connection', (socket) ~>
             # launch a new handler
-            new SocketIOHandler socket
+            new SocketIOHandler socket, "socketio-#{++@handler-counter}"
 
             # track online users
             @connected-user-count++

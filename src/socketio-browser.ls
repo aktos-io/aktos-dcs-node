@@ -21,10 +21,15 @@ ProxyActor is also responsible from security.
 
 */
 
-class _ProxyActor extends Actor
+export class SocketIOBrowser extends Actor
+    @instance = null
     (server-addr) ->
+        # Make this class Singleton
+        return @@instance if @@instance
+        @@instance = this
+
         __ = @
-        super \ProxyActor
+        super \SocketIOBrowser
         #console.log "Proxy actor is created with id: ", @actor-id
 
         @token = null
@@ -88,10 +93,3 @@ class _ProxyActor extends Actor
 
         msg.token = @token
         @socket.emit 'aktos-message', msg
-
-
-export class ProxyActor
-    instance = null
-    ->
-        instance ?:= new _ProxyActor ...
-        return instance

@@ -1,5 +1,6 @@
 require! 'net'
-require! './actor': {Actor}
+require! 'aktos-dcs/src/actor': {Actor}
+require! 'aktos-dcs/src/filters': {FpsExec}
 require! 'prelude-ls': {
     chars, take, split-at, drop
     map, join
@@ -76,7 +77,9 @@ class HostlinkActor extends Actor
     (socket) ->
         super!
         @socket = socket
-        @log.log "Device connected."
+
+        @subscribe "IoMessage.my-test-pin3"
+        @fps = new FpsExec 2fps
 
         @socket.on \data, (data) ~>
             packet = data.to-string!
@@ -89,7 +92,18 @@ class HostlinkActor extends Actor
             catch e
                 @log.err "Problem: ", e
 
+
+        @on-receive (msg) ~>
+            x = parse-int msg.payload
+            #@log.log "Hostlink actor got message from local interface: ", x
+            <~ @write 0, A_TYPES.data, 1254, [x]
+            #@log.log "...written"
+
     action: ->
+        @log.log "A Hostlink device is connected."
+
+    action-disabled: ->
+        @log.log "A Hostlink device is connected."
         /*
             TODO:
 
@@ -136,11 +150,12 @@ class HostlinkActor extends Actor
         packet = "@#{unit-no}W#{address-type}#{address}#{data}"
         _packet = "#{packet}#{calc-fcs packet}*\r"
         @log.log "sending write packet: #{_packet}"
-        @socket.write _packet
+        @fps.exec-context @socket, @socket.write, _packet
+        #@socket.write _packet
         @read-handler = handler
 
 
-class HostlinkServerActor extends Actor
+export class HostlinkServerActor extends Actor
     ->
         super ...
         @server = null
@@ -152,22 +167,3 @@ class HostlinkServerActor extends Actor
 
         @server.listen 5522, '0.0.0.0', ~>
             @log.log "Broker started listening..."
-
-
-class Broker extends Actor
-    ->
-        super ...
-        @server = null
-        @create-server!
-
-    create-server: ->
-        @server = net.create-server (socket) ->
-            new HostlinkActor socket
-
-        @server.listen 5522, '0.0.0.0', ~>
-            @log.log "Broker started listening..."
-
-
-
-
-new HostlinkServerActor!
