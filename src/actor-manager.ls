@@ -91,8 +91,14 @@ do test-topic-match = ->
             console.log "---------------------------------------------------"
             process.exit 1
 
-class _ActorManager extends ActorBase
+
+export class ActorManager extends ActorBase
+    @instance = null
     ->
+        # Make this class Singleton
+        return @@instance if @@instance
+        @@instance = this
+
         super \ActorManager
         @actor-list = [] # actor-object
         @subs-min-list = {}    # 'topic': [list of actors subscribed this topic]
@@ -187,10 +193,3 @@ class _ActorManager extends ActorBase
             i++
 
         @log.section \dis-vv, "------------ end of forwarding message, total forward: #{i}---------------"
-
-# make a singleton
-export class ActorManager
-    instance = null
-    ->
-        instance ?:= new _ActorManager!
-        return instance
