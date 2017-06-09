@@ -150,7 +150,7 @@ class HostlinkActor extends Actor
         packet = "@#{unit-no}W#{address-type}#{address}#{data}"
         _packet = "#{packet}#{calc-fcs packet}*\r"
         @log.log "sending write packet: #{_packet}"
-        @fps.exec2 @socket, @socket.write, _packet
+        @fps.exec-context @socket, @socket.write, _packet
         #@socket.write _packet
         @read-handler = handler
 

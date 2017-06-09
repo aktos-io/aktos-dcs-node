@@ -10,6 +10,10 @@ export class FpsExec
         new Date! .get-time!
 
     exec: (func, ...args) ->
+
+        # TODO: this part of code is nearly the same as
+        # @exec-context's body. Remove duplicate code.
+        
         try
             # do not send repetative messages in the time window
             if @now! > @last-sent + @period
@@ -21,7 +25,7 @@ export class FpsExec
             func.apply this, args
 
 
-    exec2: (context, func, ...args) ->
+    exec-context: (context, func, ...args) ->
         try
             # do not send repetative messages in the time window
             if @now! > @last-sent + @period
