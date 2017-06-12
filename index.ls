@@ -1,7 +1,7 @@
 require! './src/actor': {Actor}
-require! './src/io-actor': {IoActor}
-require! './src/proxy-actor': {ProxyActor}
+require! './src/socketio-server': {SocketIOServer}
+require! './src/broker': {Broker}
 
-console.warn "proxy actor is: ", ProxyActor
-
-module.exports = ProxyActor
+module.exports = {
+    Actor, SocketIOServer, Broker
+}
