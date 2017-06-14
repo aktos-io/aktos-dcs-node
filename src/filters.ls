@@ -1,7 +1,7 @@
 require! 'aea': {sleep}
 
 export class FpsExec
-    (fps=30fps) ->
+    (fps=20fps) ->
         @period = 1000ms / fps
         @timer = null
         @last-sent = 0
@@ -13,7 +13,7 @@ export class FpsExec
 
         # TODO: this part of code is nearly the same as
         # @exec-context's body. Remove duplicate code.
-        
+
         try
             # do not send repetative messages in the time window
             if @now! > @last-sent + @period
