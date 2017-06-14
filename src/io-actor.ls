@@ -36,7 +36,7 @@ export class IoActor extends Actor
     handle_ConnectionStatus: (msg) ->
         @log.log "Not implemented, message: ", msg
 
-    sync: (ractive-var, topic=null) ->
+    sync: (ractive-var, topic=null, rate=20fps) ->
         __ = @
         unless @ractive
             @log.err "set ractive variable first!"
@@ -47,9 +47,9 @@ export class IoActor extends Actor
 
         @subscribe topic
 
-        fps = new FpsExec!
+        fps = new FpsExec rate
         handle = @ractive.observe ractive-var, (_new) ~>
-            fps.exec @send, _new, topic 
+            fps.exec @send, _new, topic
 
         @on-receive (msg) ~>
             if msg.topic in @subscriptions
