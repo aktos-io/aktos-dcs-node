@@ -9,15 +9,13 @@ require! 'prelude-ls': {
 
 /*
 
-ProxyActor has two "network interfaces":
+SocketIOBrowser has two "network interfaces":
 
     1. ActorManager (as every Actor has)
     2. network
 
-ProxyActor simply forwards all messages it receives to/from ActorManager
-from/to network.
-
-ProxyActor is also responsible from security.
+SocketIOBrowser simply forwards all messages it receives to/from ActorManager
+from/to network and is also responsible from security.
 
 */
 
@@ -30,24 +28,10 @@ export class SocketIOBrowser extends Actor
 
         __ = @
         super \SocketIOBrowser
-        #console.log "Proxy actor is created with id: ", @actor-id
 
         @token = null
         @connection-listener = (self, connect-str) ->
 
-        # calculate socket.io path
-        # -----------------------------------------------------------
-        /* initialize socket.io connections */
-        /*
-        url = String window.location .split '#' .0
-        arr = url.split "/"
-        addr_port = arr.0 + "//" + arr.2
-        socketio-path = [''] ++ (initial (drop 3, arr)) ++ ['socket.io']
-        socketio-path = join '/' socketio-path
-        @log.section \conn1, "socket-io path: #{socketio-path}, url: #{url}"
-        # FIXME: HARDCODED SOCKET.IO PATH
-        socketio-path = "/socket.io"
-        */
         a = server-addr
         @socket = io.connect "#{a.host}:#{a.port}", resource: "#{a.path or "/socket.io"}"
 
