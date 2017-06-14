@@ -21,16 +21,14 @@ require! './filters': {FpsExec}
 
 export class IoActor extends Actor
     (pin-name) ->
-        super name=pin-name
-
-        unless pin-name
-            @log.err "no pin_name supplied!"
-            return
         @pin-name = pin-name
-        @subscriptions =
-            "IoMessage.#{pin-name}"
-            "ConnectionStatus"
+        super @pin-name
 
+        @subscriptions =
+            "ConnectionStatus"
+            ...
+
+    action :-> 
         @log.section \vvv, "actor is created with the following name: ", @actor-name, "and ID: #{@actor-id}"
 
     handle_ConnectionStatus: (msg) ->
