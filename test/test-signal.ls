@@ -1,19 +1,3 @@
-
-/*
-EXAMPLE FOR USE GO!
-do
-    console.log "waiting mahmut..."
-    reason, param <- timeout-wait-for 10000ms, \mahmut
-    console.log "mahmut happened! reason: ", reason, "param: ", param
-
-do
-    console.log "firing mahmut in 2 seconds..."
-    <- sleep 2000ms
-    go \mahmut, 5
-    console.log "fired mahmut event!"
-
-*/
-
 require! '../src/signal': {Timeout}
 require! 'aea/debug-log': {logger}
 require! 'aea': {sleep}
