@@ -2,8 +2,7 @@ require! 'aea': {sleep}
 require! 'aea/debug-log': {logger}
 require! 'uuid4'
 
-export class Signal
-    wait-events = {}
+export class Timeout
     ->
         @name = uuid4!
         @callbacks = []
@@ -13,9 +12,9 @@ export class Signal
         @log = new logger @name
 
     fire: (...args) ->
-        @log.log "fire called..."
+        @log.log "trying to fire..."
         if @waiting and @should-run
-            @log.log "fired!"
+            @log.log "signal fired!"
             @waiting = no
             @should-run = no
             for callback in @callbacks
@@ -38,7 +37,9 @@ export class Signal
         @waiting = yes
 
         if timeout
-            @timer = sleep timeout, ~> @fire!
+            @timer = sleep timeout, ~>
+                @should-run = yes
+                @fire!
 
         # try to run signal if it is set as `go` before reaching "wait" line
         @fire!
@@ -50,9 +51,7 @@ export class Signal
         @fire.apply this, args
 
 
-
-
-class Watchdog extends Signal
+class Watchdog extends Timeout
     ->
         super!
 
