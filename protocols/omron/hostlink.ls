@@ -1,12 +1,10 @@
 require! 'net'
-require! 'aktos-dcs/src/actor': {Actor}
-require! 'aktos-dcs/src/filters': {FpsExec}
+require! 'dcs': {Actor, FpsExec}
 require! 'prelude-ls': {
     chars, take, split-at, drop
     map, join
 }
 require! 'aea': {sleep}
-require! 'aea/signal': {watchdog, watchdog-kick}
 
 
 A_TYPES =

@@ -1,5 +1,6 @@
-require! './hostlink': {HostlinkServerActor}
+require! './omron/hostlink': {HostlinkServerActor}
+require! './siemens/s7-actor': {S7Actor}
 
 module.exports = {
-    HostlinkServerActor
+    HostlinkServerActor, S7Actor
 }

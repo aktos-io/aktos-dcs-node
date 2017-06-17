@@ -2,7 +2,7 @@ require! 'aea': {sleep}
 require! 'aea/debug-log': {logger}
 require! 'uuid4'
 
-export class Timeout
+export class Signal
     ->
         @name = uuid4!
         @callbacks = []
@@ -38,7 +38,7 @@ export class Timeout
 
         if timeout
             @timeout = timeout
-            @reset!
+            @reset-timeout!
 
         # try to run signal if it is set as `go` before reaching "wait" line
         @fire!
@@ -49,7 +49,7 @@ export class Timeout
         @should-run = yes
         @fire.apply this, args
 
-    reset: ->
+    reset-timeout: ->
         try clear-timeout @timer
         @timer = sleep @timeout, ~>
             @should-run = yes

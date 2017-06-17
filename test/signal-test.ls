@@ -1,12 +1,12 @@
-require! '../src/signal': {Timeout}
+require! '../src/signal': {Signal}
 require! 'aea/debug-log': {logger}
 require! 'aea': {sleep}
 
-log = new logger \signal-test
 
 tests =
     * ->
-        my-timeout = new Timeout!
+        log = new logger \signal-test-1
+        my-timeout = new Signal!
         log.log "signal will run because it will receive an event"
         do
             log.log "started coroutine 1"
@@ -22,7 +22,8 @@ tests =
             log.log "fired my-timeout! This should happen at +2000ms"
 
     * ->
-        my-timeout = new Timeout!
+        log = new logger \signal-test-2
+        my-timeout = new Signal!
         log.log "signal will run because it will timeout"
 
         do
@@ -39,8 +40,9 @@ tests =
             log.log "fired my-timeout! This should happen at +2000ms"
 
     * ->
+        log = new logger \signal-test-3
         log.log "started watchdog test"
-        my-timeout = new Timeout!
+        my-timeout = new Signal!
 
         do
             reason <- my-timeout.wait 1000ms
@@ -50,9 +52,10 @@ tests =
             i = 0
             <- :lo(op) ->
                 log.log "resetting timeout timer, i: ", i
-                my-timeout.reset!
+                my-timeout.reset-timeout!
                 <- sleep 500ms + ((i++) * 100ms)
                 return op! if i > 10
                 lo(op)
 
-tests.2!
+for test in tests
+    test!
