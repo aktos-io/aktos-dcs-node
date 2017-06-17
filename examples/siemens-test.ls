@@ -2,19 +2,18 @@ require! 'dcs/protocols': {S7Actor}
 require! 'dcs': {Actor, Broker}
 require! 'aea': {sleep}
 
-class Monitor extends Actor
+class Simulator extends Actor
     (name) ->
         super name
         @subscribe "mydevice.**"
 
         @on-receive (msg) ~>
-            @log.log "Monitor got msg: ", msg.payload, "topic: #{msg.topic}"
-            if msg.sender is @actor-id
-                @log.err "I have my own message!!!!"
+            @log.log "got msg: ", msg.payload, "topic: #{msg.topic}"
 
     action: ->
         @log.log "#{@name} started..."
 
+        # send periodic test messages
         my-toggle = off
         <~ :lo(op) ~>
             @send my-toggle, 'mydevice.testOutput'
@@ -31,5 +30,5 @@ new S7Actor do
         test-input: 'I0.0'
         test-output: 'Q0.1'
 
-new Monitor 'siem.test.monitor'
+new Simulator 'siem.test.simulator'
 new Broker!
