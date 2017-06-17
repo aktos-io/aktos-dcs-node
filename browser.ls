@@ -1,8 +1,8 @@
 require! './src/actor': {Actor}
 require! './src/io-actor': {IoActor}
 require! './src/socketio-browser': {SocketIOBrowser}
-require! './src/filters': {FpsExec}
+require! './src/signal': {Signal}
 
 module.exports = {
-    IoActor, SocketIOBrowser
+    IoActor, SocketIOBrowser, Signal, Actor
 }
