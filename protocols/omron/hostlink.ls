@@ -6,7 +6,6 @@ require! 'prelude-ls': {
     map, join
 }
 require! 'aea': {sleep}
-require! 'aea/signal': {watchdog, watchdog-kick}
 
 
 A_TYPES =
