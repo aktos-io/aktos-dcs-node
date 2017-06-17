@@ -1,6 +1,5 @@
 require! 'net'
-require! 'aktos-dcs/src/actor': {Actor}
-require! 'aktos-dcs/src/filters': {FpsExec}
+require! 'dcs': {Actor, FpsExec}
 require! 'prelude-ls': {
     chars, take, split-at, drop
     map, join

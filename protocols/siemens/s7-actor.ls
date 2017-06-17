@@ -1,37 +1,45 @@
 require! 'dcs': {Actor}
 require! './nodeS7': nodes7
 require! 'aea': {sleep, pack, unpack}
+require! 'prelude-ls': {at, split}
+
+split-topic = split '.'
 
 export class S7Actor extends Actor
-    (target-opts, name) ->
-        super name
+    (opts) ->
+        @opts = opts
+        super @opts.name
+
 
         # S7 client
         @conn = new nodes7 {+silent}
-        @target-opts = target-opts
+        @addr-to-name = {}
 
+        # actor stuff
         @on-kill (reason) ~>
             @log.log "TODO: close the connection"
 
         @on-receive (msg) ~>
-            @log.log "got message: ", msg.payload
+            io-name = split-topic msg.topic |> at 1
+            #@log.log "got msg: write #{msg.payload} -> #{io-name}"
+            io-addr = @opts.memory-map[io-name]
+            @log.log "Writing: ", msg.payload, "to: ", io-addr
+            err <~ @conn.writeItems io-addr, msg.payload
+            @log.err "something went wrong while writing: ", err if err
+
+
 
     action: ->
-        @log.log "S7 Actor is created: ", @target-opts, @name
+        @log.log "S7 Actor is created: ", @opts.target, @opts.name
         @start!
 
     start: ->
-        @connect ~> @start-read-poll!
-        @add-to-read-poll 'MR4'
-        @add-to-read-poll 'I0.0'
-
-    connect: (callback) ->
-        @conn.initiateConnection @target-opts, (err) ~>
-            if err
-                @log.log "we have an error: ", err
-                @kill 'SIEMENS_CONN_ERR'
-            else
-                callback!
+        @connect ~>
+            @start-read-poll!
+        # add memory map for poll list
+        for name, addr of @opts.memory-map
+            @add-to-read-poll addr
+            @addr-to-name[addr] = name
 
     start-read-poll: ->
         @log.log "started read-poll"
@@ -39,30 +47,25 @@ export class S7Actor extends Actor
         <~ :lo(op) ~>
             err, data <~ @conn.readAllItems
             @log.log "something went wrong while reading values" if err
-            if pack(prev-data) isnt pack(data)
-                prev-data := data 
-                @send data, "#{@name}.read"
+            for prev-io-addr, prev-io-val of prev-data
+                for io-addr, io-val of data when io-addr is prev-io-addr
+                    if io-val isnt prev-io-val
+                        @send io-val, "#{@name}.#{@addr-to-name[io-addr]}"
+
+            prev-data := data
             <~ sleep 100ms
             lo(op)
+
+
+    connect: (callback) ->
+        @conn.initiateConnection @opts.target, (err) ~>
+            if err
+                @log.log "we have an error: ", err
+                @kill 'SIEMENS_CONN_ERR'
+            else
+                callback!
 
 
     add-to-read-poll: (addr) ->
         @log.log "Adding address of #{addr} to the read poll."
         @conn.addItems addr
-
-
-# --------------------------- TEST ------------------------------ #
-
-class Monitor extends Actor
-    ->
-        super \Monitor
-        @subscribe "mydevice.**"
-
-        @on-receive (msg) ~>
-            @log.log "Monitor got msg: ", msg.payload
-
-    action: ->
-        @log.log "#{@name} started..."
-
-new S7Actor {port: 102, host: '192.168.0.1', rack: 0, slot: 1}, \mydevice
-new Monitor!
