@@ -9,6 +9,8 @@ export class S7Actor extends Actor
     (opts) ->
         @opts = opts
         super @opts.name
+        @log.log "Subscriptions so far: ", @subscriptions
+        @subscribe "#{@opts.name}.**"
 
 
         # S7 client
@@ -23,7 +25,8 @@ export class S7Actor extends Actor
             io-name = split-topic msg.topic |> at 1
             #@log.log "got msg: write #{msg.payload} -> #{io-name}"
             io-addr = @opts.memory-map[io-name]
-            @log.log "Writing: ", msg.payload, "to: ", io-addr
+            @log.log "Writing: ", msg.payload, "(#{typeof! msg.payload}) to: ", io-addr
+            #return @log.err "NOT WRITING!!!! (test first)"
             err <~ @conn.writeItems io-addr, msg.payload
             @log.err "something went wrong while writing: ", err if err
 
@@ -49,11 +52,12 @@ export class S7Actor extends Actor
             @log.log "something went wrong while reading values" if err
             for prev-io-addr, prev-io-val of prev-data
                 for io-addr, io-val of data when io-addr is prev-io-addr
+                    #@log.log "DEBUG: Read: #{@addr-to-name[io-addr]} (#{io-addr}) = #{io-val}"
                     if io-val isnt prev-io-val
                         @send io-val, "#{@name}.#{@addr-to-name[io-addr]}"
 
             prev-data := data
-            <~ sleep 100ms
+            <~ sleep 200ms
             lo(op)
 
 
