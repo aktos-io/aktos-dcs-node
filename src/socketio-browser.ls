@@ -21,7 +21,7 @@ from/to network and is also responsible from security.
 
 export class SocketIOBrowser extends Actor
     @instance = null
-    (server-addr) ->
+    (opts) ->
         # Make this class Singleton
         return @@instance if @@instance
         @@instance = this
@@ -32,8 +32,10 @@ export class SocketIOBrowser extends Actor
         @token = null
         @connection-listener = (self, connect-str) ->
 
-        a = server-addr
-        @socket = io.connect "#{a.host}:#{a.port}", resource: "#{a.path or "/socket.io"}"
+        addr = opts.address
+        path = "#{opts.path or ''}/socket.io"
+        @log.log "SocketIOBrowser is connecting to #{addr} path: #{path}"
+        @socket = io.connect addr, path: path
 
         # send to server via socket.io
         @socket.on 'aktos-message', (msg) ~>
