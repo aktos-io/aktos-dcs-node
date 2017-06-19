@@ -73,14 +73,16 @@ class BrokerHandler extends Actor
             @kill!
 
 export class Broker extends Actor
-    ->
+    (opts={port: 5523}) ->
         super \Broker
         @server = null
         @client = null
         @client-connected = no
         @client-actor = null
 
-        @port = 5523
+
+        @port = opts.port
+        
         @server-retry-period = 2000ms
 
     action: ->
@@ -99,7 +101,7 @@ export class Broker extends Actor
                 @run-server!
 
         @server.listen @port, ~>
-            @log.log "Broker started in server mode."
+            @log.log "Broker started in server mode on port #{@port}."
 
     run-client: ->
         if @server.listening
