@@ -33,7 +33,7 @@ export class SocketIOBrowser extends Actor
         @connection-listener = (self, connect-str) ->
 
         addr = opts.address
-        path = "#{opts.path or ''}/socket.io"
+        path = "#{opts.path or '/'}socket.io"
         @log.log "SocketIOBrowser is connecting to #{addr} path: #{path}"
         @socket = io.connect addr, path: path
 
