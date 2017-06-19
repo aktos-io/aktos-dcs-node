@@ -142,7 +142,7 @@ export class ActorManager extends ActorBase
 
         for actor in @actor-list
             continue if actor.subscriptions is void
-            if '**' in actor.subscriptions or empty actor.subscriptions
+            if '**' in actor.subscriptions
                 s = @subscription-list['**']
                 if actor.actor-id not in [..actor-id for s]
                     s.push actor
