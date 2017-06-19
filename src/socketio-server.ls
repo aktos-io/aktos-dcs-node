@@ -1,5 +1,24 @@
 require! './actor': {Actor}
 
+export class SocketIOServer extends Actor
+    (io) ->
+        super 'SocketIO Server'
+        @io = io
+        @connected-user-count = 0
+        @handler-counter = 0
+
+        @io.on 'connection', (socket) ~>
+            # track online users
+            @connected-user-count++
+
+            # launch a new handler
+            new SocketIOHandler socket, do
+                name: "socketio-#{++@handler-counter}"
+                counter: @connected-user-count
+
+    action: ->
+        @log.log "SocketIO server started..."
+
 class SocketIOHandler extends Actor
     (socket, opts) ->
         """
@@ -47,22 +66,3 @@ class SocketIOHandler extends Actor
             @socket.emit 'aktos-message', msg
         catch
             @kill "NETWORK_SEND_FAILED", e
-
-export class SocketIOServer extends Actor
-    (io) ->
-        super 'SocketIO Server'
-        @io = io
-        @connected-user-count = 0
-        @handler-counter = 0
-
-        @io.on 'connection', (socket) ~>
-            # track online users
-            @connected-user-count++
-
-            # launch a new handler
-            new SocketIOHandler socket, do
-                name: "socketio-#{++@handler-counter}"
-                counter: @connected-user-count
-
-    action: ->
-        @log.log "SocketIO server started..."
