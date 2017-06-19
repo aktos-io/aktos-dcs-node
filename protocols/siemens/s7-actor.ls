@@ -19,14 +19,16 @@ export class S7Actor extends Actor
 
         # actor stuff
         @on-kill (reason) ~>
-            @log.log "TODO: close the connection"
+            @log.log "Closing the connection"
+            <~ @conn.dropConnection
+            @log.log "Connection closed"
 
         @on-receive (msg) ~>
             io-name = split-topic msg.topic |> at 1
             #@log.log "got msg: write #{msg.payload} -> #{io-name}"
             io-addr = @opts.memory-map[io-name]
             @log.log "Writing: ", msg.payload, "(#{typeof! msg.payload}) to: ", io-addr
-            #return @log.err "NOT WRITING!!!! (test first)"
+            return @log.err "NOT WRITING!!!! (test first)"
             err <~ @conn.writeItems io-addr, msg.payload
             @log.err "something went wrong while writing: ", err if err
 
