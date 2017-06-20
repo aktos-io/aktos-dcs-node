@@ -1,5 +1,6 @@
 require! 'uuid4'
 require! 'aea/debug-log': {logger, debug-levels}
+require! 'aea': {sleep}
 
 export envelp = (msg, msg-id) ->
     msg-raw =
@@ -22,6 +23,10 @@ export class ActorBase
         @log = new logger (@name or @actor-id)
 
         @receive-handlers = []
+        <~ sleep 0
+        @post-init!
+
+    post-init: ->
 
     on-receive: (handler) ->
         @log.section \debug1, "adding handler to run on-receive..."

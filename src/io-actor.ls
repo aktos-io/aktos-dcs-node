@@ -24,11 +24,13 @@ export class IoActor extends Actor
         @pin-name = pin-name
         super @pin-name
 
-        @subscriptions =
-            "ConnectionStatus"
-            ...
+    post-init: ->
+        @subscribe "ConnectionStatus"
+        @subscribe "io.#{@pin-name}" if @pin-name
+        @log.log "this is post init, subscriptions:", @subscriptions
 
-    action :-> 
+
+    action :->
         @log.section \vvv, "actor is created with the following name: ", @actor-name, "and ID: #{@actor-id}"
 
     handle_ConnectionStatus: (msg) ->
@@ -41,7 +43,8 @@ export class IoActor extends Actor
             return
 
         unless topic
-            topic = "IoMessage.#{@pin-name}"
+            @log.err 'Topic should be set first!'
+            return
 
         @subscribe topic
 

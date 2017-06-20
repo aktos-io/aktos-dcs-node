@@ -12,7 +12,7 @@ export class Actor extends ActorBase
 
         @actor-name = name
         @log.sections ++= [
-            #\s1
+            #\subscriptions
         ]
 
         @log.section \bare, "actor \"#{@name}\" created with id: #{@actor-id}"
@@ -41,7 +41,7 @@ export class Actor extends ActorBase
         topics = [topic] if typeof! topic is \String
         for topic in topics when topic not in @subscriptions
             @subscriptions.push topic
-        @log.section \s1, "subscribing to ", topic, "subscriptions: ", @subscriptions
+        @log.section \subscriptions, "subscribing to ", topic, "subscriptions: ", @subscriptions
         @mgr.subscribe-actor this
 
     list-handle-funcs: ->

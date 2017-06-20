@@ -33,6 +33,8 @@ class BrokerHandler extends Actor
             #\debug-redirect
         ]
 
+        @subscribe '**'
+
         @on-receive (msg) ~>
             @network-send msg
 
@@ -82,7 +84,7 @@ export class Broker extends Actor
 
 
         @port = opts.port
-        
+
         @server-retry-period = 2000ms
 
     action: ->

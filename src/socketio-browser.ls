@@ -28,6 +28,7 @@ export class SocketIOBrowser extends Actor
 
         __ = @
         super \SocketIOBrowser
+        @subscribe '**'
 
         @token = null
         @connection-listener = (self, connect-str) ->

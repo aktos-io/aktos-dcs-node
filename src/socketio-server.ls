@@ -30,6 +30,7 @@ class SocketIOHandler extends Actor
         """
         @socket = socket
         super (opts.name or @socket.id)
+        @subscribe '**'
 
         @online-counter = opts.counter
         @log.sections ++= [
