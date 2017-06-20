@@ -1,7 +1,7 @@
 require! 'net'
 require! './actor': {Actor}
 require! 'aea': {sleep, pack, unpack}
-require! 'prelude-ls': {drop, reverse}
+require! 'prelude-ls': {drop, reverse, split, flatten, split-at}
 
 hex = (n) ->
     n.to-string 16 .to-upper-case!
@@ -13,6 +13,26 @@ ip-to-hex = (ip) ->
         result += part * (256**i++)
 
     hex result
+
+unpack-telegrams = (data) ->
+    if typeof! data isnt \String
+        return []
+
+    boundary = data.index-of '}{'
+    if boundary > -1
+        [_first, ..._rest] = split-at (boundary + 1), data
+    else
+        _first = data
+
+    _first-telegram = try
+        unpack _first
+    catch
+        console.log "data can not be unpacked: ", _first
+        console.log e
+
+    packets = flatten [_first-telegram, unpack-telegrams _rest]
+    return packets
+
 
 
 class BrokerHandler extends Actor
@@ -53,12 +73,8 @@ class BrokerHandler extends Actor
             @kill!
 
         @socket.on \data, (data) ~>
-            packet = data.to-string!
-            try
-                @network-receive unpack packet
-            catch
-                @log.err "data can not be unpacked: ", packet
-                @log.err e
+            for telegram in unpack-telegrams data.to-string!
+                @network-receive telegram
 
     action: ->
         @log.log "BrokerHandler is launched."
