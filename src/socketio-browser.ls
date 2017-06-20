@@ -35,7 +35,7 @@ export class SocketIOBrowser extends Actor
 
         addr = opts.address
         path = "#{opts.path or '/'}socket.io"
-        @log.log "SocketIOBrowser is connecting to #{addr} path: #{path}"
+        #@log.log "Connecting to #{addr} path: #{path}"
         @socket = io.connect addr, path: path
 
         # send to server via socket.io

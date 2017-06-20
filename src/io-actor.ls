@@ -27,7 +27,7 @@ export class IoActor extends Actor
     post-init: ->
         @subscribe "ConnectionStatus"
         @subscribe "io.#{@pin-name}" if @pin-name
-        @log.log "this is post init, subscriptions:", @subscriptions
+        #@log.log "this is post init, subscriptions:", @subscriptions
 
 
     action :->
