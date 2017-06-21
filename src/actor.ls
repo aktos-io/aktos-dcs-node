@@ -6,11 +6,10 @@ require! 'prelude-ls': {
 }
 
 export class Actor extends ActorBase
-    (name) ->
+    ->
         super ...
         @mgr = new ActorManager!
 
-        @actor-name = name
         @log.sections ++= [
             #\subscriptions
         ]
