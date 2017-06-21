@@ -64,6 +64,8 @@ export class Actor extends ActorBase
         @mgr.inbox-put msg_raw
 
     send-enveloped: (msg) ->
+        @log.warn "FIXME: msg.sender should not be required to set here!"
+        msg.sender = @actor-id
         @mgr.inbox-put msg
 
     on-kill: (handler) ->

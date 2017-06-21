@@ -82,7 +82,7 @@ class BrokerHandler extends Actor
 
     network-receive: (msg) ->
         @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
-        @send_raw msg
+        @send-enveloped msg
 
     network-send: (data) ->
         try

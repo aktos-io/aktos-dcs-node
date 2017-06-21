@@ -16,9 +16,7 @@ Usage:
 
 """
 require! \express
-require! 'aktos-dcs/src/socketio-server': {SocketIOServer}
-require! 'aktos-dcs/src/broker': {Broker}
-require! 'aktos-dcs/src/actor': {Actor}
+require! 'dcs': {SocketIOServer, Broker, Actor}
 require! 'aea': {sleep}
 
 # -----------------------------------------------------------------------------
@@ -93,7 +91,7 @@ class Simulator extends Actor
         @log.log "...payload incremented by 1: ", msg.payload
         @log.log "Echoing message back in 1000ms..."
         <~ sleep 1000ms
-        @send_raw msg
+        @send-enveloped msg
 
 
 #new Simulator!
