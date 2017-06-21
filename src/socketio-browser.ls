@@ -26,7 +26,6 @@ export class SocketIOBrowser extends Actor
         return @@instance if @@instance
         @@instance = this
 
-        __ = @
         super \SocketIOBrowser
         @subscribe '**'
 
@@ -43,7 +42,7 @@ export class SocketIOBrowser extends Actor
             @network-receive msg
 
         @socket.on "connect", !~>
-            @log.section \v1, "Connected to server with id: ", __.socket.io.engine.id
+            @log.section \v1, "Connected to server with id: ", @socket.io.engine.id
 
         @socket.on "disconnect", !~>
             @log.section \v1, "proxy actor says: disconnected"
