@@ -58,13 +58,7 @@ export class Actor extends ActorBase
         catch
             @log.err "sending message failed. msg: ", msg-payload, "enveloped: ", msg-env, e
 
-    send_raw: (msg_raw) ->
-        @log.warn "deprecated: use send-envelope function instead."
-        msg_raw.sender = @actor-id
-        @mgr.inbox-put msg_raw
-
     send-enveloped: (msg) ->
-        @log.warn "FIXME: msg.sender should not be required to set here!"
         msg.sender = @actor-id
         @mgr.inbox-put msg
 

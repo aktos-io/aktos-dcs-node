@@ -39,17 +39,16 @@ export class ActorBase
             return
         @receive-handlers.push handler
 
+    receive: ->
+        ...
+
     get-msg-template: ->
         msg-raw =
-            sender: @actor-id
+            sender: void # will be sent while sending 
             timestamp: Date.now! / 1000
             msg_id: @msg-seq++
             topic: void
             token: void
-
-
-    receive: ->
-        ...
 
     _inbox: (msg) ->
         try
