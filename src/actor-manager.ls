@@ -101,7 +101,7 @@ export class ActorManager extends ActorBase
             @log.section \dis-vv, "message: ", msg
             @log.section \dis-vv, "------------- end of forwarding to actor ---------------"
 
-            actor.recv msg
+            actor._inbox msg
             i++
 
         @log.section \dis-vv, "------------ end of forwarding message, total forward: #{i}---------------"

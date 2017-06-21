@@ -51,7 +51,7 @@ export class ActorBase
     receive: ->
         ...
 
-    recv: (msg) ->
+    _inbox: (msg) ->
         try
             # distribute according to subscriptions
             for handler in @receive-handlers
