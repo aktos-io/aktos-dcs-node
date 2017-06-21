@@ -2,27 +2,13 @@ require! 'uuid4'
 require! 'aea/debug-log': {logger, debug-levels}
 require! 'aea': {sleep}
 
-export envelp = (msg, msg-id) ->
-    msg-raw =
-        sender: ''
-        timestamp: Date.now! / 1000
-        msg_id: msg-id    # {{.actor_id}}.{{serial}}
-        payload: msg
-        topic: '*'
-        token: ''
-
-export get-msg-body = (msg) ->
-    subject = [subj for subj of msg.payload][0]
-    #@log.log "subject, ", subject
-    return msg.payload[subject]
-
 export class ActorBase
-    (name) ->
+    (@name) ->
         @actor-id = uuid4!
-        @name = name
         @log = new logger (@name or @actor-id)
 
         @receive-handlers = []
+        @msg-seq = 0
         <~ sleep 0
         @post-init!
 
@@ -35,11 +21,18 @@ export class ActorBase
             return
         @receive-handlers.push handler
 
-
     receive: ->
         ...
 
-    recv: (msg) ->
+    get-msg-template: ->
+        msg-raw =
+            sender: void # will be sent while sending
+            timestamp: Date.now! / 1000
+            msg_id: @msg-seq++
+            topic: void
+            token: void
+
+    _inbox: (msg) ->
         try
             # distribute according to subscriptions
             for handler in @receive-handlers

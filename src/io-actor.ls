@@ -20,8 +20,7 @@ require! './actor': {Actor}
 require! './filters': {FpsExec}
 
 export class IoActor extends Actor
-    (pin-name) ->
-        @pin-name = pin-name
+    (@pin-name) ->
         super @pin-name
 
     post-init: ->

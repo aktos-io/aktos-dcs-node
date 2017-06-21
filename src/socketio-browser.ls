@@ -26,7 +26,6 @@ export class SocketIOBrowser extends Actor
         return @@instance if @@instance
         @@instance = this
 
-        __ = @
         super \SocketIOBrowser
         @subscribe '**'
 
@@ -43,7 +42,7 @@ export class SocketIOBrowser extends Actor
             @network-receive msg
 
         @socket.on "connect", !~>
-            @log.section \v1, "Connected to server with id: ", __.socket.io.engine.id
+            @log.section \v1, "Connected to server with id: ", @socket.io.engine.id
 
         @socket.on "disconnect", !~>
             @log.section \v1, "proxy actor says: disconnected"
@@ -61,11 +60,13 @@ export class SocketIOBrowser extends Actor
         # receive from server via socket.io
         # forward message to inner actors
         @log.section \debug-network, "proxy actor got network message: ", msg
-        @send_raw msg
+        @send-enveloped msg
 
     network-send: (msg) ->
         @log.section \debug-network, "network-send msg: ", msg
-        @network-send-raw (envelp msg, @get-msg-id!)
+        envelope = @get-msg-template!
+        envelope.payload = msg
+        @network-send-raw envelope
 
     network-send-raw: (msg) ->
         # receive from inner actors, forward to server
@@ -73,9 +74,9 @@ export class SocketIOBrowser extends Actor
         # ---------------------------------------------------------
         # WARNING:
         # ---------------------------------------------------------
-        # Do not modify msg as it's only a reference to original message,
-        # so modifying this object will cause the original message to be
-        # sent to it's original source (which is an error)
+        # Do not modify msg.sender. Since it's only a reference to the original message,
+        # modifying this object will cause the original message to be
+        # sent back to it's original sender (which is an error)
         # ---------------------------------------------------------
 
         msg.token = @token

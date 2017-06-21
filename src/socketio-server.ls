@@ -1,9 +1,8 @@
 require! './actor': {Actor}
 
 export class SocketIOServer extends Actor
-    (io) ->
+    (@io) ->
         super 'SocketIO Server'
-        @io = io
         @connected-user-count = 0
         @handler-counter = 0
 
@@ -20,7 +19,7 @@ export class SocketIOServer extends Actor
         @log.log "SocketIO server started..."
 
 class SocketIOHandler extends Actor
-    (socket, opts) ->
+    (@socket, opts) ->
         """
         SocketIO handler(s) are just simple forwarders between a socket.io client
         and the ActorManager.
@@ -28,7 +27,6 @@ class SocketIOHandler extends Actor
         This handler simply forwards from `network` interface to `local`
         interface and vice versa.
         """
-        @socket = socket
         super (opts.name or @socket.id)
         @subscribe '**'
 
@@ -59,7 +57,7 @@ class SocketIOHandler extends Actor
 
     network-receive: (msg) ->
         @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
-        @send_raw msg
+        @send-enveloped msg
 
     network-send: (msg) ->
         try

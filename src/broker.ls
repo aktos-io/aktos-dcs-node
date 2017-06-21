@@ -37,7 +37,7 @@ unpack-telegrams = (data) ->
 
 
 class BrokerHandler extends Actor
-    (socket) ->
+    (@socket) ->
         """
         Broker handler(s) are just simple forwarders between a network node
         and the ActorManager.
@@ -45,7 +45,6 @@ class BrokerHandler extends Actor
         This handler simply forwards from `network` interface to `local`
         interface and vice versa.
         """
-        @socket = socket
         @socket.name = "H#{ip-to-hex (drop 7, socket.remoteAddress)}:#{hex socket.remotePort}"
         super @socket.name
 
@@ -82,7 +81,7 @@ class BrokerHandler extends Actor
 
     network-receive: (msg) ->
         @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
-        @send_raw msg
+        @send-enveloped msg
 
     network-send: (data) ->
         try

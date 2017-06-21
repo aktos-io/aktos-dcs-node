@@ -1,16 +1,15 @@
 require! 'aea': {sleep}
-require! './core': {ActorBase, envelp}
+require! './core': {ActorBase}
 require! './actor-manager': {ActorManager}
 require! 'prelude-ls': {
     split
 }
 
 export class Actor extends ActorBase
-    (name) ->
+    ->
         super ...
         @mgr = new ActorManager!
 
-        @actor-name = name
         @log.sections ++= [
             #\subscriptions
         ]
@@ -51,15 +50,16 @@ export class Actor extends ActorBase
 
     send: (msg-payload, topic='') ~>
         try
-            msg-env = envelp msg-payload, @msg-seq++
+            msg-env = @get-msg-template!
+            msg-env.payload = msg-payload
             msg-env.topic = topic
-            @send_raw msg-env
+            @send-enveloped msg-env
         catch
             @log.err "sending message failed. msg: ", msg-payload, "enveloped: ", msg-env, e
 
-    send_raw: (msg_raw) ->
-        msg_raw.sender = @actor-id
-        @mgr.inbox-put msg_raw
+    send-enveloped: (msg) ->
+        msg.sender = @actor-id
+        @mgr.inbox-put msg
 
     on-kill: (handler) ->
         @log.section \debug1, "adding handler to run on-kill..."
