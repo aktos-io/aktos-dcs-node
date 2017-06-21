@@ -65,7 +65,9 @@ export class SocketIOBrowser extends Actor
 
     network-send: (msg) ->
         @log.section \debug-network, "network-send msg: ", msg
-        @network-send-raw (envelp msg, @get-msg-id!)
+        envelope = @get-msg-template!
+        envelope.payload = msg
+        @network-send-raw envelope
 
     network-send-raw: (msg) ->
         # receive from inner actors, forward to server

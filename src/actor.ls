@@ -1,5 +1,5 @@
 require! 'aea': {sleep}
-require! './core': {ActorBase, envelp}
+require! './core': {ActorBase}
 require! './actor-manager': {ActorManager}
 require! 'prelude-ls': {
     split
@@ -51,7 +51,8 @@ export class Actor extends ActorBase
 
     send: (msg-payload, topic='') ~>
         try
-            msg-env = envelp msg-payload, @msg-seq++
+            msg-env = @get-msg-template!
+            msg-env.payload = msg-payload
             msg-env.topic = topic
             @send_raw msg-env
         catch
