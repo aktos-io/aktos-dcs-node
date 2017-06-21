@@ -20,9 +20,10 @@ unpack-telegrams = (data) ->
 
     boundary = data.index-of '}{'
     if boundary > -1
-        [_first, ..._rest] = split-at (boundary + 1), data
+        [_first, _rest] = split-at (boundary + 1), data
     else
         _first = data
+        _rest = null
 
     _first-telegram = try
         unpack _first
