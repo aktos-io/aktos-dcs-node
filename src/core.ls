@@ -2,8 +2,8 @@ require! 'uuid4'
 require! 'aea/debug-log': {logger, debug-levels}
 require! 'aea': {sleep}
 
+console.log "WARNING: envelp function is deprecated. will be removed."
 export envelp = (msg, msg-id) ->
-    console.log "WARNING: envelp function is deprecated. use @get-msg-template! instead."
     msg-raw =
         sender: ''
         timestamp: Date.now! / 1000
