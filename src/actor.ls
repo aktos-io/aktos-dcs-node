@@ -54,7 +54,7 @@ export class Actor extends ActorBase
             msg-env = @get-msg-template!
             msg-env.payload = msg-payload
             msg-env.topic = topic
-            @send_raw msg-env
+            @send-enveloped msg-env
         catch
             @log.err "sending message failed. msg: ", msg-payload, "enveloped: ", msg-env, e
 

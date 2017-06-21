@@ -61,7 +61,7 @@ export class SocketIOBrowser extends Actor
         # receive from server via socket.io
         # forward message to inner actors
         @log.section \debug-network, "proxy actor got network message: ", msg
-        @send_raw msg
+        @send-enveloped msg
 
     network-send: (msg) ->
         @log.section \debug-network, "network-send msg: ", msg
