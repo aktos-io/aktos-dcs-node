@@ -13,7 +13,7 @@ Implements the following features:
 
 # Status 
 
-This library is intended to stay as a dependency for [ScadaJS](https://github.com/aktos-io/scada.js). In the near future, it will be able to be used in any NodeJS project.
+This library is intended to stay as a dependency of [ScadaJS](https://github.com/aktos-io/scada.js). In the near future, it will be able to be used in any NodeJS project.
 
 # Contact 
 
