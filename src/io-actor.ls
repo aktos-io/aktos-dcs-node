@@ -54,7 +54,7 @@ export class IoActor extends Actor
         first-time = yes
         handle = @ractive.observe ractive-var, (_new) ~>
             if first-time
-                first-time := no 
+                first-time := no
                 return
             fps.exec @send, _new, topic
 
@@ -66,9 +66,6 @@ export class IoActor extends Actor
             @ractive.set ractive-var, msg.payload
             handle.resume!
 
-        @on-update (msg) ~>
-            @log.log "IoActor got update request. Not processing."
-            fps.exec @send, (@ractive.get ractive-var), topic
 
 
     request-update: ->
