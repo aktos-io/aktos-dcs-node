@@ -5,6 +5,8 @@ require! 'prelude-ls': {
     split
 }
 
+context-switch = sleep 0
+
 export class Actor extends ActorBase
     ->
         super ...
@@ -30,9 +32,9 @@ export class Actor extends ActorBase
 
         # registering to ActorManager requires completion of this
         # constructor, so manually switch the context
-        <~ sleep 1ms
+        <~ context-switch
         @mgr.register this
-        <~ sleep 0 # context-switch
+        <~ context-switch
         @action! if typeof! @action is \Function
 
     subscribe: (topic) ->
@@ -62,7 +64,6 @@ export class Actor extends ActorBase
         unless msg.topic
             @log.err "Message should include a topic. Won't send the message."
             return
-
         @mgr.inbox-put msg
 
     on-kill: (handler) ->
