@@ -18,6 +18,9 @@ IoActor is an actor that subscribes IoMessage messages
 
 require! './actor': {Actor}
 require! './filters': {FpsExec}
+require! 'aea': {sleep}
+
+context-switch = sleep 0
 
 export class IoActor extends Actor
     (@pin-name) ->
@@ -57,3 +60,13 @@ export class IoActor extends Actor
                 handle.silence!
                 @ractive.set ractive-var, msg.payload
                 handle.resume!
+
+    request-update: ->
+        <~ context-switch
+        @log.log "requesting update!"
+        for topic in @subscriptions
+            @log.log "...requesting update for #{topic}"
+            msg = @get-msg-template!
+            msg.update = yes
+            msg.topic = topic
+            @send-enveloped msg

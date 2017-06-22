@@ -1,6 +1,6 @@
 require! 'uuid4'
-require! 'aea/debug-log': {logger, debug-levels}
-require! 'aea': {sleep}
+require! 'aea': {sleep, logger, debug-levels}
+require! 'prelude-ls': {empty}
 
 export class ActorBase
     (@name) ->
@@ -8,6 +8,7 @@ export class ActorBase
         @log = new logger (@name or @actor-id)
 
         @receive-handlers = []
+        @update-handlers = []
         @msg-seq = 0
         <~ sleep 0
         @post-init!
@@ -24,6 +25,12 @@ export class ActorBase
     receive: ->
         ...
 
+    on-update: (handler) ->
+        if typeof! handler isnt \Function
+            @log.err "parameter passed to 'on-receive' should be a function."
+            return
+        @update-handlers.push handler
+
     get-msg-template: ->
         msg-raw =
             sender: void # will be sent while sending
@@ -33,10 +40,16 @@ export class ActorBase
             token: void
 
     _inbox: (msg) ->
+        # process one message at a time
         try
-            # distribute according to subscriptions
-            for handler in @receive-handlers
-                @log.section \recv-debug, "firing receive handler..."
-                handler.call this, msg
+            # if there is an update handler, let this handler handle the
+            # update messages.
+            if (\update of msg) and not empty @update-handlers
+                for handler in @update-handlers
+                    handler.call this, msg
+            else
+                for handler in @receive-handlers
+                    @log.section \recv-debug, "firing receive handler..."
+                    handler.call this, msg
         catch
             @log.err "problem in handler: ", e

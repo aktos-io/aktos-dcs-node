@@ -49,8 +49,8 @@ class BrokerHandler extends Actor
         super @socket.name
 
         @log.sections ++= [
-            #\debug-kill
-            #\debug-redirect
+            'debug-kill'
+            #'debug-redirect'
         ]
 
         @subscribe '**'
@@ -80,14 +80,20 @@ class BrokerHandler extends Actor
         @log.log "BrokerHandler is launched."
 
     network-receive: (msg) ->
-        @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
+        @log.section \debug-redirect,
+            "redirecting msg from 'network' interface to 'local' interface \
+            type: #{if 'update' of msg then 'update' else 'data'}"
+
         @send-enveloped msg
 
-    network-send: (data) ->
+    network-send: (msg) ->
         try
-            @log.section \debug-redirect, "redirecting msg from 'local' interface to 'network' interface"
-            @socket.write pack data
+            @log.section \debug-redirect,
+                "redirecting msg from 'local' interface to 'network' interface,\
+                type: #{if 'update' of msg then 'update' else 'data'}"
+            @socket.write pack msg
         catch
+            @log.warn "TODO: FIXME: Actor should not kill itself on first error."
             @kill!
 
 export class Broker extends Actor
