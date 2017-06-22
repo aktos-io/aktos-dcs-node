@@ -34,6 +34,8 @@ export class S7Actor extends Actor
 
         @on-update (msg) ->
             @log.log "Siemens actor received an update request!"
+            for key, val of @prev-data
+                @prev-data[key] = void 
 
 
 
@@ -51,17 +53,17 @@ export class S7Actor extends Actor
 
     start-read-poll: ->
         @log.log "started read-poll"
-        prev-data = {}
+        @prev-data = {}
         <~ :lo(op) ~>
             err, data <~ @conn.readAllItems
             @log.log "something went wrong while reading values" if err
-            for prev-io-addr, prev-io-val of prev-data
+            for prev-io-addr, prev-io-val of @prev-data
                 for io-addr, io-val of data when io-addr is prev-io-addr
                     #@log.log "DEBUG: Read: #{@addr-to-name[io-addr]} (#{io-addr}) = #{io-val}"
                     if io-val isnt prev-io-val
                         @send io-val, "#{@name}.#{@addr-to-name[io-addr]}"
 
-            prev-data := data
+            @prev-data = data
             <~ sleep 200ms
             lo(op)
 
