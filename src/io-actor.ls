@@ -54,18 +54,22 @@ export class IoActor extends Actor
         handle = @ractive.observe ractive-var, (_new) ~>
             fps.exec @send, _new, topic
 
-        @on-receive (msg) ~>
-            if msg.topic in @subscriptions
-                # payload has this topic
-                handle.silence!
-                @ractive.set ractive-var, msg.payload
-                handle.resume!
+        @on-data (msg) ~>
+            unless msg.topic in @subscriptions
+                @log.err "HOW COME WE GET SOMETHING WE DIDN'T SUBSCRIBE???"
+
+            handle.silence!
+            @ractive.set ractive-var, msg.payload
+            handle.resume!
+
+        @on-update (msg) ~>
+            @log.log "IoActor got update request. Not processing."
 
     request-update: ->
         <~ context-switch
         @log.log "requesting update!"
         for topic in @subscriptions
-            @log.log "...requesting update for #{topic}"
+            #@log.log "...requesting update for #{topic}"
             msg = @get-msg-template!
             msg.update = yes
             msg.topic = topic

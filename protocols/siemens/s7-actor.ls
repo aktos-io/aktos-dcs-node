@@ -23,7 +23,7 @@ export class S7Actor extends Actor
             <~ @conn.dropConnection
             @log.log "Connection closed"
 
-        @on-receive (msg) ~>
+        @on-data (msg) ~>
             io-name = split-topic msg.topic |> at 1
             #@log.log "got msg: write #{msg.payload} -> #{io-name}"
             io-addr = @opts.memory-map[io-name]
@@ -35,7 +35,7 @@ export class S7Actor extends Actor
         @on-update (msg) ->
             @log.log "Siemens actor received an update request!"
             for key, val of @prev-data
-                @prev-data[key] = void 
+                @prev-data[key] = void
 
 
 

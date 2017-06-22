@@ -2,6 +2,12 @@ require! 'uuid4'
 require! 'aea': {sleep, logger, debug-levels}
 require! 'prelude-ls': {empty}
 
+
+check = (handler) ->
+    if typeof! handler isnt \Function
+        console.error "ERR: parameter passed to 'on-receive' should be a function."
+        return \failed
+
 export class ActorBase
     (@name) ->
         @actor-id = uuid4!
@@ -9,6 +15,8 @@ export class ActorBase
 
         @receive-handlers = []
         @update-handlers = []
+        @data-handlers = []
+
         @msg-seq = 0
         <~ sleep 0
         @post-init!
@@ -16,20 +24,16 @@ export class ActorBase
     post-init: ->
 
     on-receive: (handler) ->
-        @log.section \debug1, "adding handler to run on-receive..."
-        if typeof! handler isnt \Function
-            @log.err "parameter passed to 'on-receive' should be a function."
-            return
+        return if (check handler) is \failed
         @receive-handlers.push handler
 
-    receive: ->
-        ...
-
     on-update: (handler) ->
-        if typeof! handler isnt \Function
-            @log.err "parameter passed to 'on-receive' should be a function."
-            return
+        return if (check handler) is \failed
         @update-handlers.push handler
+
+    on-data: (handler) ->
+        return if (check handler) is \failed
+        @data-handlers.push handler
 
     get-msg-template: ->
         msg-raw =
@@ -42,14 +46,16 @@ export class ActorBase
     _inbox: (msg) ->
         # process one message at a time
         try
-            # if there is an update handler, let this handler handle the
-            # update messages.
-            if (\update of msg) and not empty @update-handlers
+            if \update of msg
                 for handler in @update-handlers
                     handler.call this, msg
-            else
-                for handler in @receive-handlers
-                    @log.section \recv-debug, "firing receive handler..."
+            if \payload of msg
+                for handler in @data-handlers
                     handler.call this, msg
+
+            # deliver every message to receive-handlers 
+            for handler in @receive-handlers
+                @log.section \recv-debug, "firing receive handler..."
+                handler.call this, msg
         catch
             @log.err "problem in handler: ", e
