@@ -37,7 +37,7 @@ class SocketIOHandler extends Actor
         ]
 
         # actor behaviours
-        @on-receive (msg) ~>
+        @on-data (msg) ~>
             @network-send msg
 
         @on-kill (reason, e) ->
