@@ -51,7 +51,11 @@ export class IoActor extends Actor
         @subscribe topic
 
         fps = new FpsExec rate
+        first-time = yes
         handle = @ractive.observe ractive-var, (_new) ~>
+            if first-time
+                first-time := no 
+                return
             fps.exec @send, _new, topic
 
         @on-data (msg) ~>
@@ -64,6 +68,8 @@ export class IoActor extends Actor
 
         @on-update (msg) ~>
             @log.log "IoActor got update request. Not processing."
+            fps.exec @send, (@ractive.get ractive-var), topic
+
 
     request-update: ->
         <~ context-switch
