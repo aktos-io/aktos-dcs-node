@@ -44,8 +44,8 @@ export class ActorBase
         try
             # if there is an update handler, let this handler handle the
             # update messages.
-            if \update of msg and not empty @update-handlers
-                for handler in @receive-handlers
+            if (\update of msg) and not empty @update-handlers
+                for handler in @update-handlers
                     handler.call this, msg
             else
                 for handler in @receive-handlers

@@ -32,6 +32,9 @@ export class S7Actor extends Actor
             err <~ @conn.writeItems io-addr, msg.payload
             @log.err "something went wrong while writing: ", err if err
 
+        @on-update (msg) ->
+            @log.log "Siemens actor received an update request!"
+
 
 
     action: ->
