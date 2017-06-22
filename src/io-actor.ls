@@ -70,7 +70,7 @@ export class IoActor extends Actor
 
     request-update: ->
         <~ context-switch
-        @log.log "requesting update!"
+        #@log.log "requesting update!"
         for topic in @subscriptions
             #@log.log "...requesting update for #{topic}"
             msg = @get-msg-template!
