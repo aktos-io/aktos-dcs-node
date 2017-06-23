@@ -51,19 +51,18 @@ export class ActorBase
 
 
     on-receive: (handler) ->
+        @log.warn "Deprecation: @on-receive is deprecated, use \"@on 'receive', handler\" instead."
         @on \receive, handler
 
     on-update: (handler) ->
+        @log.warn "Deprecation: @on-update is deprecated, use \"@on 'update', handler\" instead."
         @on \update, handler
 
     on-data: (handler) ->
+        @log.warn "Deprecation: @on-data is deprecated, use \"@on 'data', handler\" instead."
         @on \data, handler
 
     msg-template: (msg) ->
-        @get-msg-template msg
-
-    get-msg-template: (msg) ->
-        # deprecated, use @msg-template function instead
         msg-raw =
             sender: void # will be sent while sending
             timestamp: Date.now! / 1000
@@ -75,6 +74,10 @@ export class ActorBase
             return msg-raw <<<< msg
         else
             return msg-raw
+
+    get-msg-template: (msg) ->
+        @log.warn "Deprecation: @get-msg-template is deprecated, use @msg-template instead."
+        @msg-template msg
 
     _inbox: (msg) ->
         # process one message at a time
