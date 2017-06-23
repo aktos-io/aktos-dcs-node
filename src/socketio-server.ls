@@ -70,6 +70,11 @@ class SocketIOHandler extends Actor
         @socket.on "aktos-message", (msg) ~>
             if \payload of msg
                 @network-receive msg
+                if session = find (.token is msg.token), session-db
+                    @log.log "received message from: ", session._id
+                else
+                    @log.log "received message from guest."
+                    
             else if \auth of msg
                 @log.log "this is an authentication message. "
                 doc = find (._id is msg.auth.username), user-db
