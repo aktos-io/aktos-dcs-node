@@ -16,17 +16,17 @@ export class AuthActor extends Actor
                 @log.log "Auth actor got authentication message", msg
                 @login-signal.go msg
 
-    login: (callback) ->
+    login: (credentials, callback) ->
         auth-msg = @io-actor.msg-template do
-            auth:
-                username: \user1
-                password: 'hello world'
+            auth: credentials
 
         @log.log "sending auth message: ", auth-msg
         @io-actor.network-send-raw auth-msg
-        reason, res <~ @login-signal.wait 3000ms 
+        reason, res <~ @login-signal.wait 3000ms
         if reason is \timeout
-            @login-signal.skip-next-go!
-            return
-        @log.log "signal triggered because #{reason}, response is: ", res
-        callback res
+            # @login-signal.skip-next-go! ### DON'T DO THAT!
+            callback err=yes, res
+        else
+            @log.log "signal triggered because #{reason}, response is: ", res
+            err = if res.auth.session.token then no else yes
+            callback err, res
