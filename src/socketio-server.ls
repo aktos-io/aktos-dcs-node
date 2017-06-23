@@ -2,6 +2,7 @@ require! './actor': {Actor}
 create-hash = require 'sha.js'
 require! 'prelude-ls': {find}
 require! uuid4
+require! 'aea': {sleep}
 
 hash-passwd = (passwd) ->
     sha512 = create-hash \sha512
@@ -77,25 +78,32 @@ class SocketIOHandler extends Actor
                     @log.err "user is not found"
                 else
                     if doc.passwd-hash is hash-passwd msg.auth.password
-                        @log.log "user logged in. hash: "
-                        session =
-                            _id: msg.auth.username
-                            token: uuid4!
-                            date: Date.now!
-
-                        if find (.token is session.token), session-db
-                            @log.err "********************************************************"
-                            @log.err "*** BIG MISTAKE: TOKEN SHOULD NOT BE FOUND ON SESSION DB"
-                            @log.err "********************************************************"
-
+                        if present-session = find (._id is msg.auth.username), session-db
+                            @log.log "user is already logged in. sending present session"
+                            session = present-session
                         else
-                            @log.log session.token
-                            session-db.push session
-                            @network-send @msg-template! <<<< do
-                                sender: @actor-id
-                                auth:
-                                    session: session
-                                topic: 'nothing'
+                            @log.log "user logged in. hash: "
+                            session =
+                                _id: msg.auth.username
+                                token: uuid4!
+                                date: Date.now!
+
+                            if find (.token is session.token), session-db
+                                @log.err "********************************************************"
+                                @log.err "*** BIG MISTAKE: TOKEN SHOULD NOT BE FOUND ON SESSION DB"
+                                @log.err "********************************************************"
+                                return
+                            else
+                                @log.log session.token
+                                session-db.push session
+
+                        delay = 500ms
+                        @log.log "(...sending with #{delay}ms delay)"
+                        <~ sleep delay
+                        @network-send @msg-template! <<<< do
+                            sender: @actor-id
+                            auth:
+                                session: session
                     else
                         @log.err "wrong password", doc, msg.auth.password
 
