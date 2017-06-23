@@ -30,8 +30,7 @@ export class SocketIOBrowser extends Actor
         @subscribe '**'
 
         @token = null
-        @connection-listener = (self, connect-str) ->
-
+        
         addr = opts.address
         path = "#{opts.path or '/'}socket.io"
         #@log.log "Connecting to #{addr} path: #{path}"
@@ -50,15 +49,14 @@ export class SocketIOBrowser extends Actor
                 @network-send-raw msg
 
 
-        @socket.on do
-            'aktos-message': (msg) ~>
-                @trigger \network-receive, msg
+        @socket.on 'aktos-message', (msg) ~>
+            @trigger \network-receive, msg
 
-            "connect": !~>
-                @log.section \v1, "Connected to server with id: ", @socket.io.engine.id
+        @socket.on \connect, ~>
+            @log.section \v1, "Connected to server with id: ", @socket.io.engine.id
 
-            "disconnect": !~>
-                @log.section \v1, "proxy actor says: disconnected"
+        @socket.on \disconnect, ~>
+            @log.section \v1, "proxy actor says: disconnected"
 
 
     network-send: (msg) ->
@@ -76,6 +74,4 @@ export class SocketIOBrowser extends Actor
         # modifying this object will cause the original message to be
         # sent back to it's original sender (which is an error)
         # ---------------------------------------------------------
-
-        msg.token = @token
-        @socket.emit 'aktos-message', msg
+        @socket.emit 'aktos-message', msg <<<< {token: @token}
