@@ -53,12 +53,13 @@ class SocketIOHandler extends Actor
         ]
 
         # actor behaviours
-        @on-data (msg) ~>
-            @network-send msg
+        @on do
+            data: (msg) ~>
+                @network-send msg
 
-        @on-kill (reason, e) ->
-            @log.log "Killing actor. Reason: #{reason}"
-            @online-counter--
+            kill: (reason, e) ~>
+                @log.log "Killing actor. Reason: #{reason}"
+                @online-counter--
 
         # socket behaviours
         @socket.on \disconnect, ~>
@@ -91,6 +92,7 @@ class SocketIOHandler extends Actor
                             @log.log session.token
                             session-db.push session
                             @network-send @msg-template! <<<< do
+                                sender: @actor-id
                                 auth:
                                     session: session
                                 topic: 'nothing'

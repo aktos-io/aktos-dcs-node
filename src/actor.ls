@@ -23,8 +23,6 @@ export class Actor extends ActorBase
         # if you want to unsubscribe from all topics, do teh following:
         # @subscriptions = void
 
-        @kill-handlers = []
-
         @_state =
             kill:
                 started: no
@@ -52,7 +50,7 @@ export class Actor extends ActorBase
 
     send: (msg-payload, topic='') ~>
         try
-            @send-enveloped @msg-template do 
+            @send-enveloped @msg-template do
                 topic: topic
                 payload: msg-payload
         catch
@@ -66,11 +64,8 @@ export class Actor extends ActorBase
         @mgr.inbox-put msg
 
     on-kill: (handler) ->
-        @log.section \debug1, "adding handler to run on-kill..."
-        if typeof! handler isnt \Function
-            @log.err "parameter passed to 'on-kill' should be a function."
-            return
-        @kill-handlers.push handler
+        @log.warn "remove deprecated on-kill registrar, use @on 'kill' instead"
+        @on \kill, handler
 
     kill: (...reason) ->
         unless @_state.kill.started
@@ -78,10 +73,5 @@ export class Actor extends ActorBase
             @log.section \debug-kill, "deregistering from manager"
             @mgr.deregister this
             @log.section \debug-kill, "deregistered from manager"
-            try
-                for handler in @kill-handlers
-                    handler.apply this, reason
-            catch
-                @log.err "problem in kill handler: ", e
-
+            @trigger.apply this, ([\kill] ++ reason)
             @_state.kill.finished = yes

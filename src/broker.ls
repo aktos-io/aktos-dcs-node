@@ -55,12 +55,12 @@ class BrokerHandler extends Actor
 
         @subscribe '**'
 
-        @on-receive (msg) ~>
-            @network-send msg
-
-        @on-kill ->
-            @socket.end!
-            @socket.destroy 'KILLED'
+        @on do
+            receive: (msg) ~>
+                @network-send msg
+            kill: ~>
+                @socket.end!
+                @socket.destroy 'KILLED'
 
         # socket actions
         @socket.on \error, (e) ~>
