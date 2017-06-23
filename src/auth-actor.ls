@@ -13,20 +13,26 @@ export class AuthActor extends Actor
 
         @io-actor.on 'network-receive', (msg) ~>
             if \auth of msg
-                @log.log "Auth actor got authentication message", msg
+                #@log.log "Auth actor got authentication message", msg
                 @login-signal.go msg
 
     login: (credentials, callback) ->
         auth-msg = @io-actor.msg-template do
             auth: credentials
 
-        @log.log "sending auth message: ", auth-msg
+        #@log.log "sending auth message: ", auth-msg
         @io-actor.network-send-raw auth-msg
         reason, res <~ @login-signal.wait 3000ms
         if reason is \timeout
             # @login-signal.skip-next-go! ### DON'T DO THAT!
             callback err=yes, res
         else
-            @log.log "signal triggered because #{reason}, response is: ", res
+            #@log.log "signal triggered because #{reason}, response is: ", res
             err = if res.auth.session.token then no else yes
             callback err, res
+
+        # set socketio-browser's token variable in order to use it in every message
+        @io-actor.token = try
+            res.auth.session.token
+        catch
+            void
