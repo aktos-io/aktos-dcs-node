@@ -1,17 +1,20 @@
 require! './actor': {Actor}
 create-hash = require 'sha.js'
 require! 'prelude-ls': {find}
+require! uuid4
+
 hash-passwd = (passwd) ->
     sha512 = create-hash \sha512
     sha512.update passwd, 'utf-8' .digest \hex
 
-example-db =
+user-db =
     * _id: 'user1'
       passwd-hash: hash-passwd "hello world"
 
     * _id: 'user2'
       passwd-hash: hash-passwd "hello world2"
 
+session-db = []
 
 export class SocketIOServer extends Actor
     (@io) ->
@@ -67,19 +70,32 @@ class SocketIOHandler extends Actor
                 @network-receive msg
             else if \auth of msg
                 @log.log "this is an authentication message. "
-
-                doc = find (._id is msg.auth.username), example-db
+                doc = find (._id is msg.auth.username), user-db
 
                 if not doc
                     @log.err "user is not found"
                 else
                     if doc.passwd-hash is hash-passwd msg.auth.password
-                        @log.log "user logged in."
+                        @log.log "user logged in. hash: "
+                        session =
+                            _id: msg.auth.username
+                            token: uuid4!
+                            date: Date.now!
+
+                        if find (.token is session.token), session-db
+                            @log.err "********************************************************"
+                            @log.err "*** BIG MISTAKE: TOKEN SHOULD NOT BE FOUND ON SESSION DB"
+                            @log.err "********************************************************"
+
+                        else
+                            @log.log session.token
+                            session-db.push session
+                            @network-send @msg-template! <<<< do
+                                auth:
+                                    session: session
+                                topic: 'nothing'
                     else
                         @log.err "wrong password", doc, msg.auth.password
-                        @log.err "hash1 : ", doc.passwd-hash
-                        @log.err "hash2 : ", hash-passwd msg.auth.password
-                        @log.err "hash2 : ", hash-passwd "hello world"
 
 
     action: ->

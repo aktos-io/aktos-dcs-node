@@ -39,7 +39,17 @@ export class SocketIOBrowser extends Actor
 
         # send to server via socket.io
         @socket.on 'aktos-message', (msg) ~>
-            @network-receive msg
+            @trigger \network-receive, msg
+
+        @on do
+            'network-receive': (msg) ~>
+                # receive from server via socket.io
+                # forward message to inner actors
+                @log.section \debug-network, "proxy actor got network message: ", msg
+                unless \auth of msg
+                    @send-enveloped msg
+
+
 
         @socket.on "connect", !~>
             @log.section \v1, "Connected to server with id: ", @socket.io.engine.id
@@ -56,17 +66,10 @@ export class SocketIOBrowser extends Actor
     update-io: ->
         @network-send UpdateIoMessage: {}
 
-    network-receive: (msg) ->
-        # receive from server via socket.io
-        # forward message to inner actors
-        @log.section \debug-network, "proxy actor got network message: ", msg
-        @send-enveloped msg
-
     network-send: (msg) ->
         @log.section \debug-network, "network-send msg: ", msg
-        envelope = @get-msg-template!
-        envelope.payload = msg
-        @network-send-raw envelope
+        @network-send-raw @msg-template <<<< do
+            payload: msg
 
     network-send-raw: (msg) ->
         # receive from inner actors, forward to server
