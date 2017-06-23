@@ -30,7 +30,6 @@ export class ActorBase
         # @on {
         #     'my-event': (param) -> /**/
         # }
-        return if (check handler) is \failed
         handlers = @event-handlers
         add-handler = (name, handler) ~>
             if handlers[name] is undefined
@@ -39,9 +38,11 @@ export class ActorBase
                 handlers[name].push handler
 
         if typeof! event is \String
+            return if (check handler) is \failed
             add-handler event, handler
         else if typeof! event is \Object
-            for _ev, handler of evet
+            for _ev, handler of event 
+                return if (check handler) is \failed
                 add-handler _ev, handler
 
     trigger: (name, ...args) ->

@@ -37,10 +37,6 @@ export class SocketIOBrowser extends Actor
         #@log.log "Connecting to #{addr} path: #{path}"
         @socket = io.connect addr, path: path
 
-        # send to server via socket.io
-        @socket.on 'aktos-message', (msg) ~>
-            @trigger \network-receive, msg
-
         @on do
             'network-receive': (msg) ~>
                 # receive from server via socket.io
@@ -49,22 +45,21 @@ export class SocketIOBrowser extends Actor
                 unless \auth of msg
                     @send-enveloped msg
 
+            'receive': (msg) ~>
+                @log.section \debug-local, "received msg: ", msg
+                @network-send-raw msg
 
 
-        @socket.on "connect", !~>
-            @log.section \v1, "Connected to server with id: ", @socket.io.engine.id
+        @socket.on do
+            'aktos-message': (msg) ~>
+                @trigger \network-receive, msg
 
-        @socket.on "disconnect", !~>
-            @log.section \v1, "proxy actor says: disconnected"
+            "connect": !~>
+                @log.section \v1, "Connected to server with id: ", @socket.io.engine.id
 
-        @on-receive (msg) ~>
-            @log.section \debug-local, "received msg: ", msg
-            @network-send-raw msg
+            "disconnect": !~>
+                @log.section \v1, "proxy actor says: disconnected"
 
-
-
-    update-io: ->
-        @network-send UpdateIoMessage: {}
 
     network-send: (msg) ->
         @log.section \debug-network, "network-send msg: ", msg

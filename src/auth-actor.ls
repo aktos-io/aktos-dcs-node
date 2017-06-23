@@ -11,7 +11,6 @@ export class AuthActor extends Actor
         #@log.log "socket io browser instance: ", @io-actor
 
         @io-actor.on 'network-receive', (msg) ~>
-            @log.log "heyyyyyyyyyy", msg
             if \auth of msg
                 @log.log "Auth actor got authentication message", msg
 
