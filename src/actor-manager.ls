@@ -1,10 +1,17 @@
 require! './core': {ActorBase}
 require! 'aea/debug-log': {logger, debug-levels}
-require! 'aea': {clone, sleep}
+require! 'aea': {clone, sleep, merge, pack}
 require! 'prelude-ls': {empty, unique-by, flatten, reject, max, find}
 require! './topic-match': {topic-match}
-
 # ---------------------------------------------------------------
+
+is-nodejs = ->
+    if typeof! process is \Object
+        if typeof! process.versions is \Object
+            if typeof! process.versions.node isnt \Undefined
+                return yes
+    return no
+
 create-hash = require 'sha.js'
 require! uuid4
 
@@ -15,11 +22,118 @@ hash-passwd = (passwd) ->
 user-db =
     * _id: 'user1'
       passwd-hash: hash-passwd "hello world"
+      roles:
+          'test-area-reader'
 
     * _id: 'user2'
       passwd-hash: hash-passwd "hello world2"
+      roles:
+          \test-area-writer
 
-session-db = []
+    * _id: 'user3'
+      passwd-hash: hash-passwd "hello world3"
+      roles:
+          \my-test-role2
+
+permission-db =
+    * _id: \test-area-reader
+      ro: \authorization.test1
+
+    * _id: \test-area-writer
+      inherits:
+          \test-area-reader
+      rw:
+          \authorization.test1
+
+    * _id: \my-test-role
+      ro:
+          'my-test-topic1'
+          'my-test-topic2'
+      rw:
+          'my-test-topic-rw3'
+
+    * _id: \my-test-role2
+      inherits:
+          \my-test-role
+          \test-area-writer
+      rw:
+          'my-test-topicrw4'
+
+session-cache = {}      # key: token, value: {user: user-that-logged-in, date: date-of-login}
+permission-cache = {}   # key: token, value: {rw: [...topics], ro: [...topics]}
+
+update-permission-cache = ->
+    calc-topics = (role) ->
+        # returns:
+        # {rw: [...topics], ro: [...topics]}
+        topics =
+            rw: []
+            ro: []
+        r = find (._id is role), permission-db
+        unless r
+            console.log "role: #{role} is not found in permission-db"
+            return
+        if r.inherits
+            r.inherits = flatten [r.inherits]
+            # inherits some roles, add them recursively
+            for role in r.inherits
+                topics `merge` calc-topics role
+
+        topics `merge` do
+            rw: if r.rw then flatten([r.rw]) else []
+            ro: if r.ro then flatten([r.ro]) else []
+
+        # flatten
+        topics.rw = flatten topics.rw
+        topics.ro = flatten topics.ro
+        topics
+
+    token-topics = {}
+    for token, t of session-cache
+        for u in user-db when t.user is u._id
+            token-topics[token] = {}
+            for role in flatten [u.roles]
+                token-topics[token] `merge` calc-topics role
+    permission-cache := token-topics
+
+do test = ->
+    # treat all users logged in
+    for user in user-db
+        session-cache["test-token-for-#{user._id}"] =
+            user: user._id
+
+    update-permission-cache!
+
+    expected =
+        'test-token-for-user1':
+            rw: []
+            ro: ['authorization.test1']
+
+        'test-token-for-user2':
+            rw: ['authorization.test1']
+            ro: ['authorization.test1']
+        'test-token-for-user3':
+            rw:
+                'my-test-topic-rw3'
+                'authorization.test1'
+                'my-test-topicrw4'
+            ro:
+                'my-test-topic1'
+                'my-test-topic2'
+                'authorization.test1'
+
+    for token, topics of permission-cache
+        for token1, expected-topics of expected when token is token1
+            if pack(topics) isnt pack(expected-topics)
+                console.log "unexpected result in token #{token}"
+                console.log "expecting: ", expected-topics
+                console.log "result: ", topics
+                throw
+
+    console.log "[TEST OK] Permission calculation passed the tests"
+    # cleanup
+    permission-cache := {}
+    session-cache := {}
 
 # ---------------------------------------------------------------
 
@@ -94,53 +208,41 @@ export class ActorManager extends ActorBase
         entry.subscriptions = actor.subscriptions
         @update-subscriptions!
 
+    process-auth-msg: (msg) ->
+        unless is-nodej!
+            # this is browser, just drop the message right away
+            @log.log "dropping auth message as this is browser."
+            return
+        sender = find (.actor-id is msg.sender), @actor-list
+        @log.log "this is an authentication message"
+        doc = find (._id is msg.auth.username), user-db
+
+        if not doc
+            @log.err "user is not found"
+        else
+            if doc.passwd-hash is hash-passwd msg.auth.password
+                token = uuid4!
+                session-cache[token] =
+                    user: msg.auth.username
+                    date: Date.now!
+                @log.log "user logged in. hash: #{token}"
+
+                update-permission-cache!
+                delay = 500ms
+                @log.log "(...sending with #{delay}ms delay)"
+                <~ sleep delay
+                sender._inbox @msg-template! <<<< do
+                    sender: @actor-id
+                    auth:
+                        session: session-cache[token]
+            else
+                @log.err "wrong password", doc, msg.auth.password
+
     inbox-put: (msg) ->
         if \auth of msg
-            sender = find (.actor-id is msg.sender), @actor-list
-            @log.log "this is an authentication message"
-            doc = find (._id is msg.auth.username), user-db
-
-            if not doc
-                @log.err "user is not found"
-            else
-                if doc.passwd-hash is hash-passwd msg.auth.password
-                    if present-session = find (._id is msg.auth.username), session-db
-                        @log.log "user is already logged in. sending present session"
-                        session = present-session
-                    else
-                        @log.log "user logged in. hash: "
-                        session =
-                            _id: msg.auth.username
-                            token: uuid4!
-                            date: Date.now!
-
-                        if find (.token is session.token), session-db
-                            @log.err "********************************************************"
-                            @log.err "*** BIG MISTAKE: TOKEN SHOULD NOT BE FOUND ON SESSION DB"
-                            @log.err "********************************************************"
-                            return
-                        else
-                            @log.log session.token
-                            session-db.push session
-
-                    delay = 500ms
-                    @log.log "(...sending with #{delay}ms delay)"
-                    <~ sleep delay
-                    sender._inbox @msg-template! <<<< do
-                        sender: @actor-id
-                        auth:
-                            session: session
-                else
-                    @log.err "wrong password", doc, msg.auth.password
+            @process-auth-msg msg
         else
             @distribute-msg msg
-
-            ->
-                # only for information
-                if session = find (.token is msg.token), session-db
-                    @log.log "received message from: ", session._id
-                else
-                    @log.log "received message from guest."
 
 
     distribute-msg: (msg) ->
