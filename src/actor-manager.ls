@@ -3,10 +3,12 @@ require! 'aea/debug-log': {logger, debug-levels}
 require! 'aea': {clone, sleep, merge, pack}
 require! 'prelude-ls': {empty, unique-by, flatten, reject, max, find}
 require! './topic-match': {topic-match}
+
+require! 'colors': {green, red}
 # ---------------------------------------------------------------
 
 is-nodejs = ->
-    if typeof! process is \Object
+    if typeof! process is \process
         if typeof! process.versions is \Object
             if typeof! process.versions.node isnt \Undefined
                 return yes
@@ -96,44 +98,45 @@ update-permission-cache = ->
                 token-topics[token] `merge` calc-topics role
     permission-cache := token-topics
 
-do test = ->
-    # treat all users logged in
-    for user in user-db
-        session-cache["test-token-for-#{user._id}"] =
-            user: user._id
+if is-nodejs!
+    do test = ->
+        # treat all users logged in
+        for user in user-db
+            session-cache["test-token-for-#{user._id}"] =
+                user: user._id
 
-    update-permission-cache!
+        update-permission-cache!
 
-    expected =
-        'test-token-for-user1':
-            rw: []
-            ro: ['authorization.test1']
+        expected =
+            'test-token-for-user1':
+                rw: []
+                ro: ['authorization.test1']
 
-        'test-token-for-user2':
-            rw: ['authorization.test1']
-            ro: ['authorization.test1']
-        'test-token-for-user3':
-            rw:
-                'my-test-topic-rw3'
-                'authorization.test1'
-                'my-test-topicrw4'
-            ro:
-                'my-test-topic1'
-                'my-test-topic2'
-                'authorization.test1'
+            'test-token-for-user2':
+                rw: ['authorization.test1']
+                ro: ['authorization.test1']
+            'test-token-for-user3':
+                rw:
+                    'my-test-topic-rw3'
+                    'authorization.test1'
+                    'my-test-topicrw4'
+                ro:
+                    'my-test-topic1'
+                    'my-test-topic2'
+                    'authorization.test1'
 
-    for token, topics of permission-cache
-        for token1, expected-topics of expected when token is token1
-            if pack(topics) isnt pack(expected-topics)
-                console.log "unexpected result in token #{token}"
-                console.log "expecting: ", expected-topics
-                console.log "result: ", topics
-                throw
+        for token, topics of permission-cache
+            for token1, expected-topics of expected when token is token1
+                if pack(topics) isnt pack(expected-topics)
+                    console.log "unexpected result in token #{token}"
+                    console.log "expecting: ", expected-topics
+                    console.log "result: ", topics
+                    throw
 
-    console.log "[TEST OK] Permission calculation passed the tests"
-    # cleanup
-    permission-cache := {}
-    session-cache := {}
+        console.log (green "[TEST OK]"), " Permission calculation passed the tests"
+        # cleanup
+        permission-cache := {}
+        session-cache := {}
 
 # ---------------------------------------------------------------
 
