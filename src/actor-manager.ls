@@ -1,8 +1,27 @@
 require! './core': {ActorBase}
 require! 'aea/debug-log': {logger, debug-levels}
-require! 'aea': {pack, unpack}
-require! 'prelude-ls': {empty, unique-by, flatten, reject, max}
+require! 'aea': {clone, sleep}
+require! 'prelude-ls': {empty, unique-by, flatten, reject, max, find}
 require! './topic-match': {topic-match}
+
+# ---------------------------------------------------------------
+create-hash = require 'sha.js'
+require! uuid4
+
+hash-passwd = (passwd) ->
+    sha512 = create-hash \sha512
+    sha512.update passwd, 'utf-8' .digest \hex
+
+user-db =
+    * _id: 'user1'
+      passwd-hash: hash-passwd "hello world"
+
+    * _id: 'user2'
+      passwd-hash: hash-passwd "hello world2"
+
+session-db = []
+
+# ---------------------------------------------------------------
 
 export class ActorManager extends ActorBase
     @instance = null
@@ -50,7 +69,7 @@ export class ActorManager extends ActorBase
     update-subscriptions: ->
         # log section prefix: v3
         # update subscriptions
-        @subscription-list = unpack pack {'**': []}
+        @subscription-list = clone {'**': []}
 
         for actor in @actor-list
             continue if actor.subscriptions is void
@@ -76,7 +95,53 @@ export class ActorManager extends ActorBase
         @update-subscriptions!
 
     inbox-put: (msg) ->
-        @distribute-msg msg
+        if \auth of msg
+            sender = find (.actor-id is msg.sender), @actor-list
+            @log.log "this is an authentication message"
+            doc = find (._id is msg.auth.username), user-db
+
+            if not doc
+                @log.err "user is not found"
+            else
+                if doc.passwd-hash is hash-passwd msg.auth.password
+                    if present-session = find (._id is msg.auth.username), session-db
+                        @log.log "user is already logged in. sending present session"
+                        session = present-session
+                    else
+                        @log.log "user logged in. hash: "
+                        session =
+                            _id: msg.auth.username
+                            token: uuid4!
+                            date: Date.now!
+
+                        if find (.token is session.token), session-db
+                            @log.err "********************************************************"
+                            @log.err "*** BIG MISTAKE: TOKEN SHOULD NOT BE FOUND ON SESSION DB"
+                            @log.err "********************************************************"
+                            return
+                        else
+                            @log.log session.token
+                            session-db.push session
+
+                    delay = 500ms
+                    @log.log "(...sending with #{delay}ms delay)"
+                    <~ sleep delay
+                    sender._inbox @msg-template! <<<< do
+                        sender: @actor-id
+                        auth:
+                            session: session
+                else
+                    @log.err "wrong password", doc, msg.auth.password
+        else
+            @distribute-msg msg
+
+            ->
+                # only for information
+                if session = find (.token is msg.token), session-db
+                    @log.log "received message from: ", session._id
+                else
+                    @log.log "received message from guest."
+
 
     distribute-msg: (msg) ->
         # distribute subscribe-all messages

@@ -1,21 +1,6 @@
 require! './actor': {Actor}
-create-hash = require 'sha.js'
 require! 'prelude-ls': {find}
-require! uuid4
 require! 'aea': {sleep}
-
-hash-passwd = (passwd) ->
-    sha512 = create-hash \sha512
-    sha512.update passwd, 'utf-8' .digest \hex
-
-user-db =
-    * _id: 'user1'
-      passwd-hash: hash-passwd "hello world"
-
-    * _id: 'user2'
-      passwd-hash: hash-passwd "hello world2"
-
-session-db = []
 
 export class SocketIOServer extends Actor
     (@io) ->
@@ -55,7 +40,7 @@ class SocketIOHandler extends Actor
 
         # actor behaviours
         @on do
-            data: (msg) ~>
+            receive: (msg) ~>
                 @network-send msg
 
             kill: (reason, e) ~>
@@ -68,57 +53,10 @@ class SocketIOHandler extends Actor
             @kill \disconnect, 0
 
         @socket.on "aktos-message", (msg) ~>
-            if \payload of msg
-                @network-receive msg
-                if session = find (.token is msg.token), session-db
-                    @log.log "received message from: ", session._id
-                else
-                    @log.log "received message from guest."
-                    
-            else if \auth of msg
-                @log.log "this is an authentication message. "
-                doc = find (._id is msg.auth.username), user-db
-
-                if not doc
-                    @log.err "user is not found"
-                else
-                    if doc.passwd-hash is hash-passwd msg.auth.password
-                        if present-session = find (._id is msg.auth.username), session-db
-                            @log.log "user is already logged in. sending present session"
-                            session = present-session
-                        else
-                            @log.log "user logged in. hash: "
-                            session =
-                                _id: msg.auth.username
-                                token: uuid4!
-                                date: Date.now!
-
-                            if find (.token is session.token), session-db
-                                @log.err "********************************************************"
-                                @log.err "*** BIG MISTAKE: TOKEN SHOULD NOT BE FOUND ON SESSION DB"
-                                @log.err "********************************************************"
-                                return
-                            else
-                                @log.log session.token
-                                session-db.push session
-
-                        delay = 500ms
-                        @log.log "(...sending with #{delay}ms delay)"
-                        <~ sleep delay
-                        @network-send @msg-template! <<<< do
-                            sender: @actor-id
-                            auth:
-                                session: session
-                    else
-                        @log.err "wrong password", doc, msg.auth.password
-
+            @send-enveloped msg
 
     action: ->
         @log.log "+---> New socket.io client (id: #{@socket.id}) connected, starting its forwarder..."
-
-    network-receive: (msg) ->
-        @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
-        @send-enveloped msg
 
     network-send: (msg) ->
         try

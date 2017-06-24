@@ -58,7 +58,7 @@ export class Actor extends ActorBase
 
     send-enveloped: (msg) ->
         msg.sender = @actor-id
-        unless msg.topic
+        if not msg.topic and not (\auth of msg)
             @log.err "send-enveloped: Message has no topic. Not sending."
             return
         @mgr.inbox-put msg
