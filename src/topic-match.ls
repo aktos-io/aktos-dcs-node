@@ -1,4 +1,6 @@
-require! 'prelude-ls': {max}
+require! 'prelude-ls': {max, split}
+
+split-dot = split '.'
 
 export topic-match = (topic, keypath, opts={}) ->
     # returns true if keypath fits into topic
@@ -7,8 +9,12 @@ export topic-match = (topic, keypath, opts={}) ->
         console.log "topic is **, immediately matches with anything" if opts.debug
         return yes
 
-    topic-arr = topic.split '.'
-    keypath-arr = keypath.split '.'
+    unless topic and keypath
+        # both should be different from undefined
+        return no
+
+    topic-arr = split-dot topic
+    keypath-arr = split-dot keypath
 
     for index in [til max(topic-arr.length, keypath-arr.length)]
         topic-part = try topic-arr[index]
