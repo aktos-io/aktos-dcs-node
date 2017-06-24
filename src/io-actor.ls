@@ -58,7 +58,8 @@ export class IoActor extends Actor
                 return
             fps.exec @send, _new, topic
 
-        @on-data (msg) ~>
+
+        @on \data, (msg) ~>
             unless msg.topic in @subscriptions
                 @log.err "HOW COME WE GET SOMETHING WE DIDN'T SUBSCRIBE???"
 
@@ -72,8 +73,6 @@ export class IoActor extends Actor
         <~ context-switch
         #@log.log "requesting update!"
         for topic in @subscriptions
-            #@log.log "...requesting update for #{topic}"
-            msg = @get-msg-template!
-            msg.update = yes
-            msg.topic = topic
-            @send-enveloped msg
+            @send-enveloped @msg-template do
+                update: yes
+                topic: topic

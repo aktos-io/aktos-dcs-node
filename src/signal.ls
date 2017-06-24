@@ -10,47 +10,55 @@ export class Signal
         @waiting = no
         @timer = void
         #@log = new logger @name
+        @skip-next = no
 
-    fire: (...args) ->
+    fire: (event, ...args) ->
         #@log.log "trying to fire..."
         if @waiting and @should-run
             #@log.log "signal fired!"
             @waiting = no
             @should-run = no
             for callback in @callbacks
-                reason = if @timer is null then \timeout else \hasevent
                 try clear-timeout @timer
-                callback.apply this, ([reason] ++ args)
+                callback.apply this, ([event.reason] ++ args)
 
 
     wait: (timeout, callback) ->
         # usage:
         #   .wait [timeout,] callback
         #
-        #@log.log "started waiting..."
+
+        # re-arrange arguments
         if typeof! timeout is \Function
-            timeout = void
             callback = timeout
+        # /re-arrange arguments
+
 
         if callback.to-string! not in [..to-string! for @callbacks]
             @callbacks.push callback
         @waiting = yes
 
-        if timeout
+        if typeof! timeout is \Number
             @timeout = timeout
             @reset-timeout!
 
         # try to run signal if it is set as `go` before reaching "wait" line
-        @fire!
+        @fire {reason: \hasevent}
 
+    skip-next-go: ->
+        @skip-next = yes
 
     go: (...args) ->
+        if @skip-next
+            @skip-next = no
+            return
+
         #@log.log "called 'go!'"
         @should-run = yes
-        @fire.apply this, args
+        @fire.apply this, ([{reason: \hasevent}] ++ args)
 
     reset-timeout: ->
         try clear-timeout @timer
         @timer = sleep @timeout, ~>
             @should-run = yes
-            @fire!
+            @fire {reason: \timeout}

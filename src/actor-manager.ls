@@ -1,8 +1,156 @@
 require! './core': {ActorBase}
 require! 'aea/debug-log': {logger, debug-levels}
-require! 'aea': {pack, unpack}
-require! 'prelude-ls': {empty, unique-by, flatten, reject, max}
+require! 'aea': {clone, sleep, merge, pack}
+require! 'prelude-ls': {empty, unique-by, flatten, reject, max, find}
 require! './topic-match': {topic-match}
+
+require! 'colors': {green, red}
+# ---------------------------------------------------------------
+
+is-nodejs = ->
+    if typeof! process is \process
+        if typeof! process.versions is \Object
+            if typeof! process.versions.node isnt \Undefined
+                return yes
+    return no
+
+create-hash = require 'sha.js'
+require! uuid4
+
+hash-passwd = (passwd) ->
+    sha512 = create-hash \sha512
+    sha512.update passwd, 'utf-8' .digest \hex
+
+user-db =
+    * _id: 'user1'
+      passwd-hash: hash-passwd "hello world"
+      roles:
+          'test-area-reader'
+
+    * _id: 'user2'
+      passwd-hash: hash-passwd "hello world2"
+      roles:
+          \test-area-writer
+
+    * _id: 'user3'
+      passwd-hash: hash-passwd "hello world3"
+      roles:
+          \my-test-role2
+
+permission-db =
+    * _id: \test-area-reader
+      ro: \authorization.test1
+
+    * _id: \test-area-writer
+      inherits:
+          \test-area-reader
+      rw:
+          \authorization.test1
+
+    * _id: \my-test-role
+      ro:
+          'my-test-topic1'
+          'my-test-topic2'
+      rw:
+          'my-test-topic-rw3'
+
+    * _id: \my-test-role2
+      inherits:
+          \my-test-role
+          \test-area-writer
+      rw:
+          'my-test-topicrw4'
+
+session-cache = {}      # key: token, value: {user: user-that-logged-in, date: date-of-login}
+permission-cache = {}   # key: token, value: {rw: [...topics], ro: [...topics]}
+
+update-permission-cache = ->
+    calc-topics = (role) ->
+        # returns:
+        # {rw: [...topics], ro: [...topics]}
+        topics =
+            rw: []
+            ro: []
+        r = find (._id is role), permission-db
+        unless r
+            console.log "role: #{role} is not found in permission-db"
+            return
+        if r.inherits
+            r.inherits = flatten [r.inherits]
+            # inherits some roles, add them recursively
+            for role in r.inherits
+                topics `merge` calc-topics role
+
+        topics `merge` do
+            rw: if r.rw then flatten([r.rw]) else []
+            ro: if r.ro then flatten([r.ro]) else []
+
+        # flatten
+        topics.rw = flatten topics.rw
+        topics.ro = flatten topics.ro
+        topics
+
+    token-topics = {}
+    for token, t of session-cache
+        for u in user-db when t.user is u._id
+            token-topics[token] = {}
+            for role in flatten [u.roles]
+                token-topics[token] `merge` calc-topics role
+    permission-cache := token-topics
+
+if is-nodejs!
+    do test = ->
+        # treat all users logged in
+        for user in user-db
+            session-cache["test-token-for-#{user._id}"] =
+                user: user._id
+
+        update-permission-cache!
+
+        expected =
+            'test-token-for-user1':
+                rw: []
+                ro: ['authorization.test1']
+
+            'test-token-for-user2':
+                rw: ['authorization.test1']
+                ro: ['authorization.test1']
+            'test-token-for-user3':
+                rw:
+                    'my-test-topic-rw3'
+                    'authorization.test1'
+                    'my-test-topicrw4'
+                ro:
+                    'my-test-topic1'
+                    'my-test-topic2'
+                    'authorization.test1'
+
+        for token, topics of permission-cache
+            for token1, expected-topics of expected when token is token1
+                if pack(topics) isnt pack(expected-topics)
+                    console.log "unexpected result in token #{token}"
+                    console.log "expecting: ", expected-topics
+                    console.log "result: ", topics
+                    throw
+
+        console.log (green "[TEST OK]"), " Permission calculation passed the tests"
+        # cleanup
+        permission-cache := {}
+        session-cache := {}
+
+has-write-permission-for = (token, topic) ->
+    try
+        permission-cache[token].rw and topic in permission-cache[token].rw
+    catch
+        no
+
+has-read-permission-for = (token, topic) ->
+    try
+        permission-cache[token].ro and topic in permission-cache[token].ro
+    catch
+        no
+
+# ---------------------------------------------------------------
 
 export class ActorManager extends ActorBase
     @instance = null
@@ -50,7 +198,7 @@ export class ActorManager extends ActorBase
     update-subscriptions: ->
         # log section prefix: v3
         # update subscriptions
-        @subscription-list = unpack pack {'**': []}
+        @subscription-list = clone {'**': []}
 
         for actor in @actor-list
             continue if actor.subscriptions is void
@@ -75,12 +223,61 @@ export class ActorManager extends ActorBase
         entry.subscriptions = actor.subscriptions
         @update-subscriptions!
 
+    process-auth-msg: (msg) ->
+        unless is-nodejs!
+            # this is browser, just drop the message right away
+            @log.log "dropping auth message as this is browser."
+            return
+        sender = find (.actor-id is msg.sender), @actor-list
+        @log.log "this is an authentication message"
+        doc = find (._id is msg.auth.username), user-db
+
+        if not doc
+            @log.err "user is not found"
+        else
+            if doc.passwd-hash is hash-passwd msg.auth.password
+                token = uuid4!
+                session-cache[token] =
+                    user: msg.auth.username
+                    date: Date.now!
+                @log.log "user logged in. hash: #{token}"
+
+                update-permission-cache!
+                delay = 500ms
+                @log.log "(...sending with #{delay}ms delay)"
+                <~ sleep delay
+                sender._inbox @msg-template! <<<< do
+                    sender: @actor-id
+                    auth:
+                        session:
+                            token: token
+
+                # will be used for checking 1read permissions
+                sender.token = token
+            else
+                @log.err "wrong password", doc, msg.auth.password
+
     inbox-put: (msg) ->
+        if is-nodejs!
+            if \auth of msg
+                @process-auth-msg msg
+                return
         @distribute-msg msg
+
 
     distribute-msg: (msg) ->
         # distribute subscribe-all messages
         # log.section prefix: "dis"
+
+        if is-nodejs!
+            if (msg.token `has-write-permission-for` msg.topic) or
+                (msg.topic `topic-match` 'public.**')
+                @log.log green "distributing message", msg.topic, msg.payload
+                void
+            else
+                @log.log red "dropping unauthorized write message (#{msg.topic})"
+                return
+
 
         matching-subscriptions = [actors for topic, actors of @subscription-list
             when topic `topic-match` msg.topic]
@@ -101,7 +298,13 @@ export class ActorManager extends ActorBase
             @log.section \dis-vv, "message: ", msg
             @log.section \dis-vv, "------------- end of forwarding to actor ---------------"
 
-            actor._inbox msg
-            i++
+            if is-nodejs!
+                if (actor.token `has-read-permission-for` msg.topic) or
+                    (msg.topic `topic-match` 'public.**')
+                    actor._inbox msg
+                else
+                    @log.log "Actor has no read permissions, dropping message"
+            else
+                actor._inbox msg 
 
-        @log.section \dis-vv, "------------ end of forwarding message, total forward: #{i}---------------"
+        @log.section \dis-vv, "------------ end of forwarding message, total forward: #{i++}---------------"

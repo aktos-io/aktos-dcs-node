@@ -23,8 +23,6 @@ export class Actor extends ActorBase
         # if you want to unsubscribe from all topics, do teh following:
         # @subscriptions = void
 
-        @kill-handlers = []
-
         @_state =
             kill:
                 started: no
@@ -52,26 +50,22 @@ export class Actor extends ActorBase
 
     send: (msg-payload, topic='') ~>
         try
-            msg-env = @get-msg-template!
-            msg-env.payload = msg-payload
-            msg-env.topic = topic
-            @send-enveloped msg-env
+            @send-enveloped @msg-template do
+                topic: topic
+                payload: msg-payload
         catch
             @log.err "sending message failed. msg: ", msg-payload, "enveloped: ", msg-env, e
 
     send-enveloped: (msg) ->
         msg.sender = @actor-id
-        unless msg.topic
-            @log.err "Message should include a topic. Won't send the message."
+        if not msg.topic and not (\auth of msg)
+            @log.err "send-enveloped: Message has no topic. Not sending."
             return
         @mgr.inbox-put msg
 
     on-kill: (handler) ->
-        @log.section \debug1, "adding handler to run on-kill..."
-        if typeof! handler isnt \Function
-            @log.err "parameter passed to 'on-kill' should be a function."
-            return
-        @kill-handlers.push handler
+        @log.warn "remove deprecated on-kill registrar, use @on 'kill' instead"
+        @on \kill, handler
 
     kill: (...reason) ->
         unless @_state.kill.started
@@ -79,10 +73,5 @@ export class Actor extends ActorBase
             @log.section \debug-kill, "deregistering from manager"
             @mgr.deregister this
             @log.section \debug-kill, "deregistered from manager"
-            try
-                for handler in @kill-handlers
-                    handler.apply this, reason
-            catch
-                @log.err "problem in kill handler: ", e
-
+            @trigger.apply this, ([\kill] ++ reason)
             @_state.kill.finished = yes

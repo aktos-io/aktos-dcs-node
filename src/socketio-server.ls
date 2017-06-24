@@ -1,4 +1,6 @@
 require! './actor': {Actor}
+require! 'prelude-ls': {find}
+require! 'aea': {sleep}
 
 export class SocketIOServer extends Actor
     (@io) ->
@@ -37,12 +39,13 @@ class SocketIOHandler extends Actor
         ]
 
         # actor behaviours
-        @on-data (msg) ~>
-            @network-send msg
+        @on do
+            receive: (msg) ~>
+                @network-send msg
 
-        @on-kill (reason, e) ->
-            @log.log "Killing actor. Reason: #{reason}"
-            @online-counter--
+            kill: (reason, e) ~>
+                @log.log "Killing actor. Reason: #{reason}"
+                @online-counter--
 
         # socket behaviours
         @socket.on \disconnect, ~>
@@ -50,14 +53,10 @@ class SocketIOHandler extends Actor
             @kill \disconnect, 0
 
         @socket.on "aktos-message", (msg) ~>
-            @network-receive msg
+            @send-enveloped msg
 
     action: ->
         @log.log "+---> New socket.io client (id: #{@socket.id}) connected, starting its forwarder..."
-
-    network-receive: (msg) ->
-        @log.section \debug-redirect, "redirecting msg from 'network' interface to 'local' interface"
-        @send-enveloped msg
 
     network-send: (msg) ->
         try

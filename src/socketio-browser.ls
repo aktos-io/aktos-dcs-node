@@ -30,43 +30,39 @@ export class SocketIOBrowser extends Actor
         @subscribe '**'
 
         @token = null
-        @connection-listener = (self, connect-str) ->
-
+        
         addr = opts.address
         path = "#{opts.path or '/'}socket.io"
         #@log.log "Connecting to #{addr} path: #{path}"
         @socket = io.connect addr, path: path
 
-        # send to server via socket.io
-        @socket.on 'aktos-message', (msg) ~>
-            @network-receive msg
+        @on do
+            'network-receive': (msg) ~>
+                # receive from server via socket.io
+                # forward message to inner actors
+                @log.section \debug-network, "proxy actor got network message: ", msg
+                unless \auth of msg
+                    @send-enveloped msg
 
-        @socket.on "connect", !~>
+            'receive': (msg) ~>
+                @log.section \debug-local, "received msg: ", msg
+                @network-send-raw msg
+
+
+        @socket.on 'aktos-message', (msg) ~>
+            @trigger \network-receive, msg
+
+        @socket.on \connect, ~>
             @log.section \v1, "Connected to server with id: ", @socket.io.engine.id
 
-        @socket.on "disconnect", !~>
+        @socket.on \disconnect, ~>
             @log.section \v1, "proxy actor says: disconnected"
 
-        @on-receive (msg) ~>
-            @log.section \debug-local, "received msg: ", msg
-            @network-send-raw msg
-
-
-
-    update-io: ->
-        @network-send UpdateIoMessage: {}
-
-    network-receive: (msg) ->
-        # receive from server via socket.io
-        # forward message to inner actors
-        @log.section \debug-network, "proxy actor got network message: ", msg
-        @send-enveloped msg
 
     network-send: (msg) ->
         @log.section \debug-network, "network-send msg: ", msg
-        envelope = @get-msg-template!
-        envelope.payload = msg
-        @network-send-raw envelope
+        @network-send-raw @msg-template <<<< do
+            payload: msg
 
     network-send-raw: (msg) ->
         # receive from inner actors, forward to server
@@ -78,6 +74,4 @@ export class SocketIOBrowser extends Actor
         # modifying this object will cause the original message to be
         # sent back to it's original sender (which is an error)
         # ---------------------------------------------------------
-
-        msg.token = @token
-        @socket.emit 'aktos-message', msg
+        @socket.emit 'aktos-message', msg <<<< {token: @token}

@@ -1,5 +1,5 @@
 require! 'uuid4'
-require! 'aea': {sleep, logger, debug-levels}
+require! 'aea': {sleep, logger, debug-levels, merge}
 require! 'prelude-ls': {empty}
 
 
@@ -13,9 +13,7 @@ export class ActorBase
         @actor-id = uuid4!
         @log = new logger (@name or @actor-id)
 
-        @receive-handlers = []
-        @update-handlers = []
-        @data-handlers = []
+        @event-handlers = {}
 
         @msg-seq = 0
         <~ sleep 0
@@ -23,19 +21,49 @@ export class ActorBase
 
     post-init: ->
 
+    on: (event, handler) ->
+        # usage:
+        # @on 'my-event', (param) -> /**/
+        #
+        # or
+        #
+        # @on {
+        #     'my-event': (param) -> /**/
+        # }
+        handlers = @event-handlers
+        add-handler = (name, handler) ~>
+            if handlers[name] is undefined
+                handlers[name] = [handler]
+            else
+                handlers[name].push handler
+
+        if typeof! event is \String
+            return if (check handler) is \failed
+            add-handler event, handler
+        else if typeof! event is \Object
+            for _ev, handler of event 
+                return if (check handler) is \failed
+                add-handler _ev, handler
+
+    trigger: (name, ...args) ->
+        if @event-handlers[name]
+            for handler in @event-handlers[name]
+                handler.apply this, args
+
+
     on-receive: (handler) ->
-        return if (check handler) is \failed
-        @receive-handlers.push handler
+        @log.warn "Deprecation: @on-receive is deprecated, use \"@on 'receive', handler\" instead."
+        @on \receive, handler
 
     on-update: (handler) ->
-        return if (check handler) is \failed
-        @update-handlers.push handler
+        @log.warn "Deprecation: @on-update is deprecated, use \"@on 'update', handler\" instead."
+        @on \update, handler
 
     on-data: (handler) ->
-        return if (check handler) is \failed
-        @data-handlers.push handler
+        @log.warn "Deprecation: @on-data is deprecated, use \"@on 'data', handler\" instead."
+        @on \data, handler
 
-    get-msg-template: ->
+    msg-template: (msg) ->
         msg-raw =
             sender: void # will be sent while sending
             timestamp: Date.now! / 1000
@@ -43,19 +71,23 @@ export class ActorBase
             topic: void
             token: void
 
+        if msg
+            return msg-raw <<<< msg
+        else
+            return msg-raw
+
+    get-msg-template: (msg) ->
+        @log.warn "Deprecation: @get-msg-template is deprecated, use @msg-template instead."
+        @msg-template msg
+
     _inbox: (msg) ->
         # process one message at a time
         try
             if \update of msg
-                for handler in @update-handlers
-                    handler.call this, msg
+                @trigger \update, msg
             if \payload of msg
-                for handler in @data-handlers
-                    handler.call this, msg
-
-            # deliver every message to receive-handlers 
-            for handler in @receive-handlers
-                @log.section \recv-debug, "firing receive handler..."
-                handler.call this, msg
+                @trigger \data, msg
+            # deliver every message to receive-handlers
+            @trigger \receive, msg
         catch
             @log.err "problem in handler: ", e
