@@ -212,7 +212,7 @@ export class ActorManager extends ActorBase
         @update-subscriptions!
 
     process-auth-msg: (msg) ->
-        unless is-nodej!
+        unless is-nodejs!
             # this is browser, just drop the message right away
             @log.log "dropping auth message as this is browser."
             return
@@ -237,7 +237,8 @@ export class ActorManager extends ActorBase
                 sender._inbox @msg-template! <<<< do
                     sender: @actor-id
                     auth:
-                        session: session-cache[token]
+                        session:
+                            token: token
             else
                 @log.err "wrong password", doc, msg.auth.password
 
