@@ -47,35 +47,33 @@ export class AuthActor extends Actor
     login: (credentials, callback) ->
         @send-to-remote auth: credentials
         reason, res <~ @login-signal.wait 3000ms
-        err = try
-            throw 'no token' unless res.auth.session.token
-            throw 'timeout' if reason is \timeout
+        err = if reason is \timeout
+            {reason: \timeout}
+        else
             no
-        catch
-            @log.err "error reason: ", e
-            yes
-
-        callback err, res
 
         # set socketio-browser's token variable in order to use it in every message
         @io-actor.token = try
             res.auth.session.token
         catch
+            err = {reason: 'something wrong with token'}
             void
 
         @db.set \token, @io-actor.token
+        callback err, res
 
     logout: (callback) ->
         @send-to-remote auth: logout: yes
         reason, msg <~ @logout-signal.wait 3000ms
         err = if reason is \timeout
-            yes
+            {reason: 'timeout'}
         else
-            if msg.auth.logout is \ok then no else yes
+            no
 
-        unless err
+        if not err and msg.auth.logout is \ok
             @log.log "clearing local storage"
             @db.del \token
+
         callback err, msg
 
     check-session: (callback) ->
@@ -93,6 +91,9 @@ export class AuthActor extends Actor
             {reason: 'server not responded in a reasonable amount of time'}
         else
             no
+
+        if msg.auth.session
+            @io-actor.token = msg.auth.session.token
 
         callback err, msg
         @checking = no
