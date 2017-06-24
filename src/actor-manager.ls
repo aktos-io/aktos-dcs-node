@@ -4,7 +4,7 @@ require! 'aea': {clone, sleep, merge, pack}
 require! 'prelude-ls': {empty, unique-by, flatten, reject, max, find}
 require! './topic-match': {topic-match}
 
-require! 'colors': {green, red}
+require! 'colors': {green, red, yellow}
 # ---------------------------------------------------------------
 
 is-nodejs = ->
@@ -228,34 +228,73 @@ export class ActorManager extends ActorBase
             # this is browser, just drop the message right away
             @log.log "dropping auth message as this is browser."
             return
+
+        # FIXME: rather than searching whole actor-list, actors should pass
+        # their own object reference by the message for two way communication
         sender = find (.actor-id is msg.sender), @actor-list
+        # /FIXME
+
         @log.log "this is an authentication message"
-        doc = find (._id is msg.auth.username), user-db
 
-        if not doc
-            @log.err "user is not found"
-        else
-            if doc.passwd-hash is hash-passwd msg.auth.password
-                token = uuid4!
-                session-cache[token] =
-                    user: msg.auth.username
-                    date: Date.now!
-                @log.log "user logged in. hash: #{token}"
+        if msg.auth
+            if \username of msg.auth
+                # login request
+                doc = find (._id is msg.auth.username), user-db
 
-                update-permission-cache!
-                delay = 500ms
-                @log.log "(...sending with #{delay}ms delay)"
-                <~ sleep delay
-                sender._inbox @msg-template! <<<< do
-                    sender: @actor-id
-                    auth:
-                        session:
-                            token: token
+                if not doc
+                    @log.err "user is not found"
+                else
+                    if doc.passwd-hash is hash-passwd msg.auth.password
+                        token = uuid4!
+                        session-cache[token] =
+                            user: msg.auth.username
+                            date: Date.now!
+                        @log.log "user logged in. hash: #{token}"
 
-                # will be used for checking 1read permissions
-                sender.token = token
+                        update-permission-cache!
+                        delay = 500ms
+                        @log.log "(...sending with #{delay}ms delay)"
+                        <~ sleep delay
+                        sender._inbox @msg-template! <<<< do
+                            sender: @actor-id
+                            auth:
+                                session:
+                                    token: token
+                                    user: msg.auth.username
+
+                        # will be used for checking read permissions
+                        sender.token = token
+                    else
+                        @log.err "wrong password", doc, msg.auth.password
+            else if \logout of msg.auth
+                # session end request
+                unless session-cache[msg.token]
+                    @log.log "No user found with the following token: #{msg.token} "
+                    return
+                else
+                    @log.log "logging out for #{session-cache[msg.token].user}"
+                    delete session-cache[msg.token]
+                    update-permission-cache!
+                    sender._inbox @msg-template! <<<< do
+                        auth: logout: \ok
+
+            else if \token of msg.auth
+                response = @msg-template!
+                if curr = session-cache[msg.auth.token]
+                    # this is a valid session token
+                    response <<<< do
+                        auth:
+                            session:
+                                token: msg.auth.token
+                                user: curr.user
+                else
+                    response <<<< auth: logout: 'yes'
+
+                @log.log "tried to login with token: ", pack response
+                sender._inbox response
+
             else
-                @log.err "wrong password", doc, msg.auth.password
+                @log.err yellow "Can not determine which auth request this was: ", msg
 
     inbox-put: (msg) ->
         if is-nodejs!
@@ -272,10 +311,10 @@ export class ActorManager extends ActorBase
         if is-nodejs!
             if (msg.token `has-write-permission-for` msg.topic) or
                 (msg.topic `topic-match` 'public.**')
-                @log.log green "distributing message", msg.topic, msg.payload
+                #@log.log green "distributing message", msg.topic, msg.payload
                 void
             else
-                @log.log red "dropping unauthorized write message (#{msg.topic})"
+                #@log.log red "dropping unauthorized write message (#{msg.topic})"
                 return
 
 
@@ -303,8 +342,9 @@ export class ActorManager extends ActorBase
                     (msg.topic `topic-match` 'public.**')
                     actor._inbox msg
                 else
-                    @log.log "Actor has no read permissions, dropping message"
+                    #@log.log "Actor has no read permissions, dropping message"
+                    void
             else
-                actor._inbox msg 
+                actor._inbox msg
 
         @log.section \dis-vv, "------------ end of forwarding message, total forward: #{i++}---------------"
