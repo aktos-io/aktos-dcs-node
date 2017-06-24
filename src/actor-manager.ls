@@ -243,8 +243,22 @@ export class ActorManager extends ActorBase
                 @log.err "wrong password", doc, msg.auth.password
 
     inbox-put: (msg) ->
-        if \auth of msg
-            @process-auth-msg msg
+        if is-nodejs!
+            if \auth of msg
+                @process-auth-msg msg
+            else
+                has-rw-permission-for = (token, topic) ->
+                    try
+                        permission-cache[token].rw and topic in permission-cache[token].rw
+                    catch
+                        no
+
+                if (msg.token `has-rw-permission-for` msg.topic) or
+                    (msg.topic `topic-match` 'public.**')
+                    #@log.log green "distributing message", msg.topic, msg.payload
+                    @distribute-msg msg
+                else
+                    @log.log red "dropping unauthorized write message (#{msg.topic})"
         else
             @distribute-msg msg
 
