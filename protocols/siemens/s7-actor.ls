@@ -6,12 +6,13 @@ require! 'prelude-ls': {at, split}
 split-topic = split '.'
 
 export class S7Actor extends Actor
-    (opts) ->
-        @opts = opts
+    (@opts) ->
         super @opts.name
-        @log.log "Subscriptions so far: ", @subscriptions
-        @subscribe "#{@opts.name}.**"
 
+        @topic-prefix = "#{'public.' if @opts.public}#{@opts.name}"
+        @subscribe "#{@topic-prefix}.**"
+
+        @log.log-green "Subscriptions:", @subscriptions
 
         # S7 client
         @conn = new nodes7 {+silent}
@@ -61,7 +62,7 @@ export class S7Actor extends Actor
                 for io-addr, io-val of data when io-addr is prev-io-addr
                     #@log.log "DEBUG: Read: #{@addr-to-name[io-addr]} (#{io-addr}) = #{io-val}"
                     if io-val isnt prev-io-val
-                        @send io-val, "#{@name}.#{@addr-to-name[io-addr]}"
+                        @send io-val, "#{@topic-prefix}.#{@addr-to-name[io-addr]}"
 
             @prev-data = data
             <~ sleep 200ms
