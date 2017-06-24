@@ -138,6 +138,18 @@ if is-nodejs!
         permission-cache := {}
         session-cache := {}
 
+has-write-permission-for = (token, topic) ->
+    try
+        permission-cache[token].rw and topic in permission-cache[token].rw
+    catch
+        no
+
+has-read-permission-for = (token, topic) ->
+    try
+        permission-cache[token].ro and topic in permission-cache[token].ro
+    catch
+        no
+
 # ---------------------------------------------------------------
 
 export class ActorManager extends ActorBase
@@ -239,6 +251,9 @@ export class ActorManager extends ActorBase
                     auth:
                         session:
                             token: token
+
+                # will be used for checking 1read permissions
+                sender.token = token
             else
                 @log.err "wrong password", doc, msg.auth.password
 
@@ -246,26 +261,23 @@ export class ActorManager extends ActorBase
         if is-nodejs!
             if \auth of msg
                 @process-auth-msg msg
-            else
-                has-rw-permission-for = (token, topic) ->
-                    try
-                        permission-cache[token].rw and topic in permission-cache[token].rw
-                    catch
-                        no
-
-                if (msg.token `has-rw-permission-for` msg.topic) or
-                    (msg.topic `topic-match` 'public.**')
-                    #@log.log green "distributing message", msg.topic, msg.payload
-                    @distribute-msg msg
-                else
-                    @log.log red "dropping unauthorized write message (#{msg.topic})"
-        else
-            @distribute-msg msg
+                return
+        @distribute-msg msg
 
 
     distribute-msg: (msg) ->
         # distribute subscribe-all messages
         # log.section prefix: "dis"
+
+        if is-nodejs!
+            if (msg.token `has-write-permission-for` msg.topic) or
+                (msg.topic `topic-match` 'public.**')
+                @log.log green "distributing message", msg.topic, msg.payload
+                void
+            else
+                @log.log red "dropping unauthorized write message (#{msg.topic})"
+                return
+
 
         matching-subscriptions = [actors for topic, actors of @subscription-list
             when topic `topic-match` msg.topic]
@@ -286,7 +298,13 @@ export class ActorManager extends ActorBase
             @log.section \dis-vv, "message: ", msg
             @log.section \dis-vv, "------------- end of forwarding to actor ---------------"
 
-            actor._inbox msg
-            i++
+            if is-nodejs!
+                if (actor.token `has-read-permission-for` msg.topic) or
+                    (msg.topic `topic-match` 'public.**')
+                    actor._inbox msg
+                else
+                    @log.log "Actor has no read permissions, dropping message"
+            else
+                actor._inbox msg 
 
-        @log.section \dis-vv, "------------ end of forwarding message, total forward: #{i}---------------"
+        @log.section \dis-vv, "------------ end of forwarding message, total forward: #{i++}---------------"
