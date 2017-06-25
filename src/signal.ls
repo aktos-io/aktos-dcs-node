@@ -20,7 +20,7 @@ export class Signal
             @should-run = no
             for callback in @callbacks
                 try clear-timeout @timer
-                callback.apply this, ([event.reason] ++ args)
+                callback.handler.apply callback.ctx, ([event.reason] ++ args)
 
 
     wait: (timeout, callback) ->
@@ -35,7 +35,7 @@ export class Signal
 
 
         if callback.to-string! not in [..to-string! for @callbacks]
-            @callbacks.push callback
+            @callbacks.push {ctx: this, handler: callback}
         @waiting = yes
 
         if typeof! timeout is \Number

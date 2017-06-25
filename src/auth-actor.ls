@@ -28,12 +28,19 @@ export class AuthActor extends Actor
         @db = new LocalStorage \auth
 
     post-init: ->
-        @io-actor = find (.name is \SocketIOBrowser), @mgr.actor-list
         @login-signal = new Signal!
         @logout-signal = new Signal!
         @check-signal = new Signal!
         @checking = no
         @checked-already = no
+
+        <~ :lo(op) ~>
+            @io-actor = find (.name is \SocketIOBrowser), @mgr.actor-list
+            return op! if @io-actor
+            @log.log "io actor is not found, checking again after 100ms"
+            <~ sleep 20ms
+            lo(op)
+
         @io-actor.on 'network-receive', (msg) ~>
             if \auth of msg
                 #@log.log "Auth actor got authentication message", msg
@@ -47,20 +54,17 @@ export class AuthActor extends Actor
 
     login: (credentials, callback) ->
         @send-to-remote auth: credentials
-        # FIXME: why do we need to clear the signal? 
+        # FIXME: why do we need to clear the signal?
         @login-signal.clear!
         reason, res <~ @login-signal.wait 3000ms
+
         err = if reason is \timeout
             {reason: \timeout}
         else
             no
 
         # set socketio-browser's token variable in order to use it in every message
-        @io-actor.token = try
-            res.auth.session.token
-        catch
-            err = {reason: 'something wrong with token', res: res}
-            void
+        @io-actor.token = try res.auth.session.token
 
         @db.set \token, @io-actor.token
         callback err, res
@@ -105,15 +109,22 @@ export class AuthActor extends Actor
             if msg
                 @io-actor.token = msg.auth.session.token
             else
-                @log.warn "Why is this signal triggered if there is no msg?"
+                @log.warn "Why is this signal triggered if there is no msg? msg: ", msg
         catch
             err = {reason: e}
 
-        callback err, msg
         @checking = no
         @checked-already = yes
+        callback err, msg
 
     send-to-remote: (msg) ->
-        msg.sender = @actor-id
-        enveloped-message = @io-actor.msg-template msg
-        @io-actor.network-send-raw enveloped-message
+        <~ :lo(op) ~>
+            if @io-actor
+                msg.sender = @actor-id
+                enveloped-message = @io-actor.msg-template msg
+                @io-actor.network-send-raw enveloped-message
+                return
+            else
+                @log.warn "tried to send following message before socketio browser is ready:", msg
+                <~ sleep 10ms
+                lo(op)
