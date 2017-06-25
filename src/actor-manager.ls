@@ -252,7 +252,7 @@ export class ActorManager extends ActorBase
                         @log.log "user logged in. hash: #{token}"
 
                         update-permission-cache!
-                        delay = 500ms
+                        delay = 10ms
                         @log.log "(...sending with #{delay}ms delay)"
                         <~ sleep delay
                         sender._inbox @msg-template! <<<< do
@@ -261,6 +261,7 @@ export class ActorManager extends ActorBase
                                 session:
                                     token: token
                                     user: msg.auth.username
+                                    permissions: permission-cache[token]
 
                         # will be used for checking read permissions
                         sender.token = token
@@ -287,6 +288,8 @@ export class ActorManager extends ActorBase
                             session:
                                 token: msg.auth.token
                                 user: curr.user
+                                permissions: permission-cache[msg.auth.token]
+
                 else
                     response <<<< auth: logout: 'yes'
 

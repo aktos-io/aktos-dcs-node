@@ -33,6 +33,7 @@ export class AuthActor extends Actor
         @logout-signal = new Signal!
         @check-signal = new Signal!
         @checking = no
+        @checked-already = no
         @io-actor.on 'network-receive', (msg) ~>
             if \auth of msg
                 #@log.log "Auth actor got authentication message", msg
@@ -46,6 +47,8 @@ export class AuthActor extends Actor
 
     login: (credentials, callback) ->
         @send-to-remote auth: credentials
+        # FIXME: why do we need to clear the signal? 
+        @login-signal.clear!
         reason, res <~ @login-signal.wait 3000ms
         err = if reason is \timeout
             {reason: \timeout}
@@ -56,11 +59,12 @@ export class AuthActor extends Actor
         @io-actor.token = try
             res.auth.session.token
         catch
-            err = {reason: 'something wrong with token'}
+            err = {reason: 'something wrong with token', res: res}
             void
 
         @db.set \token, @io-actor.token
         callback err, res
+
 
     logout: (callback) ->
         @send-to-remote auth: logout: yes
@@ -81,6 +85,11 @@ export class AuthActor extends Actor
             callback {code: 'singleton', reason: 'checking already'}
             @log.log "checking already..."
             return
+
+        if @checked-already
+            callback {code: 'already-checked', reason: 'session already checked'}
+            return
+
         @checking = yes
         token = @db.get \token
         @send-to-remote auth: token: token
@@ -92,11 +101,17 @@ export class AuthActor extends Actor
         else
             no
 
-        if msg.auth.session
-            @io-actor.token = msg.auth.session.token
+        try
+            if msg
+                @io-actor.token = msg.auth.session.token
+            else
+                @log.warn "Why is this signal triggered if there is no msg?"
+        catch
+            err = {reason: e}
 
         callback err, msg
         @checking = no
+        @checked-already = yes
 
     send-to-remote: (msg) ->
         msg.sender = @actor-id
