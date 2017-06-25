@@ -28,9 +28,9 @@ export class AuthActor extends Actor
         @db = new LocalStorage \auth
 
     post-init: ->
-        @login-signal = Signal!
-        @logout-signal = Signal!
-        @check-signal = Signal!
+        @login-signal = new Signal!
+        @logout-signal = new Signal!
+        @check-signal = new Signal!
         @checking = no
         @checked-already = no
 
@@ -56,7 +56,7 @@ export class AuthActor extends Actor
         @send-to-remote auth: credentials
         # FIXME: why do we need to clear the signal?
         @login-signal.clear!
-        reason, res <~ @login-signal.wait 300ms
+        reason, res <~ @login-signal.wait 3000ms
 
         err = if reason is \timeout
             {reason: \timeout}
