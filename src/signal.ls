@@ -23,7 +23,7 @@ export class Signal
                 callback.0.apply callback.1, ([event.reason] ++ args)
 
 
-    wait: (ctx, timeout, callback) ~>
+    wait: (timeout, callback) ~>
         # usage:
         #   .wait [timeout,] callback
         #
@@ -35,7 +35,7 @@ export class Signal
 
 
         if callback.to-string! not in [..to-string! for @callbacks]
-            @callbacks.push [callback, ctx]
+            @callbacks.push [callback, this]
         @waiting = yes
 
         if typeof! timeout is \Number

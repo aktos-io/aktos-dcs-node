@@ -45,34 +45,29 @@ export class AuthActor extends Actor
             if \auth of msg
                 #@log.log "Auth actor got authentication message", msg
                 if \session of msg.auth
-                    #@login-signal.go msg
-                    void
+                    @login-signal.go msg
                 else if \logout of msg.auth
                     if msg.auth.logout is \ok
                         @logout-signal.go msg
 
                 @check-signal.go msg
 
-    login: (ctx, credentials, callback) ->
+    login: (credentials, callback) ->
         @send-to-remote auth: credentials
         # FIXME: why do we need to clear the signal?
         @login-signal.clear!
-        __ = @
-        reason, res <~ @login-signal.wait ctx, 300ms
+        reason, res <~ @login-signal.wait 300ms
 
-        reason = \hello
-        res =
-            auth: session: \bad
         err = if reason is \timeout
             {reason: \timeout}
         else
             no
 
         # set socketio-browser's token variable in order to use it in every message
-        __.io-actor.token = try res.auth.session.token
+        @io-actor.token = try res.auth.session.token
 
-        __.db.set \token, __.io-actor.token
-        callback.call ctx, err, res
+        @db.set \token, @io-actor.token
+        callback err, res
 
 
     logout: (callback) ->
