@@ -48,6 +48,9 @@ export class Signal
     skip-next-go: ->
         @skip-next = yes
 
+    clear: ->
+        @should-run = no
+
     go: (...args) ->
         if @skip-next
             @skip-next = no
