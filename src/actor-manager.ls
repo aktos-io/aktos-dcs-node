@@ -267,6 +267,11 @@ export class ActorManager extends ActorBase
                         sender.token = token
                     else
                         @log.err "wrong password", doc, msg.auth.password
+                        sender._inbox @msg-template! <<<< do
+                            sender: @actor-id
+                            auth:
+                                session: \wrong  # FIXME: wrong password may contain some other info
+
             else if \logout of msg.auth
                 # session end request
                 unless session-cache[msg.token]

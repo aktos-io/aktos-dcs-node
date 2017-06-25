@@ -3,7 +3,7 @@ require! 'aea/debug-log': {logger}
 require! 'uuid4'
 
 export class Signal
-    ->
+    ~>
         @name = uuid4!
         @callbacks = []
         @should-run = no
@@ -12,7 +12,7 @@ export class Signal
         #@log = new logger @name
         @skip-next = no
 
-    fire: (event, ...args) ->
+    fire: (event, ...args) ~>
         #@log.log "trying to fire..."
         if @waiting and @should-run
             #@log.log "signal fired!"
@@ -20,10 +20,10 @@ export class Signal
             @should-run = no
             for callback in @callbacks
                 try clear-timeout @timer
-                callback.apply this, ([event.reason] ++ args)
+                callback.0.apply callback.1, ([event.reason] ++ args)
 
 
-    wait: (timeout, callback) ->
+    wait: (ctx, timeout, callback) ~>
         # usage:
         #   .wait [timeout,] callback
         #
@@ -35,7 +35,7 @@ export class Signal
 
 
         if callback.to-string! not in [..to-string! for @callbacks]
-            @callbacks.push callback
+            @callbacks.push [callback, ctx]
         @waiting = yes
 
         if typeof! timeout is \Number
@@ -45,13 +45,13 @@ export class Signal
         # try to run signal if it is set as `go` before reaching "wait" line
         @fire {reason: \hasevent}
 
-    skip-next-go: ->
+    skip-next-go: ~>
         @skip-next = yes
 
-    clear: ->
+    clear: ~>
         @should-run = no
 
-    go: (...args) ->
+    go: (...args) ~>
         if @skip-next
             @skip-next = no
             return
