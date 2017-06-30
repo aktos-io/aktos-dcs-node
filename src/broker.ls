@@ -2,6 +2,7 @@ require! 'net'
 require! './actor': {Actor}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {drop, reverse, split, flatten, split-at}
+require! 'colors': {yellow, green}
 
 hex = (n) ->
     n.to-string 16 .to-upper-case!
@@ -97,17 +98,15 @@ class BrokerHandler extends Actor
             @kill!
 
 export class Broker extends Actor
-    (@opts={port: 5523}) ->
+    (@opts) ->
         super \Broker
         @server = null
         @client = null
         @client-connected = no
         @client-actor = null
 
-
-        @port = @opts.port
-        if @opts.db
-            @mgr.db = that
+        @port = if @opts.port => that else 5523
+        @mgr.db = that if @opts.db
 
         @server-retry-period = 2000ms
 
@@ -127,7 +126,7 @@ export class Broker extends Actor
                 @run-server!
 
         @server.listen @port, ~>
-            @log.log "Broker started in server mode on port #{@port}."
+            @log.log "Broker started in #{green "server mode"} on port #{@port}."
 
     run-client: ->
         if @server.listening
@@ -146,14 +145,14 @@ export class Broker extends Actor
                 return
             if e.code in <[ EPIPE ECONNREFUSED ECONNRESET ETIMEDOUT ]>
                 # connection has an error, try to reconnect.
-                @log.log "trying to restart client mode in #{@server-retry-period}ms..."
+                @log.log yellow "trying to restart client mode in #{@server-retry-period}ms..."
                 @client-actor.kill!
                 <~ sleep @server-retry-period
                 @client-connected = no
                 @run-client!
 
         @client.connect @port, '127.0.0.1', ~>
-            @log.log "Broker is started in client mode."
+            @log.log "Broker is started in #{yellow "client mode"}."
             @client-connected = yes
 
             @log.log "Launching BrokerHandler for client mode..."
