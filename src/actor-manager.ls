@@ -1,156 +1,40 @@
 require! './core': {ActorBase}
 require! 'aea/debug-log': {logger, debug-levels}
-require! 'aea': {clone, sleep, merge, pack}
+require! 'aea': {clone, sleep, merge, pack, is-nodejs}
 require! 'prelude-ls': {empty, unique-by, flatten, reject, max, find}
 require! './topic-match': {topic-match}
-
 require! 'colors': {green, red, yellow}
-# ---------------------------------------------------------------
+require! 'uuid4'
+require! './aea-auth':{
+    hash-passwd
+    get-all-permissions
+}
 
-is-nodejs = ->
-    if typeof! process is \process
-        if typeof! process.versions is \Object
-            if typeof! process.versions.node isnt \Undefined
-                return yes
-    return no
+export session-cache = {}
+/* session-cache is an object, cosists of:
 
-create-hash = require 'sha.js'
-require! uuid4
+    token:
+        user: user-that-logged-in
+        date: date-of-login
+        permissions:
+            ro: <[ list of topics that user has read permissions ]>
+            rw: <[ list of topics that user has write permissions ]>
+*/
 
-hash-passwd = (passwd) ->
-    sha512 = create-hash \sha512
-    sha512.update passwd, 'utf-8' .digest \hex
-
-user-db =
-    * _id: 'user1'
-      passwd-hash: hash-passwd "hello world"
-      roles:
-          'test-area-reader'
-
-    * _id: 'user2'
-      passwd-hash: hash-passwd "hello world2"
-      roles:
-          \test-area-writer
-
-    * _id: 'user3'
-      passwd-hash: hash-passwd "hello world3"
-      roles:
-          \my-test-role2
-
-permission-db =
-    * _id: \test-area-reader
-      ro: \authorization.test1
-
-    * _id: \test-area-writer
-      inherits:
-          \test-area-reader
-      rw:
-          \authorization.test1
-
-    * _id: \my-test-role
-      ro:
-          'my-test-topic1'
-          'my-test-topic2'
-      rw:
-          'my-test-topic-rw3'
-
-    * _id: \my-test-role2
-      inherits:
-          \my-test-role
-          \test-area-writer
-      rw:
-          'my-test-topicrw4'
-
-session-cache = {}      # key: token, value: {user: user-that-logged-in, date: date-of-login}
-permission-cache = {}   # key: token, value: {rw: [...topics], ro: [...topics]}
-
-update-permission-cache = ->
-    calc-topics = (role) ->
-        # returns:
-        # {rw: [...topics], ro: [...topics]}
-        topics =
-            rw: []
-            ro: []
-        r = find (._id is role), permission-db
-        unless r
-            console.log "role: #{role} is not found in permission-db"
-            return
-        if r.inherits
-            r.inherits = flatten [r.inherits]
-            # inherits some roles, add them recursively
-            for role in r.inherits
-                topics `merge` calc-topics role
-
-        topics `merge` do
-            rw: if r.rw then flatten([r.rw]) else []
-            ro: if r.ro then flatten([r.ro]) else []
-
-        # flatten
-        topics.rw = flatten topics.rw
-        topics.ro = flatten topics.ro
-        topics
-
-    token-topics = {}
-    for token, t of session-cache
-        for u in user-db when t.user is u._id
-            token-topics[token] = {}
-            for role in flatten [u.roles]
-                token-topics[token] `merge` calc-topics role
-    permission-cache := token-topics
-
-if is-nodejs!
-    do test = ->
-        # treat all users logged in
-        for user in user-db
-            session-cache["test-token-for-#{user._id}"] =
-                user: user._id
-
-        update-permission-cache!
-
-        expected =
-            'test-token-for-user1':
-                rw: []
-                ro: ['authorization.test1']
-
-            'test-token-for-user2':
-                rw: ['authorization.test1']
-                ro: ['authorization.test1']
-            'test-token-for-user3':
-                rw:
-                    'my-test-topic-rw3'
-                    'authorization.test1'
-                    'my-test-topicrw4'
-                ro:
-                    'my-test-topic1'
-                    'my-test-topic2'
-                    'authorization.test1'
-
-        for token, topics of permission-cache
-            for token1, expected-topics of expected when token is token1
-                if pack(topics) isnt pack(expected-topics)
-                    console.log "unexpected result in token #{token}"
-                    console.log "expecting: ", expected-topics
-                    console.log "result: ", topics
-                    throw
-
-        console.log (green "[TEST OK]"), " Permission calculation passed the tests"
-        # cleanup
-        permission-cache := {}
-        session-cache := {}
-
-has-write-permission-for = (token, topic) ->
+can-write = (token, topic) ->
     try
-        permission-cache[token].rw and topic in permission-cache[token].rw
+        if session-cache[token].permissions.rw
+            return if topic in that => yes else no
     catch
         no
 
-has-read-permission-for = (token, topic) ->
+can-read = (token, topic) ->
     try
-        permission-cache[token].ro and topic in permission-cache[token].ro
+        if session-cache[token].permissions.ro
+            return if topic in that => yes else no
     catch
         no
 
-# ---------------------------------------------------------------
 
 export class ActorManager extends ActorBase
     @instance = null
@@ -236,22 +120,28 @@ export class ActorManager extends ActorBase
 
         @log.log "this is an authentication message"
 
+        unless @db
+            @log.err (red "ERROR"), "no database object found, can not process auth message."
+            return
+
         if msg.auth
             if \username of msg.auth
                 # login request
-                doc = find (._id is msg.auth.username), user-db
-
-                if not doc
-                    @log.err "user is not found"
+                err, doc <~ @db.get-user msg.auth.username
+                if err
+                    @log.err "user is not found: ", err
                 else
                     if doc.passwd-hash is hash-passwd msg.auth.password
+                        @log.log "#{msg.auth.username} logged in."
+                        err, permissions-db <~ @db.get-permissions
+                        return @log.log "error while getting permissions" if err
                         token = uuid4!
                         session-cache[token] =
                             user: msg.auth.username
                             date: Date.now!
-                        @log.log "user logged in. hash: #{token}"
+                            permissions: get-all-permissions doc.roles, permissions-db
 
-                        update-permission-cache!
+
                         delay = 10ms
                         @log.log "(...sending with #{delay}ms delay)"
                         <~ sleep delay
@@ -261,7 +151,7 @@ export class ActorManager extends ActorBase
                                 session:
                                     token: token
                                     user: msg.auth.username
-                                    permissions: permission-cache[token]
+                                    permissions: session-cache[token].permissions
 
                         # will be used for checking read permissions
                         sender.token = token
@@ -280,22 +170,22 @@ export class ActorManager extends ActorBase
                 else
                     @log.log "logging out for #{session-cache[msg.token].user}"
                     delete session-cache[msg.token]
-                    update-permission-cache!
                     sender._inbox @msg-template! <<<< do
                         auth: logout: \ok
 
             else if \token of msg.auth
                 response = @msg-template!
-                if curr = session-cache[msg.auth.token]
+                if session-cache[msg.auth.token]
                     # this is a valid session token
                     response <<<< do
                         auth:
                             session:
                                 token: msg.auth.token
-                                user: curr.user
-                                permissions: permission-cache[msg.auth.token]
+                                user: that.user
+                                permissions: that.permissions
 
                 else
+                    # means "you are not already logged in, do a logout action over there"
                     response <<<< auth: logout: 'yes'
 
                 @log.log "tried to login with token: ", pack response
@@ -316,9 +206,9 @@ export class ActorManager extends ActorBase
         # distribute subscribe-all messages
         # log.section prefix: "dis"
 
+        # check if user has write permissions for the message
         if is-nodejs!
-            if (msg.token `has-write-permission-for` msg.topic) or
-                (msg.topic `topic-match` 'public.**')
+            if (msg.token `can-write` msg.topic) or (msg.topic `topic-match` 'public.**')
                 #@log.log green "distributing message", msg.topic, msg.payload
                 void
             else
@@ -345,9 +235,9 @@ export class ActorManager extends ActorBase
             @log.section \dis-vv, "message: ", msg
             @log.section \dis-vv, "------------- end of forwarding to actor ---------------"
 
+            # check if user has read permissions for the message
             if is-nodejs!
-                if (actor.token `has-read-permission-for` msg.topic) or
-                    (msg.topic `topic-match` 'public.**')
+                if (actor.token `can-read` msg.topic) or (msg.topic `topic-match` 'public.**')
                     actor._inbox msg
                 else
                     #@log.log "Actor has no read permissions, dropping message"

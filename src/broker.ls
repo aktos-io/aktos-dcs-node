@@ -97,7 +97,7 @@ class BrokerHandler extends Actor
             @kill!
 
 export class Broker extends Actor
-    (opts={port: 5523}) ->
+    (@opts={port: 5523}) ->
         super \Broker
         @server = null
         @client = null
@@ -105,7 +105,9 @@ export class Broker extends Actor
         @client-actor = null
 
 
-        @port = opts.port
+        @port = @opts.port
+        if @opts.db
+            @mgr.db = that
 
         @server-retry-period = 2000ms
 
