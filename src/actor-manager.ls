@@ -136,22 +136,20 @@ export class ActorManager extends ActorBase
                         err, permissions-db <~ @db.get-permissions
                         return @log.log "error while getting permissions" if err
                         token = uuid4!
+
                         session-cache[token] =
+                            token: token
                             user: msg.auth.username
                             date: Date.now!
                             permissions: get-all-permissions doc.roles, permissions-db
-
+                            opening-scene: doc.opening-scene
 
                         delay = 10ms
                         @log.log "(...sending with #{delay}ms delay)"
                         <~ sleep delay
                         sender._inbox @msg-template! <<<< do
                             sender: @actor-id
-                            auth:
-                                session:
-                                    token: token
-                                    user: msg.auth.username
-                                    permissions: session-cache[token].permissions
+                            auth: session: session-cache[token]
 
                         # will be used for checking read permissions
                         sender.token = token
@@ -159,8 +157,7 @@ export class ActorManager extends ActorBase
                         @log.err "wrong password", doc, msg.auth.password
                         sender._inbox @msg-template! <<<< do
                             sender: @actor-id
-                            auth:
-                                session: \wrong  # FIXME: wrong password may contain some other info
+                            auth: session: \wrong
 
             else if \logout of msg.auth
                 # session end request
@@ -170,20 +167,12 @@ export class ActorManager extends ActorBase
                 else
                     @log.log "logging out for #{session-cache[msg.token].user}"
                     delete session-cache[msg.token]
-                    sender._inbox @msg-template! <<<< do
-                        auth: logout: \ok
-
+                    sender._inbox @msg-template! <<<< auth: logout: \ok
             else if \token of msg.auth
                 response = @msg-template!
                 if session-cache[msg.auth.token]
                     # this is a valid session token
-                    response <<<< do
-                        auth:
-                            session:
-                                token: msg.auth.token
-                                user: that.user
-                                permissions: that.permissions
-
+                    response <<<< auth: session: that
                 else
                     # means "you are not already logged in, do a logout action over there"
                     response <<<< auth: logout: 'yes'
