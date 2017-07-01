@@ -35,6 +35,7 @@ can-read = (token, topic) ->
     catch
         no
 
+login-delay = 10ms
 
 export class ActorManager extends ActorBase
     @instance = null
@@ -144,9 +145,8 @@ export class ActorManager extends ActorBase
                             permissions: get-all-permissions doc.roles, permissions-db
                             opening-scene: doc.opening-scene
 
-                        delay = 10ms
-                        @log.log "(...sending with #{delay}ms delay)"
-                        <~ sleep delay
+                        @log.log "(...sending with #{login-delay}ms delay)"
+                        <~ sleep login-delay
                         sender._inbox @msg-template! <<<< do
                             sender: @actor-id
                             auth: session: session-cache[token]
@@ -172,6 +172,12 @@ export class ActorManager extends ActorBase
                 response = @msg-template!
                 if session-cache[msg.auth.token]
                     # this is a valid session token
+
+                    # FIXME: sleep is breaking the code
+                    #@log.log "(...sending with #{login-delay}ms delay)"
+                    #<~ sleep login-delay
+                    # /FIXME
+
                     response <<<< auth: session: that
                 else
                     # means "you are not already logged in, do a logout action over there"
