@@ -2,7 +2,7 @@ require! 'net'
 require! './actor': {Actor}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {drop, reverse, split, flatten, split-at}
-require! 'colors': {yellow, green}
+require! 'colors': {yellow, green, red}
 
 hex = (n) ->
     n.to-string 16 .to-upper-case!
@@ -98,7 +98,7 @@ class BrokerHandler extends Actor
             @kill!
 
 export class Broker extends Actor
-    (@opts) ->
+    (@opts={}) ->
         super \Broker
         @server = null
         @client = null
@@ -110,31 +110,44 @@ export class Broker extends Actor
 
         @server-retry-period = 2000ms
 
+        @server-mode-allowed = if @mgr.db => yes else no
+
     action: ->
-        @run-server!
+        @_start!
 
-    run-server: ->
-        @server = net.create-server (socket) ->
-            new BrokerHandler socket
+    _start: ->
+        if @server-mode-allowed
+            @server = net.create-server (socket) ->
+                new BrokerHandler socket
 
-        @server.on \error, (e) ~>
-            if e.code is 'EADDRINUSE'
-                @log.section \debug, "Address in use, retrying in #{@server-retry-period}ms"
-                @run-client!
-                <~ sleep @server-retry-period
-                @server.close!
-                @run-server!
+            @server.on \error, (e) ~>
+                if e.code is 'EADDRINUSE'
+                    @log.section \debug, "Address in use, retrying in #{@server-retry-period}ms"
+                    @run-client!
+                    <~ sleep @server-retry-period
+                    @server.close!
+                    @_start!
 
-        @server.listen @port, ~>
-            @log.log "Broker started in #{green "server mode"} on port #{@port}."
+            @server.listen @port, ~>
+                @log.log "Broker started in #{green "server mode"} on port #{@port}."
+
+        else
+            @log.log (yellow "INFO : "), "Server mode is not allowed."
+            @run-client!
+
+    _authenticate: (callback) ->
+        @log.log "Simulating authentication..."
+        <~ sleep 2000ms
+        @log.log "Simulating authentication done..."
+        callback!
 
     run-client: ->
-        if @server.listening
+        if @server?.listening
             @log.log "Client mode can not be run while server mode has been started already."
             return
 
         if @client-connected
-            @log.section \debug, "Already connected"
+            @log.section \debug, yellow "Already connected"
             return
 
         @client = new net.Socket!
@@ -154,6 +167,6 @@ export class Broker extends Actor
         @client.connect @port, '127.0.0.1', ~>
             @log.log "Broker is started in #{yellow "client mode"}."
             @client-connected = yes
-
+            <~ @_authenticate
             @log.log "Launching BrokerHandler for client mode..."
             @client-actor = new BrokerHandler @client
