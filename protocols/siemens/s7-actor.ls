@@ -2,6 +2,7 @@ require! 'dcs': {Actor}
 require! './nodeS7': nodes7
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {at, split}
+require! 'colors': {yellow, red, green}
 
 split-topic = split '.'
 
@@ -9,7 +10,9 @@ export class S7Actor extends Actor
     (@opts) ->
         super @opts.name
 
-        @topic-prefix = "#{'public.' if @opts.public}#{@opts.name}"
+        @topic-prefix = @opts.name
+        if @opts.public
+            @topic-prefix = "public.#{@topic-prefix}"
         @subscribe "#{@topic-prefix}.**"
 
         @log.log-green "Subscriptions:", @subscriptions
@@ -17,6 +20,7 @@ export class S7Actor extends Actor
         # S7 client
         @conn = new nodes7 {+silent}
         @addr-to-name = {}
+        @first-read-done = no
 
         # actor stuff
         @on-kill (reason) ~>
@@ -32,6 +36,7 @@ export class S7Actor extends Actor
             return @log.err "NOT WRITING!!!! (test first)"
             err <~ @conn.writeItems io-addr, msg.payload
             @log.err "something went wrong while writing: ", err if err
+            @first-read-done = no
 
         @on-update (msg) ->
             @log.log "Siemens actor received an update request!"
@@ -60,8 +65,10 @@ export class S7Actor extends Actor
             @log.log "something went wrong while reading values" if err
             for prev-io-addr, prev-io-val of @prev-data
                 for io-addr, io-val of data when io-addr is prev-io-addr
-                    #@log.log "DEBUG: Read: #{@addr-to-name[io-addr]} (#{io-addr}) = #{io-val}"
                     if io-val isnt prev-io-val
+                        unless @first-read-done
+                            @first-read-done = yes
+                            @log.log (yellow '[ DEBUG (first read)]'), "Read: #{@addr-to-name[io-addr]} (#{io-addr}) = #{io-val}"
                         @send io-val, "#{@topic-prefix}.#{@addr-to-name[io-addr]}"
 
             @prev-data = data
