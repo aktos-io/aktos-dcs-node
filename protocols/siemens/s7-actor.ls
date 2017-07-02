@@ -36,7 +36,6 @@ export class S7Actor extends Actor
             return @log.err "NOT WRITING!!!! (test first)"
             err <~ @conn.writeItems io-addr, msg.payload
             @log.err "something went wrong while writing: ", err if err
-            @first-read-done = no
 
         @on-update (msg) ->
             @log.log "Siemens actor received an update request!"
@@ -62,7 +61,9 @@ export class S7Actor extends Actor
         @prev-data = {}
         <~ :lo(op) ~>
             err, data <~ @conn.readAllItems
-            @log.log "something went wrong while reading values" if err
+            if err
+                @log.log "something went wrong while reading values"
+                @first-read-done = no
             for prev-io-addr, prev-io-val of @prev-data
                 for io-addr, io-val of data when io-addr is prev-io-addr
                     if io-val isnt prev-io-val

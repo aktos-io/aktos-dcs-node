@@ -1,47 +1,30 @@
-require! './actor': {Actor}
-require! 'prelude-ls': {find}
+require! './core': {ActorBase}
 require! './signal': {Signal}
-require! 'aea': {sleep, clone}
+require! 'aea': {sleep}
+require! './aea-auth':{hash-passwd, get-all-permissions}
+require! 'uuid4'
+require! 'colors': {red, green, yellow}
 
-class LocalStorage
-    (@name) ->
-        @s = local-storage
-
-    set: (key, value) ->
-        @s.set-item key, value
-
-    del: (key) ->
-        @s.remove-item key
-
-    get: (key) ->
-        @s.get-item key
-
-
-# AuthActor can interact with SocketIOBrowser
-export class AuthActor extends Actor
+export class AuthRequest extends ActorBase
     @instance = null
     ->
         return @@instance if @@instance
         @@instance = this
+        super \AuthRequest
 
-        super 'AuthActor'
-        @db = new LocalStorage \auth
-
-    post-init: ->
         @login-signal = new Signal!
         @logout-signal = new Signal!
-        @check-signal = new Signal!
-        @checking = no
-        @checked-already = no
+        @setup-ok = no
 
-        <~ :lo(op) ~>
-            @io-actor = find (.name is \SocketIOBrowser), @mgr.actor-list
-            return op! if @io-actor
-            @log.log "io actor is not found, checking again after 100ms"
-            <~ sleep 20ms
-            lo(op)
+    setup: (@settings) ->
+        unless @settings.transport
+            throw "transport should be defined!"
+        unless @settings.receive-interface
+            throw "receive-interface should be defined!"
+        unless @settings.send-interface
+            throw "send-interface should be defined!"
 
-        @io-actor.on 'network-receive', (msg) ~>
+        @settings.transport.on @settings.receive-interface, (msg) ~>
             if \auth of msg
                 #@log.log "Auth actor got authentication message", msg
                 if \session of msg.auth
@@ -50,10 +33,21 @@ export class AuthActor extends Actor
                     if msg.auth.logout is \ok
                         @logout-signal.go msg
 
-                @check-signal.go msg
+        @send-raw = @settings.transport[@settings.send-interface]
+            .bind @settings.transport
+
+        @setup-ok = yes
 
     login: (credentials, callback) ->
-        @send-to-remote auth: credentials
+        # credentials might be one of the following:
+        # 1. {username: ..., password: ...}
+        # 2. {token: ...}
+        unless @setup-ok
+            @log.err "Setup first!"
+            throw
+
+        @log.log "Trying to authenticate with the following credentials: ", credentials
+        @send auth: credentials
         # FIXME: why do we need to clear the signal?
         @login-signal.clear!
         reason, res <~ @login-signal.wait 3000ms
@@ -63,15 +57,13 @@ export class AuthActor extends Actor
         else
             no
 
-        # set socketio-browser's token variable in order to use it in every message
-        @io-actor.token = try res.auth.session.token
-
-        @db.set \token, @io-actor.token
+        # store token in order to use in every message
+        @token = try res.auth.session.token
         callback err, res
 
 
     logout: (callback) ->
-        @send-to-remote auth: logout: yes
+        @send auth: logout: yes
         reason, msg <~ @logout-signal.wait 3000ms
         err = if reason is \timeout
             {reason: 'timeout'}
@@ -79,52 +71,92 @@ export class AuthActor extends Actor
             no
 
         if not err and msg.auth.logout is \ok
-            @log.log "clearing local storage"
-            @db.del \token
+            @log.log "clearing token storage"
+            @token = null
 
         callback err, msg
 
-    check-session: (callback) ->
-        if @checking
-            callback {code: 'singleton', reason: 'checking already'}
-            @log.log "checking already..."
+    send: (msg) -> @send-raw @msg-template msg <<< sender: @actor-id
+
+
+login-delay = 10ms
+
+export class AuthHandler extends ActorBase
+    @session-cache = {}
+    @instance = null
+    ->
+        return @@instance if @@instance
+        @@instance = this
+
+        super \AuthHandler
+        @setup-ok = no
+
+    setup: (@settings) ->
+        @db = @settings.db
+        if @db
+            @setup-ok = yes
+
+    process: (msg, send-back) ->
+        unless @setup-ok
+            @log.log red "Not set up, dropping auth message silently."
             return
 
-        if @checked-already
-            callback {code: 'already-checked', reason: 'session already checked'}
-            return
+        @log.log "Processing authentication message"
+        if msg.auth
+            if \username of msg.auth
+                # login request
+                err, doc <~ @db.get-user msg.auth.username
+                if err
+                    @log.err "user is not found: ", err
+                else
+                    if doc.passwd-hash is hash-passwd msg.auth.password
+                        @log.log "#{msg.auth.username} logged in."
+                        err, permissions-db <~ @db.get-permissions
+                        return @log.log "error while getting permissions" if err
+                        token = uuid4!
 
-        @checking = yes
-        token = @db.get \token
-        @send-to-remote auth: token: token
-        reason, msg <~ @check-signal.wait 5000ms
-        #@db.del \token
-        @log.log "server responded check-session with: ", msg
-        err = if reason is \timeout
-            {reason: 'server not responded in a reasonable amount of time'}
-        else
-            no
+                        @@session-cache[token] =
+                            token: token
+                            user: msg.auth.username
+                            date: Date.now!
+                            permissions: get-all-permissions doc.roles, permissions-db
+                            opening-scene: doc.opening-scene
 
-        try
-            if msg
-                @io-actor.token = msg.auth.session.token
+                        @log.log "(...sending with #{login-delay}ms delay)"
+                        <~ sleep login-delay
+                        send-back @msg-template! <<<< do
+                            sender: @actor-id
+                            auth: session: @@session-cache[token]
+
+                        # will be used for checking read permissions
+                        @token = token
+                    else
+                        @log.err "wrong password", doc, msg.auth.password
+                        send-back @msg-template! <<<< do
+                            sender: @actor-id
+                            auth: session: \wrong
+
+            else if \logout of msg.auth
+                # session end request
+                unless @@session-cache[msg.token]
+                    @log.log "No user found with the following token: #{msg.token} "
+                    return
+                else
+                    @log.log "logging out for #{@@session-cache[msg.token].user}"
+                    delete @@session-cache[msg.token]
+                    sender @msg-template <<< auth: logout: \ok
+
+            else if \token of msg.auth
+                response = @msg-template!
+                if @@session-cache[msg.auth.token]
+                    # this is a valid session token
+                    @log.log "(...sending with #{login-delay}ms delay)"
+                    <~ sleep login-delay
+                    response <<<< auth: session: that
+                    send-back response
+                else
+                    # means "you are not already logged in, do a logout action over there"
+                    response <<<< auth: logout: 'yes'
+                    send-back response
             else
-                @log.warn "Why is this signal triggered if there is no msg? msg: ", msg
-        catch
-            err = {reason: e}
-
-        @checking = no
-        @checked-already = yes
-        callback err, msg
-
-    send-to-remote: (msg) ->
-        <~ :lo(op) ~>
-            if @io-actor
-                msg.sender = @actor-id
-                enveloped-message = @io-actor.msg-template msg
-                @io-actor.network-send-raw enveloped-message
-                return
-            else
-                @log.warn "tried to send following message before socketio browser is ready:", msg
-                <~ sleep 10ms
-                lo(op)
+                @log.err yellow "Can not determine which auth request this was: ", msg

@@ -23,12 +23,12 @@ export class ActorBase
 
     on: (event, handler) ->
         # usage:
-        # @on 'my-event', (param) -> /**/
+        # @on 'my-event', (param) ->
         #
         # or
         #
         # @on {
-        #     'my-event': (param) -> /**/
+        #     'my-event': (param) ->
         # }
         handlers = @event-handlers
         add-handler = (name, handler) ~>
@@ -41,7 +41,7 @@ export class ActorBase
             return if (check handler) is \failed
             add-handler event, handler
         else if typeof! event is \Object
-            for _ev, handler of event 
+            for _ev, handler of event
                 return if (check handler) is \failed
                 add-handler _ev, handler
 
@@ -49,19 +49,6 @@ export class ActorBase
         if @event-handlers[name]
             for handler in @event-handlers[name]
                 handler.apply this, args
-
-
-    on-receive: (handler) ->
-        @log.warn "Deprecation: @on-receive is deprecated, use \"@on 'receive', handler\" instead."
-        @on \receive, handler
-
-    on-update: (handler) ->
-        @log.warn "Deprecation: @on-update is deprecated, use \"@on 'update', handler\" instead."
-        @on \update, handler
-
-    on-data: (handler) ->
-        @log.warn "Deprecation: @on-data is deprecated, use \"@on 'data', handler\" instead."
-        @on \data, handler
 
     msg-template: (msg) ->
         msg-raw =
@@ -91,3 +78,19 @@ export class ActorBase
             @trigger \receive, msg
         catch
             @log.err "problem in handler: ", e
+
+    # -----------------------------------------------------
+    #                    Deprecation
+    # -----------------------------------------------------
+
+    on-receive: (handler) ->
+        @log.warn "Deprecation: @on-receive is deprecated, use \"@on 'receive', handler\" instead."
+        @on \receive, handler
+
+    on-update: (handler) ->
+        @log.warn "Deprecation: @on-update is deprecated, use \"@on 'update', handler\" instead."
+        @on \update, handler
+
+    on-data: (handler) ->
+        @log.warn "Deprecation: @on-data is deprecated, use \"@on 'data', handler\" instead."
+        @on \data, handler

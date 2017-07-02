@@ -1,8 +1,9 @@
 require! 'net'
 require! './actor': {Actor}
 require! 'aea': {sleep, pack, unpack}
-require! 'prelude-ls': {drop, reverse, split, flatten, split-at}
-require! 'colors': {yellow, green, red}
+require! 'prelude-ls': {drop, reverse, split, flatten, split-at, camelize}
+require! 'colors': {yellow, green, red, blue}
+require! './auth-actor': {AuthRequest}
 
 hex = (n) ->
     n.to-string 16 .to-upper-case!
@@ -58,7 +59,7 @@ class BrokerHandler extends Actor
 
         @on do
             receive: (msg) ~>
-                @network-send msg
+                @network-send-raw msg
             kill: ~>
                 @socket.end!
                 @socket.destroy 'KILLED'
@@ -73,9 +74,12 @@ class BrokerHandler extends Actor
             @log.log "This actor should be killed!"
             @kill!
 
+        __ = this
         @socket.on \data, (data) ~>
             for telegram in unpack-telegrams data.to-string!
+                @log.log "received data: ", telegram
                 @network-receive telegram
+                @trigger.call __, \network-receive, telegram
 
     action: ->
         @log.log "BrokerHandler is launched."
@@ -87,15 +91,17 @@ class BrokerHandler extends Actor
 
         @send-enveloped msg
 
-    network-send: (msg) ->
+    network-send-raw: (msg) ->
         try
             @log.section \debug-redirect,
                 "redirecting msg from 'local' interface to 'network' interface,\
                 type: #{if 'update' of msg then 'update' else 'data'}"
             @socket.write pack msg
         catch
+            @log.err "network-send-raw: ", e
             @log.warn "TODO: FIXME: Actor should not kill itself on first error."
             @kill!
+
 
 export class Broker extends Actor
     (@opts={}) ->
@@ -106,11 +112,8 @@ export class Broker extends Actor
         @client-actor = null
 
         @port = if @opts.port => that else 5523
-        @mgr.db = that if @opts.db
-
         @server-retry-period = 2000ms
-
-        @server-mode-allowed = if @mgr.db => yes else no
+        @server-mode-allowed = if @opts.server-mode? => yes else no
 
     action: ->
         @_start!
@@ -135,12 +138,6 @@ export class Broker extends Actor
             @log.log (yellow "INFO : "), "Server mode is not allowed."
             @run-client!
 
-    _authenticate: (callback) ->
-        @log.log "Simulating authentication..."
-        <~ sleep 2000ms
-        @log.log "Simulating authentication done..."
-        callback!
-
     run-client: ->
         if @server?.listening
             @log.log "Client mode can not be run while server mode has been started already."
@@ -153,13 +150,13 @@ export class Broker extends Actor
         @client = new net.Socket!
         @client.on \error, (e) ~>
             @log.err "Client mode had error: ", e.code
-            if @server.listening
+            if @server?.listening
                 @log.log "not restarting in client mode, since server is running"
                 return
             if e.code in <[ EPIPE ECONNREFUSED ECONNRESET ETIMEDOUT ]>
                 # connection has an error, try to reconnect.
                 @log.log yellow "trying to restart client mode in #{@server-retry-period}ms..."
-                @client-actor.kill!
+                @client-actor?.kill!
                 <~ sleep @server-retry-period
                 @client-connected = no
                 @run-client!
@@ -167,6 +164,14 @@ export class Broker extends Actor
         @client.connect @port, '127.0.0.1', ~>
             @log.log "Broker is started in #{yellow "client mode"}."
             @client-connected = yes
-            <~ @_authenticate
             @log.log "Launching BrokerHandler for client mode..."
             @client-actor = new BrokerHandler @client
+            auth = new AuthRequest!
+            auth.setup do
+                transport: @client-actor
+                receive-interface: \network-receive
+                send-interface: camelize \network-send-raw
+            c = @opts.credentials
+            err, res <~ auth.login {username: c.id, password: c.passwd}
+            @log.log "err is: ", err if err
+            @log.log yellow "response is: ", pack res

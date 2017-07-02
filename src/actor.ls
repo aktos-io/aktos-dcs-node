@@ -8,8 +8,8 @@ require! 'prelude-ls': {
 context-switch = sleep 0
 
 export class Actor extends ActorBase
-    ->
-        super ...
+    (name, opts={})->
+        super name
         @mgr = new ActorManager!
 
         @log.sections ++= [
@@ -30,10 +30,11 @@ export class Actor extends ActorBase
 
         # registering to ActorManager requires completion of this
         # constructor, so manually switch the context
-        <~ context-switch
-        @mgr.register this
-        <~ context-switch
-        @action! if typeof! @action is \Function
+        unless opts.register-manually
+            <~ context-switch
+            @mgr.register this
+            <~ context-switch
+            @action! if typeof! @action is \Function
 
     subscribe: (topic) ->
         # log section prefix: s1
@@ -42,11 +43,6 @@ export class Actor extends ActorBase
             @subscriptions.push topic
         @log.section \subscriptions, "subscribing to ", topic, "subscriptions: ", @subscriptions
         @mgr.subscribe-actor this
-
-    list-handle-funcs: ->
-        methods = [key for key of Object.getPrototypeOf this when typeof! this[key] is \Function ]
-        subj = [s.split \handle_ .1 for s in methods when s.match /^handle_.+/]
-        @log.log "this actor has the following subjects: ", subj, name
 
     send: (msg-payload, topic='') ~>
         try
@@ -61,7 +57,7 @@ export class Actor extends ActorBase
         if not msg.topic and not (\auth of msg)
             @log.err "send-enveloped: Message has no topic. Not sending."
             return
-        @mgr.inbox-put msg
+        @mgr.inbox-put msg, (@_inbox.bind this)
 
     on-kill: (handler) ->
         @log.warn "remove deprecated on-kill registrar, use @on 'kill' instead"
