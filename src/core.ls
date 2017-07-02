@@ -11,7 +11,9 @@ check = (handler) ->
 export class ActorBase
     (@name) ->
         @actor-id = uuid4!
-        @log = new logger (@name or @actor-id)
+        @id = @actor-id 
+        @name = @name or @actor-id
+        @log = new logger @name
 
         @event-handlers = {}
 

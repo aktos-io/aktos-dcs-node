@@ -1,24 +1,9 @@
 require! './core': {ActorBase}
-require! 'aea/debug-log': {logger, debug-levels}
-require! 'aea': {clone, sleep, merge, pack, is-nodejs}
-require! 'prelude-ls': {empty, unique-by, flatten, reject, max, find}
+require! 'aea': {clone}
+require! 'prelude-ls': {reject}
 require! './topic-match': {topic-match}
-require! 'colors': {green, red, yellow}
-require! './auth-actor':{AuthHandler}
+require! 'colors': {green, bg-red, yellow}
 
-can-write = (token, topic) ->
-    try
-        if AuthHandler.session-cache[token].permissions.rw
-            return if topic in that => yes else no
-    catch
-        no
-
-can-read = (token, topic) ->
-    try
-        if AuthHandler.session-cache[token].permissions.ro
-            return if topic in that => yes else no
-    catch
-        no
 
 export class ActorManager extends ActorBase
     @instance = null
@@ -30,9 +15,7 @@ export class ActorManager extends ActorBase
         super \ActorManager
         @actor-list = [] # actor-object
         @subs-min-list = {}    # 'topic': [list of actors subscribed this topic]
-        #@log.level = debug-levels.silent
         @update-subscriptions!
-        @auth = new AuthHandler!
 
     register: (actor) ~>
         if actor.actor-id not in [..actor-id for @actor-list]
@@ -79,38 +62,15 @@ export class ActorManager extends ActorBase
         @update-subscriptions!
 
     inbox-put: (msg, sender) ->
-        if \auth of msg
-            res <~ @auth.process msg
-            sender res
-            # processed the auth message
-        else
-            @distribute-msg msg
-
+        @distribute-msg msg
 
     distribute-msg: (msg) ->
-        # distribute subscribe-all messages
-
-        # check if user has write permissions for the message
-        if is-nodejs!
-            if (msg.token `can-write` msg.topic) or (msg.topic `topic-match` 'public.**')
-                #@log.log green "distributing message", msg.topic, msg.payload
-                void
-            else
-                #@log.log red "dropping unauthorized write message (#{msg.topic})"
-                return
-
-        matching-subscriptions = [actors for topic, actors of @subscription-list
-            when topic `topic-match` msg.topic]
-
-        matching-actors = unique-by (.actor-id), flatten matching-subscriptions
-        matching-actors = reject (.actor-id is msg.sender), matching-actors
-        for actor in matching-actors
-            # check if user has read permissions for the message
-            if is-nodejs!
-                if (actor.token `can-read` msg.topic) or (msg.topic `topic-match` 'public.**')
-                    actor._inbox msg
-                else
-                    #@log.log "Actor has no read permissions, dropping message"
-                    void
-            else
-                actor._inbox msg
+        # distribute messages according to subscriptions
+        matching-actors = {}
+        for topic, actors of @subscription-list
+            if topic `topic-match` msg.topic
+                for actor in actors
+                    unless matching-actors[actor.id] is \sent
+                        if actor.id isnt msg.sender
+                            actor._inbox msg
+                        matching-actors[actor.id] = \sent
