@@ -8,19 +8,6 @@ require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
 
 
-can-write = (token, topic) ->
-    try
-        if AuthHandler.session-cache[token].permissions.rw
-            return if topic in that => yes else no
-    catch
-        no
-
-can-read = (token, topic) ->
-    try
-        if AuthHandler.session-cache[token].permissions.ro
-            return if topic in that => yes else no
-    catch
-        no
 
 
 
@@ -85,9 +72,23 @@ export class AuthRequest extends ActorBase
     send-raw: (msg) ->
         ...
 
+can-write = (token, topic) ->
+    try
+        if AuthHandler.session-cache[token].permissions.rw
+            return if topic in that => yes else no
+    catch
+        no
 
-login-delay = 10ms
+can-read = (token, topic) ->
+    try
+        if AuthHandler.session-cache[token].permissions.ro
+            return if topic in that => yes else no
+    catch
+        no
+
+
 export class AuthHandler extends ActorBase
+    @login-delay = 10ms
     @i = 0
     (@db) ->
         super "AuthHandler.#{@@i++}"
@@ -115,8 +116,8 @@ export class AuthHandler extends ActorBase
                         permissions: get-all-permissions doc.roles, permissions-db
                         opening-scene: doc.opening-scene
 
-                    @log.log "(...sending with #{login-delay}ms delay)"
-                    <~ sleep login-delay
+                    @log.log "(...sending with #{@@login-delay}ms delay)"
+                    <~ sleep @@login-delay
                     @send auth: session: @session
                 else
                     @log.err "wrong password", doc, msg.auth.password
@@ -135,8 +136,8 @@ export class AuthHandler extends ActorBase
         else if \token of msg.auth
             if @session.token is msg.auth.token
                 # this is a valid session token
-                @log.log "(...sending with #{login-delay}ms delay)"
-                <~ sleep login-delay
+                @log.log "(...sending with #{@@login-delay}ms delay)"
+                <~ sleep @@login-delay
                 @send auth: session: @session
             else
                 # means "you are not already logged in, do a logout action over there"
