@@ -3,6 +3,7 @@ require! './auth-request': {AuthRequest}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at}
+require! './signal':{Signal}
 
 export class ProxyClient extends ProxyActor
     (@socket, @opts) ->
@@ -36,6 +37,7 @@ export class ProxyClient extends ProxyActor
                 @socket-ready = no
 
 
+        @login-signal = new Signal!
         # network interface events
         @socket.on \disconnect, ~>
             @log.log "Client disconnected."
@@ -68,6 +70,10 @@ export class ProxyClient extends ProxyActor
             @log.log "Proxy knows that it is connected."
             @log.log "+---> New proxy connection established. name: #{@name}, role: #{@role}"
             @socket-ready = yes
-            err, res <~ @auth.login {username: "user1", password: "hello world"}
+            reason, credentials <~ @login-signal.wait
+            err, res <~ @auth.login credentials
             @log.log "there is error: ", err if err
             @log.log "authorization finished: ", res
+
+    login: (credentials) ->
+        @login-signal.go {username: "user1", password: "hello world"}

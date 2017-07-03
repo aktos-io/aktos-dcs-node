@@ -20,7 +20,11 @@ class Simulator extends Actor
                 lo(op)
 
 
-new TCPProxy do
+proxy = new TCPProxy do
     server-mode: off
 
 new Simulator!
+
+console.log "ProxyClient will try to login in 3 seconds..."
+<~ sleep 3000ms
+proxy.login {username: "user1", password: "hello world"}

@@ -106,3 +106,8 @@ export class TCPProxy extends Actor
             <~ sleep 1000ms
             @log.log "reconnecting..."
             connect!
+
+        @client-proxy = proxy
+
+    login: (credentials) ->
+        @client-proxy.login credentials
