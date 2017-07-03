@@ -3,6 +3,7 @@ require! './nodeS7': nodes7
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {at, split}
 require! 'colors': {yellow, red, green}
+require! 'aea/memory-map': {MemoryMap}
 
 export class S7Actor extends Actor
     (@opts) ->
@@ -14,6 +15,9 @@ export class S7Actor extends Actor
         @subscribe "#{@topic-prefix}.**"
 
         @log.log-green "Subscriptions:", @subscriptions
+
+        @io-map = new MemoryMap @opts.memory-map, do
+            prefix: "#{@topic-prefix}."
 
         # S7 client
         @conn = new nodes7 {+silent}
@@ -27,13 +31,13 @@ export class S7Actor extends Actor
             @log.log "Connection closed"
 
         @on \data, (msg) ~>
-            io-name = split @name, msg.topic |> split '.' |> at 1
-            #@log.log "got msg: write #{msg.payload} -> #{io-name}"
-            io-addr = @opts.memory-map[io-name]
+            io-addr = @io-map.get-addr msg.topic
             if @opts.readonly
                 @log.log (yellow "READONLY, not writing the following:"), "#{io-addr}: #{msg.payload}"
                 return
             @log.log "Writing: ", msg.payload, "(#{typeof! msg.payload}) to: ", io-addr
+
+            return @log.log "DEBUG, NOT WRITING!"
             err <~ @conn.writeItems io-addr, msg.payload
             @log.err "something went wrong while writing: ", err if err
 
@@ -50,9 +54,9 @@ export class S7Actor extends Actor
         @connect ~>
             @start-read-poll!
         # add memory map for poll list
-        for name, addr of @opts.memory-map
+        for addr in @io-map.get-all-addr!
+            @log.log "adding #{addr} to polling list"
             @add-to-read-poll addr
-            @addr-to-name[addr] = name
 
     start-read-poll: ->
         @log.log "started read-poll"
@@ -65,13 +69,15 @@ export class S7Actor extends Actor
             for prev-io-addr, prev-io-val of @prev-data
                 for io-addr, io-val of data when io-addr is prev-io-addr
                     if io-val isnt prev-io-val
+                        x = @io-map.get-meaningful io-addr, io-val
                         unless @first-read-done
                             @first-read-done = yes
-                            @log.log (yellow '[ DEBUG (first read)]'), "Read: #{@addr-to-name[io-addr]} (#{io-addr}) = #{io-val}"
-                        @send io-val, "#{@topic-prefix}.#{@addr-to-name[io-addr]}"
+                            @log.log (yellow '[ DEBUG (first read)]'), "Read: #{x.name} (#{io-addr}) = #{x.value}"
+
+                        @send x.value, "#{@topic-prefix}.#{x.name}"
 
             @prev-data = data
-            <~ sleep 200ms
+            <~ sleep 500ms
             lo(op)
 
 
