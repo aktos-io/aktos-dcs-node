@@ -22,10 +22,10 @@ class Simulator extends Actor
 
 proxy = new TCPProxy do
     server-mode: off
+<~ sleep 100ms 
+proxy.login {username: "user1", password: "hello world2"}, (err, res) ~>
+    return console.log bg-red "Something went wrong while login: ", err if err
+    return console.log bg-red "Wrong credentials?" unless proxy.token
+    console.log "Proxy logged in."
 
 new Simulator!
-
-console.log "ProxyClient will try to login in 3 seconds..."
-<~ sleep 3000ms
-proxy.login {username: "user1", password: "hello world2"}, (err, res) ~>
-    console.log "Proxy login occurred. err: ", err, "res: ", res

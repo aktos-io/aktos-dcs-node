@@ -37,7 +37,7 @@ export get-all-permissions = (user-roles, permissions-db) ->
 #                                 TESTS
 # --------------------------------------------------------------------------
 
-if is-nodejs!
+if require.main is module
     do test = ->
         online-users =
             * _id: 'user1'

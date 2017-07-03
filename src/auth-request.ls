@@ -30,7 +30,7 @@ export class AuthRequest extends ActorBase
         # 2. {token: ...}
 
         credentials.password = hash-passwd credentials.password
-        @log.log "Trying to authenticate with the following credentials: ", credentials
+        #@log.log "Trying to authenticate with the following credentials: ", credentials
 
         @send auth: credentials
         # FIXME: why do we need to clear the signal?

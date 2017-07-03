@@ -54,5 +54,4 @@ export class ProxyAuthority extends ProxyActor
             @kill \disconnected
 
         @on \connected, ~>
-            @log.log "Proxy knows that it is connected."
-            @log.log "+---> New proxy connection established. name: #{@name}, role: #{@role}"
+            @log.log "««==»» New proxy connection established. name: #{@name}"

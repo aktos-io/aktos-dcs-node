@@ -48,7 +48,7 @@ export class ProxyClient extends ProxyActor
             # message is only forwarded to manager
             for msg in unpack-telegrams data.to-string!
                 if \auth of msg
-                    @log.log "received auth message, forwarding to AuthRequest."
+                    #@log.log "received auth message, forwarding to AuthRequest."
                     @auth.inbox msg
                 else
                     #@log.log "received data: ", msg
@@ -65,14 +65,17 @@ export class ProxyClient extends ProxyActor
         @socket.on \end, ~>
             @log.log "socket end!"
             @trigger \reconnect
+            for e-name, handlers of @event-handlers
+                console.log bg-yellow "#{e-name} : #{handlers.length}"
 
         @on \connected, ~>
-            @log.log "Proxy knows that it is connected."
-            @log.log "+---> New proxy connection established. name: #{@name}, role: #{@role}"
+            @log.log "<===> New proxy connection established. name: #{@name}"
             @socket-ready = yes
-            reason, credentials, callback <~ @login-signal.wait
+            @trigger \relogin
+
+    login: (credentials, callback) ->
+        @on \relogin, ~>
             err, res <~ @auth.login credentials
             callback err, res
 
-    login: (credentials, callback) ->
-        @login-signal.go credentials, callback
+        @trigger \relogin
