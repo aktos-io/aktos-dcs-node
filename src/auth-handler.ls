@@ -91,6 +91,7 @@ export class AuthHandler extends ActorBase
                     if @session.token is msg.auth.token
                         # this is a valid session token
                         @log.log "(...sending with #{@@login-delay}ms delay)"
+                        @trigger \login, @session.permissions
                         <~ sleep @@login-delay
                         @send auth: session: @session
                     else
