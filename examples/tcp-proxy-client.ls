@@ -27,4 +27,5 @@ new Simulator!
 
 console.log "ProxyClient will try to login in 3 seconds..."
 <~ sleep 3000ms
-proxy.login {username: "user1", password: "hello world"}
+proxy.login {username: "user1", password: "hello world"}, (err, res) ~>
+    console.log "Proxy login occurred. err: ", err, "res: ", res

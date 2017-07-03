@@ -109,5 +109,5 @@ export class TCPProxy extends Actor
 
         @client-proxy = proxy
 
-    login: (credentials) ->
-        @client-proxy.login credentials
+    login: (credentials, callback) ->
+        @client-proxy.login credentials, callback

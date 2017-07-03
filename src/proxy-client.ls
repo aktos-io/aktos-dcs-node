@@ -70,10 +70,9 @@ export class ProxyClient extends ProxyActor
             @log.log "Proxy knows that it is connected."
             @log.log "+---> New proxy connection established. name: #{@name}, role: #{@role}"
             @socket-ready = yes
-            reason, credentials <~ @login-signal.wait
+            reason, credentials, callback <~ @login-signal.wait
             err, res <~ @auth.login credentials
-            @log.log "there is error: ", err if err
-            @log.log "authorization finished: ", res
+            callback err, res
 
-    login: (credentials) ->
-        @login-signal.go {username: "user1", password: "hello world"}
+    login: (credentials, callback) ->
+        @login-signal.go {username: "user1", password: "hello world"}, callback
