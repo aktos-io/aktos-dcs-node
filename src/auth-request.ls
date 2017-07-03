@@ -1,6 +1,6 @@
 require! './core': {ActorBase}
 require! './signal': {Signal}
-require! 'aea': {sleep, pack}
+require! 'aea': {sleep, pack, clone}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
 require! 'colors': {red, green, yellow, bg-red, bg-yellow}
@@ -24,13 +24,16 @@ export class AuthRequest extends ActorBase
                 if msg.auth.logout is \ok
                     @logout-signal.go msg
 
-    login: (credentials, callback) ->
+    login: (_credentials, callback) ->
         # credentials might be one of the following:
         # 1. {username: ..., password: ...}
         # 2. {token: ...}
 
-        credentials.password = hash-passwd credentials.password
-        #@log.log "Trying to authenticate with the following credentials: ", credentials
+        credentials = clone _credentials
+        if credentials.password
+            credentials.password = hash-passwd credentials.password
+
+        @log.log "Trying to authenticate with the following credentials: ", credentials
 
         @send auth: credentials
         # FIXME: why do we need to clear the signal?

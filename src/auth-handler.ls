@@ -38,6 +38,8 @@ export class AuthHandler extends ActorBase
                             opening-scene: doc.opening-scene
 
                         @log.log "(...sending with #{@@login-delay}ms delay)"
+
+
                         @trigger \login, @session.permissions
                         <~ sleep @@login-delay
                         @send auth: session: @session
@@ -73,8 +75,13 @@ export class AuthHandler extends ActorBase
         ...
 
     filter-incoming: (msg) ->
-        for topic in @session.permissions.rw
-            if topic `topic-match` msg.topic
-                return msg
+        if @session?permissions
+            for topic in @session.permissions.rw
+                if topic `topic-match` msg.topic
+                    return msg
+        else
+            @log.err bg-red "session seems closed. dropping all messages!"
+            return
 
         @log.err bg-red "filter-incoming dropping unauthorized message!"
+        return 

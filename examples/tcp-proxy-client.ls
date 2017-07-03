@@ -1,5 +1,5 @@
 require! 'dcs': {Actor, TCPProxy}
-require! 'aea': {sleep}
+require! 'aea': {sleep, pack}
 require! 'colors': {bg-green, bg-red}
 
 class Simulator extends Actor
@@ -22,10 +22,11 @@ class Simulator extends Actor
 
 proxy = new TCPProxy do
     server-mode: off
-<~ sleep 100ms 
-proxy.login {username: "user1", password: "hello world2"}, (err, res) ~>
+<~ sleep 100ms
+proxy.login {username: "user1", password: "hello world"}, (err, res) ~>
     return console.log bg-red "Something went wrong while login: ", err if err
-    return console.log bg-red "Wrong credentials?" unless proxy.token
+    return console.log bg-red "Wrong credentials?" unless res.auth?session?token
+
     console.log "Proxy logged in."
 
 new Simulator!

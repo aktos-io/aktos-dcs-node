@@ -65,8 +65,6 @@ export class ProxyClient extends ProxyActor
         @socket.on \end, ~>
             @log.log "socket end!"
             @trigger \reconnect
-            for e-name, handlers of @event-handlers
-                console.log bg-yellow "#{e-name} : #{handlers.length}"
 
         @on \connected, ~>
             @log.log "<===> New proxy connection established. name: #{@name}"
