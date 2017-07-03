@@ -2,11 +2,11 @@ require! './actor': {Actor}
 require! 'colors': {bg-red, red, bg-yellow}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at}
-require! './authentication': {AuthRequest}
+require! './authentication': {AuthRequest, AuthHandler}
 
 
 export class ProxyActor extends Actor
-    (@socket, @opts) ->
+    ->
         """
         ProxyActor is a handler that any type of protocol (socket.io, tcp, etc...)
         uses as its handler.
@@ -75,8 +75,8 @@ function unpack-telegrams data
 
 
 export class ProxyClient extends ProxyActor
-    ->
-        super ...
+    (@socket, @opts) ->
+        super!
         # actor behaviours
         @role = \client
 
@@ -148,9 +148,14 @@ export class ProxyClient extends ProxyActor
 
 
 export class ProxyAuthority extends ProxyActor
-    ->
-        super ...
+    (@socket, @opts) ->
+        super!
         @role = \authority
+
+
+        @auth = new AuthHandler @opts.db 
+        @auth.send-raw = (msg) ~>
+            @socket.write pack msg
 
         # actor behaviours
         @on do
@@ -172,8 +177,11 @@ export class ProxyAuthority extends ProxyActor
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
             @log.log "received data", data.to-string!
-            for telegram in unpack-telegrams data.to-string!
-                @log.log "received data: ", telegram
+            for msg in unpack-telegrams data.to-string!
+                if \auth of msg
+                    @auth.process msg
+                else
+                    @log.log "received data: ", msg
 
         @on \connected, ~>
             @log.log "Proxy knows that it is connected."

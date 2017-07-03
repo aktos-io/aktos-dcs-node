@@ -1,5 +1,6 @@
 require! 'dcs': {Actor, TCPProxy}
 require! 'aea': {sleep}
+require! './database':{test-db}
 
 class Simulator extends Actor
     ->
@@ -20,5 +21,6 @@ class Simulator extends Actor
 
 new TCPProxy do
     server-mode: on
+    db: test-db 
 
 #new Simulator!

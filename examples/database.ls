@@ -1,4 +1,4 @@
-require! 'dcs/src/aea-helpers': {hash-passwd}
+require! 'dcs/src/auth-helpers': {hash-passwd}
 require! 'aea':{sleep}
 require! 'prelude-ls': {find}
 

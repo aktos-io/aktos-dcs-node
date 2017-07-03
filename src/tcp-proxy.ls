@@ -5,7 +5,6 @@ require! 'aea': {sleep}
 require! 'prelude-ls': {drop, reverse}
 require! './proxy-actor':{ProxyAuthority, ProxyClient}
 
-
 hex = (n) -> n.to-string 16 .to-upper-case!
 
 ip-to-hex = (ip) ->
@@ -40,6 +39,7 @@ export class TCPProxy extends Actor
                 proxy = new ProxyAuthority socket, do
                     name: name
                     creator: this
+                    db: @opts.db 
 
                 proxy.on \kill, (reason) ~>
                     @log.log "Creator says proxy actor (authority) (#{proxy.id}) just died!"
@@ -101,7 +101,7 @@ export class TCPProxy extends Actor
             @client.destroy!
             @client.unref!
             connected := no
-            connecting := no 
+            connecting := no
             <~ sleep 1000ms
             @log.log "reconnecting..."
             connect!
