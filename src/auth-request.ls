@@ -1,9 +1,9 @@
 require! './core': {ActorBase}
 require! './signal': {Signal}
-require! 'aea': {sleep}
+require! 'aea': {sleep, pack}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
-require! 'colors': {red, green, yellow, bg-red}
+require! 'colors': {red, green, yellow, bg-red, bg-yellow}
 require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
 require! './topic-match': {topic-match}
@@ -42,11 +42,12 @@ export class AuthRequest extends ActorBase
         else
             no
 
-        unless err
-            @trigger \login, res.auth.session.permissions
-
         # store token in order to use in every message
         @token = try res.auth.session.token
+
+        if @token
+            @trigger \login, res.auth.session.permissions
+
         callback err, res
 
 
