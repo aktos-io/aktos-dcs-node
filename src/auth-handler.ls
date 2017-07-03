@@ -1,6 +1,6 @@
 require! './core': {ActorBase}
 require! './signal': {Signal}
-require! 'aea': {sleep}
+require! 'aea': {sleep, logger}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
 require! 'colors': {red, green, yellow, bg-red, bg-yellow}
@@ -8,12 +8,35 @@ require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
 require! './topic-match': {topic-match}
 
+class SessionCache
+    @cache = {}
+    @instance = null
+    ->
+        return @@instance if @@instance
+        @@instance = this
+        @log = new logger \SessionCache
+        @log.log green "SessionCache is initialized"
+
+    add: (session) ->
+        @log.log green "Adding session for #{session.user}", (yellow session.token)
+        @@cache[session.token] = session
+
+    get: (token) ->
+        @@cache[token]
+
+    drop: (token) ->
+        @log.log yellow "Dropping session: #{token}"
+        delete @@cache[token]
+
+
 export class AuthHandler extends ActorBase
     @login-delay = 10ms
     @i = 0
     (@db) ->
         super "AuthHandler.#{@@i++}"
         @session = {}
+        @session-cache = new SessionCache!
+
         unless @db
             @log.log bg-yellow "No db supplied, only public messages are allowed."
 
@@ -39,6 +62,8 @@ export class AuthHandler extends ActorBase
                                 permissions: get-all-permissions doc.roles, permissions-db
                                 opening-scene: doc.opening-scene
 
+                            @session-cache.add @session
+
                             @log.log "(...sending with #{@@login-delay}ms delay)"
 
 
@@ -57,9 +82,12 @@ export class AuthHandler extends ActorBase
                     else
                         @log.log "logging out for #{@session.user}"
                         @session = {}
+                        @session-cache.drop @session.token
                         @send auth: logout: \ok
 
                 else if \token of msg.auth
+                    if @session-cache.get msg.auth.token
+                        @session = that
                     if @session.token is msg.auth.token
                         # this is a valid session token
                         @log.log "(...sending with #{@@login-delay}ms delay)"
@@ -81,6 +109,7 @@ export class AuthHandler extends ActorBase
         ...
 
     filter-incoming: (msg) ->
+
         if @session?permissions
             for topic in @session.permissions.rw
                 if topic `topic-match` msg.topic
