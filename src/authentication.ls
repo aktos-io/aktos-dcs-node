@@ -3,7 +3,7 @@ require! './signal': {Signal}
 require! 'aea': {sleep}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
-require! 'colors': {red, green, yellow}
+require! 'colors': {red, green, yellow, bg-red}
 require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
 
@@ -153,3 +153,10 @@ export class AuthHandler extends ActorBase
 
     send-raw: (msg) ->
         ...
+
+    filter-incoming: (msg) ->
+        for topic in @session.permissions.rw
+            if topic `topic-match` msg.topic
+                return msg
+
+        @log.err bg-red "filter-incoming dropping unauthorized message!"

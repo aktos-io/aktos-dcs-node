@@ -1,5 +1,5 @@
 require! './actor': {Actor}
-require! 'colors': {bg-red, red, bg-yellow}
+require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at}
 require! './authentication': {AuthRequest, AuthHandler}
@@ -19,17 +19,16 @@ export class ProxyActor extends Actor
 
         Client Mode Responsibilities:
 
-            1. Add `token` to outgoing messages
-            2. Subscribe to manager for authorized topics.
+            1. [x] Add `token` to outgoing messages
+            2. [x] Subscribe to manager for authorized topics.
             3. forward any incoming network messages to manager
             4. Reconnect on disconnect if opts.reconnect is "yes"
 
         Authority Mode Responsibilities:
 
-            1. forward/drop unauthorized incoming network messages
-            2. forward/drop unauthorized outgoing network messages
-            3. remove any `token` from incoming network messages
-            4. subscribe to manager with authorized topics
+            1. [ ] remove any `token` from incoming network messages
+            2. [x] subscribe to manager with authorized topics
+            3. [x] Deregister on end point disconnect
 
         Parameters:
         ===========
@@ -155,13 +154,14 @@ export class ProxyAuthority extends ProxyActor
 
         @auth.on \login, (subscriptions) ~>
             topics = flatten (subscriptions.ro ++ subscriptions.rw)
-            @log.log "authentication successful, subscribing relevant topics: ", topics
+            @log.log bg-blue "authentication successful, subscribing relevant topics: ", topics
             @subscribe topics
 
         # actor behaviours
         @on do
             receive: (msg) ~>
-                @log.log "received message from local interface:", pack msg
+                #@log.log "received message from local interface:", pack msg
+                @socket.write pack msg
 
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
@@ -178,11 +178,21 @@ export class ProxyAuthority extends ProxyActor
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
             for msg in unpack-telegrams data.to-string!
-                @log.log green "received msg: ", msg
                 if \auth of msg
+                    @log.log green "received auth message: ", msg
                     @auth._inbox msg
                 else
-                    @log.log "received data: ", msg
+                    msg = @auth.filter-incoming msg
+                    if msg
+                        @log.log "received data, forwarding to local manager: ", msg
+                        @send-enveloped msg 
+
+        @socket.on \error, (e) ~>
+            @log.log "proxy authority  has an error"
+
+        @socket.on \end, ~>
+            @log.log "proxy authority ended."
+            @kill \disconnected
 
         @on \connected, ~>
             @log.log "Proxy knows that it is connected."

@@ -4,7 +4,7 @@ require! './database':{test-db}
 
 class Simulator extends Actor
     ->
-        super \simulator-1
+        super \authority-simulator
         @subscribe 'authorization.**'
 
         @on \receive, (msg) ~>
@@ -18,6 +18,8 @@ class Simulator extends Actor
                 @send msg, 'authorization.test1'
                 <~ sleep 2000ms
                 lo(op)
+
+
 
 new TCPProxy do
     server-mode: on
