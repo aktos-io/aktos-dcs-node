@@ -181,7 +181,7 @@ export class ProxyAuthority extends ProxyActor
                 else
                     msg = @auth.filter-incoming msg
                     if msg
-                        @log.log "received data, forwarding to local manager: ", msg
+                        #@log.log "received data, forwarding to local manager: ", msg
                         @send-enveloped msg
 
         @socket.on \error, (e) ~>

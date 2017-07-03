@@ -6,10 +6,7 @@ require! 'uuid4'
 require! 'colors': {red, green, yellow, bg-red}
 require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
-
-
-
-
+require! './topic-match': {topic-match}
 
 export class AuthRequest extends ActorBase
     @i = 0

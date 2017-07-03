@@ -9,7 +9,7 @@ class Simulator extends Actor
         @subscribe 'authorization.**'
 
         @on \receive, (msg) ~>
-            if mgs.topic is \authorization.test1
+            if msg.topic is \authorization.test1
                 @log.log bg-green "got message: ", msg.payload
             else
                 @log.log bg-red "got message: ", msg.payload

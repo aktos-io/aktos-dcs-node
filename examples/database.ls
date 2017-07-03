@@ -6,7 +6,7 @@ users-db =
     * _id: 'user1'
       passwd-hash: hash-passwd "hello world"
       roles:
-          'test-area-reader'
+          'test-area-writer'
 
     * _id: 'user2'
       passwd-hash: hash-passwd "hello world2"
