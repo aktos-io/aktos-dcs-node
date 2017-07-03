@@ -28,11 +28,10 @@ export class ProxyAuthority extends ProxyActor
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
 
-        # network interface events
-        @socket.on \disconnect, ~>
-            @log.log "Client disconnected."
-            #@kill \disconnect, 0
+            connected: ~>
+                @log.log "««==»» New proxy connection established. name: #{@name}"
 
+        # network interface events
         @socket.on "data", (data) ~>
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
@@ -46,12 +45,15 @@ export class ProxyAuthority extends ProxyActor
                         #@log.log "received data, forwarding to local manager: ", msg
                         @send-enveloped msg
 
-        @socket.on \error, (e) ~>
-            @log.log "proxy authority  has an error"
-
         @socket.on \end, ~>
             @log.log "proxy authority ended."
             @kill \disconnected
 
-        @on \connected, ~>
-            @log.log "««==»» New proxy connection established. name: #{@name}"
+        # -------------------------------------------------------------
+        #    unhandled events (no action taken). do we need them? 
+        # -------------------------------------------------------------
+        @socket.on \error, (e) ~>
+            @log.log bg-red "UNHANDLED EVENT: proxy authority  has an error"
+
+        @socket.on \disconnect, ~>
+            @log.log bg-red "UNHANDLED EVENT: Client disconnected."
