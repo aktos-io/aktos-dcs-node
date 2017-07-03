@@ -1,5 +1,5 @@
 require! './core': {ActorBase}
-require! 'aea': {clone}
+require! 'aea': {clone, pack}
 require! 'prelude-ls': {reject}
 require! './topic-match': {topic-match}
 require! 'colors': {green, bg-red, yellow}

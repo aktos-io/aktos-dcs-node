@@ -11,7 +11,7 @@ check = (handler) ->
 export class ActorBase
     (@name) ->
         @actor-id = uuid4!
-        @id = @actor-id 
+        @id = @actor-id
         @name = @name or @actor-id
         @log = new logger @name
 
@@ -54,20 +54,15 @@ export class ActorBase
 
     msg-template: (msg) ->
         msg-raw =
-            sender: void # will be sent while sending
+            sender: void # will be added while sending
             timestamp: Date.now! / 1000
             msg_id: @msg-seq++
-            topic: void
             token: void
 
         if msg
             return msg-raw <<<< msg
         else
             return msg-raw
-
-    get-msg-template: (msg) ->
-        @log.warn "Deprecation: @get-msg-template is deprecated, use @msg-template instead."
-        @msg-template msg
 
     _inbox: (msg) ->
         # process one message at a time
@@ -80,19 +75,3 @@ export class ActorBase
             @trigger \receive, msg
         catch
             @log.err "problem in handler: ", e
-
-    # -----------------------------------------------------
-    #                    Deprecation
-    # -----------------------------------------------------
-
-    on-receive: (handler) ->
-        @log.warn "Deprecation: @on-receive is deprecated, use \"@on 'receive', handler\" instead."
-        @on \receive, handler
-
-    on-update: (handler) ->
-        @log.warn "Deprecation: @on-update is deprecated, use \"@on 'update', handler\" instead."
-        @on \update, handler
-
-    on-data: (handler) ->
-        @log.warn "Deprecation: @on-data is deprecated, use \"@on 'data', handler\" instead."
-        @on \data, handler
