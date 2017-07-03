@@ -75,4 +75,4 @@ export class ProxyClient extends ProxyActor
             callback err, res
 
     login: (credentials, callback) ->
-        @login-signal.go {username: "user1", password: "hello world"}, callback
+        @login-signal.go credentials, callback
