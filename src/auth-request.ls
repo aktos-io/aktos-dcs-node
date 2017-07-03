@@ -63,7 +63,7 @@ export class AuthRequest extends ActorBase
             no
 
         if not err and msg.auth.logout is \ok
-            @log.log "clearing token storage"
+            @log.log "clearing token from AuthRequest cache"
             @token = null
 
         callback err, msg

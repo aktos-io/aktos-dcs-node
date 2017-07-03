@@ -77,3 +77,6 @@ export class ProxyClient extends ProxyActor
             callback err, res
 
         @trigger \relogin
+
+    logout: (callback) ->
+        @auth.logout callback  
