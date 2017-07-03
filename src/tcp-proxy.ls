@@ -3,7 +3,8 @@ require! './actor': {Actor}
 require! 'colors': {yellow, green, red, blue}
 require! 'aea': {sleep}
 require! 'prelude-ls': {drop, reverse}
-require! './proxy-actor':{ProxyAuthority, ProxyClient}
+require! './proxy-authority':{ProxyAuthority}
+require! './proxy-client': {ProxyClient}
 
 hex = (n) -> n.to-string 16 .to-upper-case!
 
@@ -39,7 +40,7 @@ export class TCPProxy extends Actor
                 proxy = new ProxyAuthority socket, do
                     name: name
                     creator: this
-                    db: @opts.db 
+                    db: @opts.db
 
                 proxy.on \kill, (reason) ~>
                     @log.log "Creator says proxy actor (authority) (#{proxy.id}) just died!"
