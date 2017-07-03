@@ -49,7 +49,7 @@ export class ProxyActor extends Actor
 
         ¹: TODO
         """
-        super @opts.name, {+register-manually}
+        super @opts.name
 
 
 
@@ -80,21 +80,20 @@ export class ProxyClient extends ProxyActor
         # actor behaviours
         @role = \client
 
-        /*
-        # FIXME: Subscribe after authentication
-        @subscribe '**'
-        @mgr.register this
-        */
-
         @auth = new AuthRequest!
         @auth.send-raw = (msg) ~>
             @socket.write pack msg
+
+        @auth.on \login, (permissions) ~>
+            topics = permissions.ro ++ permissions.rw
+            @log.log "logged in succesfully. subscribing to: ", topics
+            @subscribe topics
 
         @on do
             receive: (msg) ~>
                 @log.log "forwarding message to network interface"
                 if @socket-ready
-                    auth.send-with-token msg
+                    @auth.send-with-token msg
                 else
                     @log.log bg-yellow "Socket not ready, not sending message..."
 
@@ -103,11 +102,9 @@ export class ProxyClient extends ProxyActor
                 @socket.end!
                 @socket.destroy 'KILLED'
 
-            'network-receive': (msg) ->
-                @log.log green "Network receive is triggered!"
-
             reconnect: ~>
                 @socket-ready = no
+
 
         # network interface events
         @socket.on \disconnect, ~>
@@ -124,7 +121,6 @@ export class ProxyClient extends ProxyActor
                 else
                     @log.log "received data: ", msg
                     @send-enveloped msg
-                    @trigger \network-receive, msg
 
         @socket.on \error, (e) ~>
             if e.code in <[ EPIPE ECONNREFUSED ECONNRESET ETIMEDOUT ]>
@@ -153,9 +149,14 @@ export class ProxyAuthority extends ProxyActor
         @role = \authority
 
 
-        @auth = new AuthHandler @opts.db 
+        @auth = new AuthHandler @opts.db
         @auth.send-raw = (msg) ~>
             @socket.write pack msg
+
+        @auth.on \login, (subscriptions) ~>
+            topics = flatten (subscriptions.ro ++ subscriptions.rw)
+            @log.log "authentication successful, subscribing relevant topics: ", topics
+            @subscribe topics
 
         # actor behaviours
         @on do
@@ -176,10 +177,10 @@ export class ProxyAuthority extends ProxyActor
         @socket.on "data", (data) ~>
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
-            @log.log "received data", data.to-string!
             for msg in unpack-telegrams data.to-string!
+                @log.log green "received msg: ", msg
                 if \auth of msg
-                    @auth.process msg
+                    @auth._inbox msg
                 else
                     @log.log "received data: ", msg
 

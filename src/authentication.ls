@@ -45,6 +45,9 @@ export class AuthRequest extends ActorBase
         else
             no
 
+        unless err
+            @trigger \login, res.auth.session.permissions
+
         # store token in order to use in every message
         @token = try res.auth.session.token
         callback err, res
@@ -95,55 +98,56 @@ export class AuthHandler extends ActorBase
         @session = {}
         throw "No db supplied!" unless @db
 
-    process: (msg) ->
-        @log.log "Processing authentication message"
-        if \username of msg.auth
-            # login request
-            err, doc <~ @db.get-user msg.auth.username
-            if err
-                @log.err "user is not found: ", err
-            else
-                if doc.passwd-hash is msg.auth.password
-                    @log.log "#{msg.auth.username} logged in."
-                    err, permissions-db <~ @db.get-permissions
-                    return @log.log "error while getting permissions" if err
-                    token = uuid4!
+        @on \receive, (msg) ~>
+            @log.log "Processing authentication message"
+            if \username of msg.auth
+                # login request
+                err, doc <~ @db.get-user msg.auth.username
+                if err
+                    @log.err "user is not found: ", err
+                else
+                    if doc.passwd-hash is msg.auth.password
+                        @log.log "#{msg.auth.username} logged in."
+                        err, permissions-db <~ @db.get-permissions
+                        return @log.log "error while getting permissions" if err
+                        token = uuid4!
 
-                    @session =
-                        token: token
-                        user: msg.auth.username
-                        date: Date.now!
-                        permissions: get-all-permissions doc.roles, permissions-db
-                        opening-scene: doc.opening-scene
+                        @session =
+                            token: token
+                            user: msg.auth.username
+                            date: Date.now!
+                            permissions: get-all-permissions doc.roles, permissions-db
+                            opening-scene: doc.opening-scene
 
+                        @log.log "(...sending with #{@@login-delay}ms delay)"
+                        @trigger \login, @session.permissions
+                        <~ sleep @@login-delay
+                        @send auth: session: @session
+                    else
+                        @log.err "wrong password", doc, msg.auth.password
+                        @send auth: session: \wrong
+
+            else if \logout of msg.auth
+                # session end request
+                unless @session.token
+                    @log.log "No user found with the following token: #{msg.token} "
+                    return
+                else
+                    @log.log "logging out for #{@session.user}"
+                    @session = {}
+                    @send auth: logout: \ok
+
+            else if \token of msg.auth
+                if @session.token is msg.auth.token
+                    # this is a valid session token
                     @log.log "(...sending with #{@@login-delay}ms delay)"
                     <~ sleep @@login-delay
                     @send auth: session: @session
                 else
-                    @log.err "wrong password", doc, msg.auth.password
-                    @send auth: session: \wrong
-
-        else if \logout of msg.auth
-            # session end request
-            unless @session.token
-                @log.log "No user found with the following token: #{msg.token} "
-                return
+                    # means "you are not already logged in, do a logout action over there"
+                    @send auth: logout: 'yes'
             else
-                @log.log "logging out for #{@session.user}"
-                @session = {}
-                @send auth: logout: \ok
-
-        else if \token of msg.auth
-            if @session.token is msg.auth.token
-                # this is a valid session token
-                @log.log "(...sending with #{@@login-delay}ms delay)"
-                <~ sleep @@login-delay
-                @send auth: session: @session
-            else
-                # means "you are not already logged in, do a logout action over there"
-                @send auth: logout: 'yes'
-        else
-            @log.err yellow "Can not determine which auth request this was: ", msg
+                @log.err yellow "Can not determine which auth request this was: ", msg
 
     send: (msg) -> @send-raw @msg-template msg <<< sender: @id
 

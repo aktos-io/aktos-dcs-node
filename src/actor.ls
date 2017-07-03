@@ -36,9 +36,9 @@ export class Actor extends ActorBase
             <~ context-switch
             @action! if typeof! @action is \Function
 
-    subscribe: (topic) ->
+    subscribe: (topics) ->
         # log section prefix: s1
-        topics = [topic] if typeof! topic is \String
+        topics = [topics] if typeof! topic is \String
         for topic in topics when topic not in @subscriptions
             @subscriptions.push topic
         @log.section \subscriptions, "subscribing to ", topic, "subscriptions: ", @subscriptions
