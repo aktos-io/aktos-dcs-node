@@ -4,8 +4,6 @@ require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {at, split}
 require! 'colors': {yellow, red, green}
 
-split-topic = split '.'
-
 export class S7Actor extends Actor
     (@opts) ->
         super @opts.name
@@ -23,26 +21,26 @@ export class S7Actor extends Actor
         @first-read-done = no
 
         # actor stuff
-        @on-kill (reason) ~>
+        @on \kill, (reason) ~>
             @log.log "Closing the connection"
             <~ @conn.dropConnection
             @log.log "Connection closed"
 
-        @on-data (msg) ~>
-            io-name = split-topic msg.topic |> at 1
+        @on \data, (msg) ~>
+            io-name = split @name, msg.topic |> split '.' |> at 1
             #@log.log "got msg: write #{msg.payload} -> #{io-name}"
             io-addr = @opts.memory-map[io-name]
+            if @opts.readonly
+                @log.log (yellow "READONLY, not writing the following:"), "#{io-addr}: #{msg.payload}"
+                return
             @log.log "Writing: ", msg.payload, "(#{typeof! msg.payload}) to: ", io-addr
-            return @log.err "NOT WRITING!!!! (test first)"
             err <~ @conn.writeItems io-addr, msg.payload
             @log.err "something went wrong while writing: ", err if err
 
-        @on-update (msg) ->
+        @on \update, (msg) ->
             @log.log "Siemens actor received an update request!"
             for key, val of @prev-data
                 @prev-data[key] = void
-
-
 
     action: ->
         @log.log "S7 Actor is created: ", @opts.target, @opts.name
