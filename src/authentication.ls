@@ -75,20 +75,6 @@ export class AuthRequest extends ActorBase
     send-raw: (msg) ->
         ...
 
-can-write = (token, topic) ->
-    try
-        if AuthHandler.session-cache[token].permissions.rw
-            return if topic in that => yes else no
-    catch
-        no
-
-can-read = (token, topic) ->
-    try
-        if AuthHandler.session-cache[token].permissions.ro
-            return if topic in that => yes else no
-    catch
-        no
-
 
 export class AuthHandler extends ActorBase
     @login-delay = 10ms

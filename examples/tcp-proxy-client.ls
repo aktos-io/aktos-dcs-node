@@ -1,6 +1,6 @@
 require! 'dcs': {Actor, TCPProxy}
 require! 'aea': {sleep}
-require! 'colors': {bg-red}
+require! 'colors': {bg-green, bg-red}
 
 class Simulator extends Actor
     ->
@@ -8,9 +8,9 @@ class Simulator extends Actor
         @subscribe 'authorization.**'
 
         @on \receive, (msg) ~>
-            @log.log bg-red "got message: ", msg.payload
+            @log.log "got message: ", msg.payload
 
-    maction: ->
+    action: ->
         do ~>
             <~ :lo(op) ~>
                 msg = "message from #{@name}...."

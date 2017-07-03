@@ -84,13 +84,13 @@ export class ProxyClient extends ProxyActor
             @socket.write pack msg
 
         @auth.on \login, (permissions) ~>
-            topics = permissions.ro ++ permissions.rw
+            topics = permissions.rw
             @log.log "logged in succesfully. subscribing to: ", topics
             @subscribe topics
 
         @on do
             receive: (msg) ~>
-                @log.log "forwarding message to network interface"
+                #@log.log "forwarding message to network interface"
                 if @socket-ready
                     @auth.send-with-token msg
                 else
@@ -118,7 +118,7 @@ export class ProxyClient extends ProxyActor
                     @log.log "received auth message, forwarding to AuthRequest."
                     @auth.inbox msg
                 else
-                    @log.log "received data: ", msg
+                    #@log.log "received data: ", msg
                     @send-enveloped msg
 
         @socket.on \error, (e) ~>
@@ -166,9 +166,6 @@ export class ProxyAuthority extends ProxyActor
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
 
-            'network-receive': (msg) ->
-                @log.log green "Network receive is triggered!"
-
         # network interface events
         @socket.on \disconnect, ~>
             @log.log "Client disconnected."
@@ -185,7 +182,7 @@ export class ProxyAuthority extends ProxyActor
                     msg = @auth.filter-incoming msg
                     if msg
                         @log.log "received data, forwarding to local manager: ", msg
-                        @send-enveloped msg 
+                        @send-enveloped msg
 
         @socket.on \error, (e) ~>
             @log.log "proxy authority  has an error"
