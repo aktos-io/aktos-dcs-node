@@ -51,10 +51,6 @@ export class ProxyActor extends Actor
         """
         super @opts.name, {+register-manually}
 
-        @on \connected, ~>
-            @log.log "Proxy knows that it is connected."
-            @log.log "+---> New proxy connection established. name: #{@name}, role: #{@role}"
-            @socket-ready = yes
 
 
 function unpack-telegrams data
@@ -84,15 +80,21 @@ export class ProxyClient extends ProxyActor
         # actor behaviours
         @role = \client
 
+        /*
+        # FIXME: Subscribe after authentication
         @subscribe '**'
         @mgr.register this
-        # FIXME: Subscribe after authentication
+        */
+
+        @auth = new AuthRequest!
+        @auth.send-raw = (msg) ~>
+            @socket.write pack msg
 
         @on do
             receive: (msg) ~>
                 @log.log "forwarding message to network interface"
                 if @socket-ready
-                    @socket.write pack msg
+                    auth.send-with-token msg
                 else
                     @log.log bg-yellow "Socket not ready, not sending message..."
 
@@ -115,11 +117,14 @@ export class ProxyClient extends ProxyActor
         @socket.on "data", (data) ~>
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
-            @send-enveloped msg
-            for telegram in unpack-telegrams data.to-string!
-                @log.log "received data: ", telegram
-                @send-enveloped telegram
-                @trigger \network-receive, telegram
+            for msg in unpack-telegrams data.to-string!
+                if \auth of msg
+                    @log.log "received auth message, forwarding to AuthRequest."
+                    @auth.inbox msg
+                else
+                    @log.log "received data: ", msg
+                    @send-enveloped msg
+                    @trigger \network-receive, msg
 
         @socket.on \error, (e) ~>
             if e.code in <[ EPIPE ECONNREFUSED ECONNRESET ETIMEDOUT ]>
@@ -132,6 +137,14 @@ export class ProxyClient extends ProxyActor
         @socket.on \end, ~>
             @log.log "socket end!"
             @trigger \reconnect
+
+        @on \connected, ~>
+            @log.log "Proxy knows that it is connected."
+            @log.log "+---> New proxy connection established. name: #{@name}, role: #{@role}"
+            @socket-ready = yes
+            err, res <~ @auth.login {username: "user1", password: "hello world"}
+            @log.log "there is error: ", err if err
+            @log.log "authorization finished: ", res
 
 
 export class ProxyAuthority extends ProxyActor
@@ -161,3 +174,7 @@ export class ProxyAuthority extends ProxyActor
             @log.log "received data", data.to-string!
             for telegram in unpack-telegrams data.to-string!
                 @log.log "received data: ", telegram
+
+        @on \connected, ~>
+            @log.log "Proxy knows that it is connected."
+            @log.log "+---> New proxy connection established. name: #{@name}, role: #{@role}"

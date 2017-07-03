@@ -4,7 +4,7 @@ require! 'aea': {sleep}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
 require! 'colors': {red, green, yellow}
-
+require! 'aea/debug-log': {logger}
 
 
 can-write = (token, topic) ->
@@ -24,45 +24,25 @@ can-read = (token, topic) ->
 
 
 export class AuthRequest extends ActorBase
-    @instance = null
+    @i = 0
     ->
-        return @@instance if @@instance
-        @@instance = this
-        super \AuthRequest
-
+        super "AuthRequest.#{@@i++}"
         @login-signal = new Signal!
         @logout-signal = new Signal!
-        @setup-ok = no
 
-    setup: (@settings) ->
-        unless @settings.transport
-            throw "transport should be defined!"
-        unless @settings.receive-interface
-            throw "receive-interface should be defined!"
-        unless @settings.send-interface
-            throw "send-interface should be defined!"
-
-        @settings.transport.on @settings.receive-interface, (msg) ~>
-            if \auth of msg
-                #@log.log "Auth actor got authentication message", msg
-                if \session of msg.auth
-                    @login-signal.go msg
-                else if \logout of msg.auth
-                    if msg.auth.logout is \ok
-                        @logout-signal.go msg
-
-        @send-raw = @settings.transport[@settings.send-interface]
-            .bind @settings.transport
-
-        @setup-ok = yes
+    inbox: (msg) ->
+        if \auth of msg
+            #@log.log "Auth actor got authentication message", msg
+            if \session of msg.auth
+                @login-signal.go msg
+            else if \logout of msg.auth
+                if msg.auth.logout is \ok
+                    @logout-signal.go msg
 
     login: (credentials, callback) ->
         # credentials might be one of the following:
         # 1. {username: ..., password: ...}
         # 2. {token: ...}
-        unless @setup-ok
-            @log.err "Setup first!"
-            throw
 
         @log.log "Trying to authenticate with the following credentials: ", credentials
         @send auth: credentials
@@ -94,12 +74,14 @@ export class AuthRequest extends ActorBase
 
         callback err, msg
 
-    send: (msg) -> @send-raw @msg-template msg <<< sender: @actor-id
+    send: (msg) -> @send-raw @msg-template msg <<< sender: @id
 
+    send-with-token: (msg) ->
+        @send-raw msg <<< token: @token
 
-export class SessionManager
-    @cache = {}
-    ->
+    send-raw: (msg) ->
+        ...
+
 
 login-delay = 10ms
 export class AuthHandler extends ActorBase
