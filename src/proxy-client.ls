@@ -7,7 +7,7 @@ require! './signal':{Signal}
 
 export class ProxyClient extends ProxyActor
     (@socket, @opts) ->
-        super!
+        super \ProxyClient
         # actor behaviours
         @role = \client
 
@@ -51,7 +51,7 @@ export class ProxyClient extends ProxyActor
                     #@log.log "received auth message, forwarding to AuthRequest."
                     @auth.inbox msg
                 else
-                    #@log.log "received data: ", msg
+                    #@log.log "received data: ", pack msg
                     @send-enveloped msg
 
         @socket.on \error, (e) ~>
@@ -79,4 +79,4 @@ export class ProxyClient extends ProxyActor
         @trigger \relogin
 
     logout: (callback) ->
-        @auth.logout callback  
+        @auth.logout callback
