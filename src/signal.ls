@@ -21,6 +21,7 @@ export class Signal
             for callback in @callbacks
                 try clear-timeout @timer
                 callback.handler.apply callback.ctx, ([event.reason] ++ args)
+            @callbacks = []
 
 
     wait: (timeout, callback) ->
