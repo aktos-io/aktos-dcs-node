@@ -21,7 +21,7 @@ export class ProxyAuthority extends ProxyActor
 
         @auth.on \logout, ~>
             # remove all subscriptions
-            @mgr.unsubscribe this 
+            @mgr.unsubscribe this
 
         # actor behaviours
         @on do
@@ -39,9 +39,10 @@ export class ProxyAuthority extends ProxyActor
         @socket.on "data", (data) ~>
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
+            #@log.log "got message from network interface: ", data
             for msg in unpack-telegrams data.to-string!
                 if \auth of msg
-                    @log.log green "received auth message: ", msg
+                    #@log.log green "received auth message: ", msg
                     @auth._inbox msg
                 else
                     msg = @auth.filter-incoming msg

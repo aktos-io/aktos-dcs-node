@@ -1,6 +1,6 @@
 require! './core': {ActorBase}
 require! './signal': {Signal}
-require! 'aea': {sleep, logger}
+require! 'aea': {sleep, logger, pack}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
 require! 'colors': {red, green, yellow, bg-red, bg-yellow}
@@ -41,7 +41,7 @@ export class AuthHandler extends ActorBase
             @log.log bg-yellow "No db supplied, only public messages are allowed."
 
         @on \receive, (msg) ~>
-            @log.log "Processing authentication message"
+            #@log.log "Processing authentication message"
             if @db
                 if \username of msg.auth
                     # login request
@@ -50,7 +50,7 @@ export class AuthHandler extends ActorBase
                         @log.err "user is not found: ", err
                     else
                         if doc.passwd-hash is msg.auth.password
-                            @log.log "#{msg.auth.username} logged in."
+                            @log.log (bg-yellow "new Login: "), msg.auth.username
                             err, permissions-db <~ @db.get-permissions
                             return @log.log "error while getting permissions" if err
                             token = uuid4!
@@ -111,7 +111,7 @@ export class AuthHandler extends ActorBase
         ...
 
     filter-incoming: (msg) ->
-
+        #@log.log yellow "filter-incoming: input: ", pack msg
         if @session?permissions
             for topic in @session.permissions.rw
                 if topic `topic-match` msg.topic

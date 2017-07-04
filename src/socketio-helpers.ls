@@ -7,6 +7,9 @@ export class Wrapper
         @orig.on \disconnect, ~>
             @trigger \end
 
+        @orig.on \connect, ~>
+            @trigger \connect
+
     write: (data) ->
         @orig.emit \aea, data
 

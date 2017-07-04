@@ -79,11 +79,10 @@ export class TCPProxy extends Actor
         connecting = no
         connected = no
 
-        @client.on \connect, ~>
+        proxy.on \connected, ~> 
             connected := yes
             connecting := no
             @log.log "Broker is started in", yellow "client mode"
-            proxy.trigger \connected
 
         do connect = ~>
             return if connected

@@ -22,7 +22,7 @@ export class ProxyClient extends ProxyActor
 
         @on do
             receive: (msg) ~>
-                #@log.log "forwarding message to network interface"
+                #@log.log "forwarding message #{msg.topic} to network interface"
                 if @socket-ready
                     @auth.send-with-token msg
                 else
@@ -38,7 +38,13 @@ export class ProxyClient extends ProxyActor
 
 
         @login-signal = new Signal!
-        # network interface events
+
+        # ----------------------------------------------
+        #            network interface events
+        # ----------------------------------------------
+        @socket.on \connect, ~>
+            @trigger \connected
+
         @socket.on \disconnect, ~>
             @log.log "Client disconnected."
             #@kill \disconnect, 0
@@ -69,7 +75,7 @@ export class ProxyClient extends ProxyActor
         @on \connected, ~>
             @log.log "<===> New proxy connection established. name: #{@name}"
             @socket-ready = yes
-            @trigger \relogin
+            @trigger \relogin # triggering procedures on (re)login
 
     login: (credentials, callback) ->
         @on \relogin, ~>

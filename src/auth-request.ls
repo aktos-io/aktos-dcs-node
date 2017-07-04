@@ -7,6 +7,7 @@ require! 'colors': {red, green, yellow, bg-red, bg-yellow}
 require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
 require! './topic-match': {topic-match}
+require! 'prelude-ls': {keys, join}
 
 export class AuthRequest extends ActorBase
     @i = 0
@@ -33,7 +34,7 @@ export class AuthRequest extends ActorBase
         if credentials.password
             credentials.password = hash-passwd credentials.password
 
-        @log.log "Trying to authenticate with the following credentials: ", credentials
+        @log.log "Trying to authenticate with #{keys credentials |> join ", "}"
 
         @send auth: credentials
         # FIXME: why do we need to clear the signal?
