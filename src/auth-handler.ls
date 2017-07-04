@@ -84,7 +84,7 @@ export class AuthHandler extends ActorBase
                         @session-cache.drop @session.token
                         @session = {}
                         @send auth: logout: \ok
-                        @trigger \logout 
+                        @trigger \logout
 
                 else if \token of msg.auth
                     if @session-cache.get msg.auth.token
@@ -115,10 +115,11 @@ export class AuthHandler extends ActorBase
         if @session?permissions
             for topic in @session.permissions.rw
                 if topic `topic-match` msg.topic
+                    delete msg.token
                     return msg
         else if msg.topic `topic-match` "public.**"
             @log.err yellow "allowing public message"
-            return ms
+            return msg
         else
             @log.err bg-red "can not determine authorization."
 
