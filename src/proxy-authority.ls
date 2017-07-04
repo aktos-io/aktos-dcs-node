@@ -19,6 +19,10 @@ export class ProxyAuthority extends ProxyActor
             @log.log bg-blue "authentication successful, subscribing relevant topics: ", topics
             @subscribe topics
 
+        @auth.on \logout, ~>
+            # remove all subscriptions
+            @mgr.unsubscribe this 
+
         # actor behaviours
         @on do
             receive: (msg) ~>
@@ -50,7 +54,7 @@ export class ProxyAuthority extends ProxyActor
             @kill \disconnected
 
         # -------------------------------------------------------------
-        #    unhandled events (no action taken). do we need them? 
+        #    unhandled events (no action taken). do we need them?
         # -------------------------------------------------------------
         @socket.on \error, (e) ~>
             @log.log bg-red "UNHANDLED EVENT: proxy authority  has an error"

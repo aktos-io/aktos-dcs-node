@@ -33,6 +33,12 @@ export class ActorManager extends ActorBase
         @log.section \deregister, "actor count after: ", @actor-list.length
         @update-subscriptions!
 
+    unsubscribe: (actor) ->
+        new-list = {}
+        for topic, actor-list of @subscription-list
+            new-list[topic] = reject (.id is actor.id), actor-list
+        @subscription-list = new-list
+
     update-subscriptions: ->
         # log section prefix: v3
         # update subscriptions

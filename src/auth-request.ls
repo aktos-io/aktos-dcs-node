@@ -55,7 +55,7 @@ export class AuthRequest extends ActorBase
 
 
     logout: (callback) ->
-        @send auth: logout: yes
+        @send-with-token auth: logout: yes
         reason, msg <~ @logout-signal.wait 3000ms
         err = if reason is \timeout
             {reason: 'timeout'}

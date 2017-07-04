@@ -81,9 +81,10 @@ export class AuthHandler extends ActorBase
                         return
                     else
                         @log.log "logging out for #{@session.user}"
-                        @session = {}
                         @session-cache.drop @session.token
+                        @session = {}
                         @send auth: logout: \ok
+                        @trigger \logout 
 
                 else if \token of msg.auth
                     if @session-cache.get msg.auth.token
