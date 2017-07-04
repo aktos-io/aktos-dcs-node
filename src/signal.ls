@@ -34,7 +34,7 @@ export class Signal
         # /re-arrange arguments
 
 
-        if callback.to-string! not in [..to-string! for @callbacks]
+        if callback.to-string! not in [..handler.to-string! for @callbacks]
             @callbacks.push {ctx: this, handler: callback}
         @waiting = yes
 
