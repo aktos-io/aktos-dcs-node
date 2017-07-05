@@ -5,12 +5,7 @@ require! 'uuid4'
 export class Signal
     ->
         @name = uuid4!
-        @callbacks = []
-        @should-run = no
-        @waiting = no
-        @timer = void
-        #@log = new logger @name
-        @skip-next = no
+        @reset!
 
     fire: (event, ...args) ->
         #@log.log "trying to fire..."
@@ -60,6 +55,14 @@ export class Signal
         #@log.log "called 'go!'"
         @should-run = yes
         @fire.apply this, ([{reason: \hasevent}] ++ args)
+
+    reset: ->
+        @callbacks = []
+        @should-run = no
+        @waiting = no
+        try clear-timeout @timer
+        @timer = void
+        @skip-next = no 
 
     reset-timeout: ->
         try clear-timeout @timer
