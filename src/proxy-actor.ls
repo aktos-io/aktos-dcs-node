@@ -1,6 +1,6 @@
 require! './actor': {Actor}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
-require! 'aea': {sleep, pack, unpack}
+require! 'aea': {sleep, pack, unpack, Logger}
 require! 'prelude-ls': {split, flatten, split-at}
 
 
@@ -70,3 +70,31 @@ export function unpack-telegrams data
 
     packets = flatten [_first-telegram, unpack-telegrams _rest]
     return packets
+
+export class MessageBinder
+    ->
+        @log = new Logger \MessageBinder
+        @i = 0
+        @cache = ""
+
+    get-messages: (data) ->
+        if typeof! data is \Uint8Array
+            data = data.to-string!
+        #@log.log "got message from network interface: ", data, (typeof! data)
+
+        @cache += data
+        if 1 < @i < 10
+            @log.err bg-yellow "trying to cache more... (i = #{@i})"
+        else if @i > 10
+            @log.err bg-red "Problem while caching: "
+            @i = 0
+            @cache = ""
+        @i++
+        res = try
+            x = unpack-telegrams @cache
+            @cache = ""
+            @i = 0
+            x
+        catch
+            @log.err bg-red "Problem while unpacking data, trying to cache.", e
+            []

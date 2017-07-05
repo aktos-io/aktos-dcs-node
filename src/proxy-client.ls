@@ -1,4 +1,4 @@
-require! './proxy-actor': {ProxyActor, unpack-telegrams}
+require! './proxy-actor': {ProxyActor, MessageBinder}
 require! './auth-request': {AuthRequest}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! 'aea': {sleep, pack, unpack}
@@ -10,6 +10,8 @@ export class ProxyClient extends ProxyActor
         super \ProxyClient
         # actor behaviours
         @role = \client
+
+        @data-binder = new MessageBinder!
 
         @auth = new AuthRequest!
         @auth.send-raw = (msg) ~>
@@ -52,7 +54,7 @@ export class ProxyClient extends ProxyActor
         @socket.on "data", (data) ~>
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
-            for msg in unpack-telegrams data.to-string!
+            for msg in @data-binder.get-messages data 
                 if \auth of msg
                     #@log.log "received auth message, forwarding to AuthRequest."
                     @auth.inbox msg

@@ -1,8 +1,10 @@
-require! './proxy-actor': {ProxyActor, unpack-telegrams}
+require! './proxy-actor': {ProxyActor, MessageBinder}
 require! './auth-handler': {AuthHandler}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at}
+
+
 
 export class ProxyAuthority extends ProxyActor
     (@socket, @opts) ->
@@ -10,6 +12,7 @@ export class ProxyAuthority extends ProxyActor
         @role = \authority
 
 
+        @data-binder = new MessageBinder!
         @auth = new AuthHandler @opts.db
         @auth.send-raw = (msg) ~>
             @socket.write pack msg
@@ -36,34 +39,10 @@ export class ProxyAuthority extends ProxyActor
                 @log.log "««==»» New proxy connection established. name: #{@name}"
 
         # network interface events
-        i = 0
-        cache = ""
         @socket.on "data", (data) ~>
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
-            if typeof! data is \Uint8Array
-                data = data.to-string!
-            #@log.log "got message from network interface: ", data, (typeof! data)
-
-            cache += data
-            if 1 < i < 10
-                @log.err bg-yellow "trying to cache more... (i = #{i})"
-            else if i > 10
-                @log.err bg-red "Problem while caching: "
-                i := 0
-                cache := ""
-            i++
-            res = try
-                x = unpack-telegrams cache
-                cache := ""
-                i := 0
-                x
-            catch
-                @log.err bg-red "Problem while unpacking data, trying to cache.", e
-                []
-
-
-            for msg in res
+            for msg in @data-binder.get-messages data
                 if \auth of msg
                     #@log.log green "received auth message: ", msg
                     @auth._inbox msg
