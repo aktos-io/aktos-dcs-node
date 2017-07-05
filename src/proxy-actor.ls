@@ -66,8 +66,7 @@ export function unpack-telegrams data
     _first-telegram = try
         unpack _first
     catch
-        console.log "data can not be unpacked: ", _first
-        console.log e
+        throw e
 
     packets = flatten [_first-telegram, unpack-telegrams _rest]
     return packets

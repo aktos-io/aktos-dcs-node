@@ -36,11 +36,34 @@ export class ProxyAuthority extends ProxyActor
                 @log.log "««==»» New proxy connection established. name: #{@name}"
 
         # network interface events
+        i = 0
+        cache = ""
         @socket.on "data", (data) ~>
             # in "client mode", authorization checks are disabled
             # message is only forwarded to manager
-            #@log.log "got message from network interface: ", data
-            for msg in unpack-telegrams data.to-string!
+            if typeof! data is \Uint8Array
+                data = data.to-string!
+            #@log.log "got message from network interface: ", data, (typeof! data)
+
+            cache += data
+            if 1 < i < 10
+                @log.err bg-yellow "trying to cache more... (i = #{i})"
+            else if i > 10
+                @log.err bg-red "Problem while caching: "
+                i := 0
+                cache := ""
+            i++
+            res = try
+                x = unpack-telegrams cache
+                cache := ""
+                i := 0
+                x
+            catch
+                @log.err bg-red "Problem while unpacking data, trying to cache.", e
+                []
+
+
+            for msg in res
                 if \auth of msg
                     #@log.log green "received auth message: ", msg
                     @auth._inbox msg
