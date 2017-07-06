@@ -76,25 +76,34 @@ export class MessageBinder
         @log = new Logger \MessageBinder
         @i = 0
         @cache = ""
+        @heartbeat = 0
+        const @timeout = 300ms
+        @max-try = 10_times
 
     get-messages: (data) ->
         if typeof! data is \Uint8Array
             data = data.to-string!
         #@log.log "got message from network interface: ", data, (typeof! data)
 
-        @cache += data
-        if 1 < @i < 10
-            @log.err bg-yellow "trying to cache more... (i = #{@i})"
-        else if @i > 10
-            @log.err bg-red "Problem while caching: "
+        if @heartbeat < Date.now! - @timeout
+            # there is a long time since last data arrived. do not cache anything
+            @cache = data
             @i = 0
-            @cache = ""
-        @i++
+        else
+            @cache += data
+            @i++
+
+        if @i > @max-try
+            @log.err bg-red "Caching isn't enough, giving up."
+            @i = 0
+            @cache = data
+
+        @heartbeat = Date.now!
         res = try
             x = unpack-telegrams @cache
             @cache = ""
             @i = 0
             x
         catch
-            @log.err bg-red "Problem while unpacking data, trying to cache.", e
+            #@log.err bg-red "Problem while unpacking data, trying to cache.", e
             []
