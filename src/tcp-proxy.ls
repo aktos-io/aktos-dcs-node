@@ -79,7 +79,7 @@ export class TCPProxy extends Actor
         connecting = no
         connected = no
 
-        proxy.on \connected, ~> 
+        proxy.on \connected, ~>
             connected := yes
             connecting := no
             @log.log "Broker is started in", yellow "client mode"
@@ -96,7 +96,7 @@ export class TCPProxy extends Actor
                 <- sleep 1000000
                 lo(op)
 
-        proxy.on \reconnect, (reason) ~>
+        proxy.on \needReconnect, (reason) ~>
             @log.log "proxy actor requested reconnection. Reconnecting in 1000ms."
             @client.destroy!
             @client.unref!

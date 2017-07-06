@@ -3,7 +3,7 @@ require! './signal': {Signal}
 require! 'aea': {sleep, logger, pack}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
-require! 'colors': {red, green, yellow, bg-red, bg-yellow}
+require! 'colors': {red, green, yellow, bg-red, bg-yellow, bg-green}
 require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
 require! './topic-match': {topic-match}
@@ -15,7 +15,7 @@ class SessionCache
         return @@instance if @@instance
         @@instance = this
         @log = new logger \SessionCache
-        @log.log green "SessionCache is initialized"
+        @log.log green "SessionCache is initialized", pack @@cache
 
     add: (session) ->
         @log.log green "Adding session for #{session.user}", (yellow session.token)
@@ -34,7 +34,6 @@ export class AuthHandler extends ActorBase
     @i = 0
     (@db) ->
         super "AuthHandler.#{@@i++}"
-        @session = {}
         @session-cache = new SessionCache!
 
         unless @db
@@ -43,63 +42,70 @@ export class AuthHandler extends ActorBase
         @on \receive, (msg) ~>
             #@log.log "Processing authentication message"
             if @db
-                if \username of msg.auth
+                if \user of msg.auth
                     # login request
-                    err, doc <~ @db.get-user msg.auth.username
+                    err, doc <~ @db.get-user msg.auth.user
                     if err
                         @log.err "user is not found: ", err
                     else
                         if doc.passwd-hash is msg.auth.password
-                            @log.log (bg-yellow "new Login: "), msg.auth.username
                             err, permissions-db <~ @db.get-permissions
-                            return @log.log "error while getting permissions" if err
+                            if err
+                                @log.log "error while getting permissions"
+                                # FIXME: send exception message to the client
+                                return
+
                             token = uuid4!
 
-                            @session =
+                            session =
                                 token: token
-                                user: msg.auth.username
+                                user: msg.auth.user
                                 date: Date.now!
                                 permissions: get-all-permissions doc.roles, permissions-db
                                 opening-scene: doc.opening-scene
 
-                            @session-cache.add @session
+                            @session-cache.add session
 
+                            @log.log bg-green "new Login: #{msg.auth.user} (#{token})"
                             @log.log "(...sending with #{@@login-delay}ms delay)"
 
 
-                            @trigger \login, @session.permissions
+                            @trigger \login, session.permissions
                             <~ sleep @@login-delay
-                            @send auth: session: @session
+                            @send auth: session: session
                         else
                             @log.err "wrong password", doc, msg.auth.password
                             @send auth: session: \wrong
 
                 else if \logout of msg.auth
                     # session end request
-                    unless @session.token
-                        @log.log "No user found with the following token: #{msg.token} "
-                        return
+                    unless @session-cache.get msg.token
+                        @log.log bg-yellow "No user found with the following token: #{msg.token} "
+                        @send auth: logout: \ok
+                        @trigger \logout
+
                     else
-                        @log.log "logging out for #{@session.user}"
-                        @session-cache.drop @session.token
-                        @session = {}
+                        @log.log "logging out for #{@session-cache.get msg.token}"
+                        @session-cache.drop msg.token
                         @send auth: logout: \ok
                         @trigger \logout
 
                 else if \token of msg.auth
-                    if @session-cache.get msg.auth.token
-                        @session = that
-                    if @session.token is msg.auth.token
+                    @log.log "tried to login with token: ", pack msg.auth
+                    if (@session-cache.get msg.auth.token)?.token is msg.auth.token
                         # this is a valid session token
-                        @log.log "(...sending with #{@@login-delay}ms delay)"
-                        @trigger \login, @session.permissions
+                        @log.log "login with token: #{msg.auth.token} (...sending with #{@@login-delay}ms delay)"
+                        @trigger \login, @session-cache.get(msg.auth.token).permissions
                         <~ sleep @@login-delay
-                        @send auth: session: @session
+                        @send auth: session: @session-cache.get(msg.auth.token)
                     else
                         # means "you are not already logged in, do a logout action over there"
-                        @send auth: logout: 'yes'
+                        @log.log "client doesn't seem to be logged in already. "
+                        <~ sleep @@login-delay
+                        @send auth: session: logout: 'yes'
                 else
-                    @log.err yellow "Can not determine which auth request this was: ", msg
+                    @log.err yellow "Can not determine which auth request this was: ", pack msg
+
             else
                 @log.log "only public messages allowed, dropping auth messages"
                 @send auth: session: 'NOTAUTHORITY'
@@ -112,8 +118,9 @@ export class AuthHandler extends ActorBase
 
     filter-incoming: (msg) ->
         #@log.log yellow "filter-incoming: input: ", pack msg
-        if @session?permissions
-            for topic in @session.permissions.rw
+        session = @session-cache.get msg.token
+        if session?permissions
+            for topic in session.permissions.rw
                 if topic `topic-match` msg.topic
                     delete msg.token
                     return msg

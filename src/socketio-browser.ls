@@ -15,8 +15,8 @@ export class SocketIOBrowser extends Actor
             name: \client-proxy
             creator: this
 
-        @proxy.on \connected, ~> 
+        @proxy.on \connected, ~>
             @log.log "Connected to server with id: ", socket.io.engine.id
 
-    hello: ->
-        @log.log "hello from SocketIOBrowser!"
+        @proxy.on \needReconnect, ~>
+            @log.log "proxy needs reconnection but socket.io will handle this. nothing to do here."

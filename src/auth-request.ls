@@ -46,11 +46,14 @@ export class AuthRequest extends ActorBase
         else
             no
 
+        @log.log "auth replay is: ", pack res
         # store token in order to use in every message
         @token = try res.auth.session.token
 
         if @token
             @trigger \login, res.auth.session.permissions
+        else if res.auth.session.logout is \yes or res.auth.session is \wrong
+            @trigger \logout
 
         callback err, res
 
