@@ -1,12 +1,7 @@
 require! 'aea':{is-nodejs, merge, pack}
 require! 'prelude-ls': {flatten, find}
 require! 'colors': {green}
-create-hash = require 'sha.js'
-
-export hash-passwd = (passwd) ->
-    sha512 = create-hash \sha512
-    sha512.update passwd, 'utf-8' .digest \hex
-
+require! './auth-helpers': {hash-passwd}
 
 calc-authorized-topics = (role, permissions-db) ->
     # returns:
@@ -42,7 +37,7 @@ export get-all-permissions = (user-roles, permissions-db) ->
 #                                 TESTS
 # --------------------------------------------------------------------------
 
-if is-nodejs!
+if require.main is module
     do test = ->
         online-users =
             * _id: 'user1'

@@ -1,7 +1,8 @@
 require! './src/actor': {Actor}
 require! './src/socketio-server': {SocketIOServer}
-require! './src/broker': {Broker}
+require! './src/tcp-proxy': {TCPProxy}
+require! './src/couch-proxy': {CouchProxy}
 
 module.exports = {
-    Actor, SocketIOServer, Broker,
+    Actor, SocketIOServer, TCPProxy, CouchProxy
 }

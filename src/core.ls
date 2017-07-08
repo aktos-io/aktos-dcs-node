@@ -11,7 +11,9 @@ check = (handler) ->
 export class ActorBase
     (@name) ->
         @actor-id = uuid4!
-        @log = new logger (@name or @actor-id)
+        @id = @actor-id
+        @name = @name or @actor-id
+        @log = new logger @name
 
         @event-handlers = {}
 
@@ -23,12 +25,12 @@ export class ActorBase
 
     on: (event, handler) ->
         # usage:
-        # @on 'my-event', (param) -> /**/
+        # @on 'my-event', (param) ->
         #
         # or
         #
         # @on {
-        #     'my-event': (param) -> /**/
+        #     'my-event': (param) ->
         # }
         handlers = @event-handlers
         add-handler = (name, handler) ~>
@@ -41,7 +43,7 @@ export class ActorBase
             return if (check handler) is \failed
             add-handler event, handler
         else if typeof! event is \Object
-            for _ev, handler of event 
+            for _ev, handler of event
                 return if (check handler) is \failed
                 add-handler _ev, handler
 
@@ -50,35 +52,17 @@ export class ActorBase
             for handler in @event-handlers[name]
                 handler.apply this, args
 
-
-    on-receive: (handler) ->
-        @log.warn "Deprecation: @on-receive is deprecated, use \"@on 'receive', handler\" instead."
-        @on \receive, handler
-
-    on-update: (handler) ->
-        @log.warn "Deprecation: @on-update is deprecated, use \"@on 'update', handler\" instead."
-        @on \update, handler
-
-    on-data: (handler) ->
-        @log.warn "Deprecation: @on-data is deprecated, use \"@on 'data', handler\" instead."
-        @on \data, handler
-
     msg-template: (msg) ->
         msg-raw =
-            sender: void # will be sent while sending
+            sender: void # will be added while sending
             timestamp: Date.now! / 1000
             msg_id: @msg-seq++
-            topic: void
             token: void
 
         if msg
             return msg-raw <<<< msg
         else
             return msg-raw
-
-    get-msg-template: (msg) ->
-        @log.warn "Deprecation: @get-msg-template is deprecated, use @msg-template instead."
-        @msg-template msg
 
     _inbox: (msg) ->
         # process one message at a time

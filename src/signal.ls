@@ -5,12 +5,7 @@ require! 'uuid4'
 export class Signal
     ->
         @name = uuid4!
-        @callbacks = []
-        @should-run = no
-        @waiting = no
-        @timer = void
-        #@log = new logger @name
-        @skip-next = no
+        @reset!
 
     fire: (event, ...args) ->
         #@log.log "trying to fire..."
@@ -20,7 +15,14 @@ export class Signal
             @should-run = no
             for callback in @callbacks
                 try clear-timeout @timer
+
+                # FIXME: debug
+                if event.reason is \timeout
+                    console.warn "SIGNAL (#{@name}) timed out, args are: ", args
+                # FIXME
+                
                 callback.handler.apply callback.ctx, ([event.reason] ++ args)
+            @callbacks = []
 
 
     wait: (timeout, callback) ->
@@ -34,7 +36,7 @@ export class Signal
         # /re-arrange arguments
 
 
-        if callback.to-string! not in [..to-string! for @callbacks]
+        if callback.to-string! not in [..handler.to-string! for @callbacks]
             @callbacks.push {ctx: this, handler: callback}
         @waiting = yes
 
@@ -59,6 +61,14 @@ export class Signal
         #@log.log "called 'go!'"
         @should-run = yes
         @fire.apply this, ([{reason: \hasevent}] ++ args)
+
+    reset: ->
+        @callbacks = []
+        @should-run = no
+        @waiting = no
+        try clear-timeout @timer
+        @timer = void
+        @skip-next = no
 
     reset-timeout: ->
         try clear-timeout @timer
