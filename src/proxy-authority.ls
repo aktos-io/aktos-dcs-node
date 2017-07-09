@@ -11,6 +11,7 @@ export class ProxyAuthority extends ProxyActor
         super!
         @role = \authority
 
+        @log.log "««==»» New proxy connection established. name: #{@name}"
 
         @data-binder = new MessageBinder!
         @auth = new AuthHandler @opts.db
@@ -35,8 +36,6 @@ export class ProxyAuthority extends ProxyActor
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
 
-            connected: ~>
-                @log.log "««==»» New proxy connection established. name: #{@name}"
 
         # network interface events
         @socket.on "data", (data) ~>
