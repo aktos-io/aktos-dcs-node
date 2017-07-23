@@ -60,12 +60,6 @@ export class Actor extends ActorBase
             return
         @mgr.inbox-put msg, (@_inbox.bind this)
 
-    request-update: (topic) ->
-        @log.log "requesting update for topic: #{topic}"
-        @send-enveloped @msg-template do
-            update: yes
-            topic: topic
-
     kill: (...reason) ->
         unless @_state.kill.started
             @_state.kill.started = yes
@@ -74,3 +68,11 @@ export class Actor extends ActorBase
             @log.section \debug-kill, "deregistered from manager"
             @trigger.apply this, ([\kill] ++ reason)
             @_state.kill.finished = yes
+
+    request-update: ->
+        <~ context-switch
+        #@log.log "requesting update!"
+        for topic in @subscriptions
+            @send-enveloped @msg-template do
+                update: yes
+                topic: topic

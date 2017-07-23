@@ -66,13 +66,3 @@ export class IoActor extends Actor
             handle.silence!
             @ractive.set ractive-var, msg.payload
             handle.resume!
-
-
-
-    request-update: ->
-        <~ context-switch
-        #@log.log "requesting update!"
-        for topic in @subscriptions
-            @send-enveloped @msg-template do
-                update: yes
-                topic: topic
