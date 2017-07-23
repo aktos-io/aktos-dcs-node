@@ -81,9 +81,10 @@ export class AuthHandler extends ActorBase
                     # session end request
                     unless @session-cache.get msg.token
                         @log.log bg-yellow "No user found with the following token: #{msg.token} "
-                        @send auth: logout: \ok
+                        @send auth:
+                            logout: \ok
+                            reason: "no such user found"
                         @trigger \logout
-
                     else
                         @log.log "logging out for #{@session-cache.get msg.token}"
                         @session-cache.drop msg.token

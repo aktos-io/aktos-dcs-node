@@ -60,6 +60,12 @@ export class Actor extends ActorBase
             return
         @mgr.inbox-put msg, (@_inbox.bind this)
 
+    request-update: (topic) ->
+        @log.log "requesting update for topic: #{topic}"
+        @send-enveloped @msg-template do
+            update: yes
+            topic: topic
+
     kill: (...reason) ->
         unless @_state.kill.started
             @_state.kill.started = yes
