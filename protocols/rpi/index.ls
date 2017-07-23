@@ -74,14 +74,14 @@ export class DOutput extends Io
                 send-value value
 
 
-        if @opts.initial => write that
+        write (@opts.initial or 0)
 
         @on \data, (msg) ~>
             write msg.payload.val if msg.payload.val?
 
         @on \update, ~>
             @log.log "requested update, sending current status..."
-            @send {curr: @prev}, @topic
+            send-value @prev
 
         @on \kill, ~>
             <~ output.unexport
