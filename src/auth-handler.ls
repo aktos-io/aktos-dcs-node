@@ -46,7 +46,7 @@ export class AuthHandler extends ActorBase
                     # login request
                     err, doc <~ @db.get-user msg.auth.user
                     if err
-                        @log.err "user is not found: ", err
+                        @log.err "user \"#{msg.auth.user}\" is not found. err: ", pack err
                     else
                         if doc.passwd-hash is msg.auth.password
                             err, permissions-db <~ @db.get-permissions
