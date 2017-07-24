@@ -21,6 +21,11 @@ export class ProxyClient extends ProxyActor
             topics = permissions.rw
             @log.log "logged in succesfully. subscribing to: ", topics
             @subscribe topics
+            @log.log "requesting update messages for subscribed topics"
+            for topic in topics
+                @auth.send-with-token @msg-template do
+                    topic: topic
+                    update: yes
 
         @on do
             receive: (msg) ~>
