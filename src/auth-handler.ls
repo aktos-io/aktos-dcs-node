@@ -3,7 +3,11 @@ require! './signal': {Signal}
 require! 'aea': {sleep, logger, pack}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
-require! 'colors': {red, green, yellow, bg-red, bg-yellow, bg-green}
+require! 'colors': {
+    red, green, yellow,
+    bg-red, bg-yellow, bg-green
+    bg-cyan
+}
 require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
 require! './topic-match': {topic-match}
@@ -25,7 +29,7 @@ class SessionCache
         @@cache[token]
 
     drop: (token) ->
-        @log.log yellow "Dropping session: #{token}"
+        @log.log yellow "Dropping session for user: #{@@cache[token].user} token: #{token}"
         delete @@cache[token]
 
 
@@ -92,16 +96,17 @@ export class AuthHandler extends ActorBase
                         @trigger \logout
 
                 else if \token of msg.auth
-                    @log.log "tried to login with token: ", pack msg.auth
+                    @log.log "Attempting to login with token: ", pack msg.auth
                     if (@session-cache.get msg.auth.token)?.token is msg.auth.token
                         # this is a valid session token
-                        @log.log "login with token: #{msg.auth.token} (...sending with #{@@login-delay}ms delay)"
-                        @trigger \login, @session-cache.get(msg.auth.token).permissions
+                        found-session = @session-cache.get(msg.auth.token)
+                        @log.log bg-cyan "User \"#{found-session.user}\" has been logged in with token."
+                        @trigger \login, found-session.permissions
                         <~ sleep @@login-delay
-                        @send auth: session: @session-cache.get(msg.auth.token)
+                        @send auth: session: found-session
                     else
                         # means "you are not already logged in, do a logout action over there"
-                        @log.log "client doesn't seem to be logged in already. "
+                        @log.log bg-yellow "client doesn't seem to be logged in already. "
                         <~ sleep @@login-delay
                         @send auth: session: logout: 'yes'
                 else

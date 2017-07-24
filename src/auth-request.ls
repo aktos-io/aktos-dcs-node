@@ -36,6 +36,14 @@ export class AuthRequest extends ActorBase
 
         @log.log "Trying to authenticate with #{keys credentials |> join ", "}"
 
+        if \token of credentials
+            if credentials.token.length < 10
+                err = "Token seems empty, not attempting to login."
+                @log.log err
+                @trigger \logout
+                callback err, null
+                return
+
         @send auth: credentials
         # FIXME: why do we need to clear the signal?
         @login-signal.clear!
