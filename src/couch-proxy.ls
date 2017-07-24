@@ -40,18 +40,21 @@ export class CouchProxy extends Actor
 
 
     get: (doc-id, callback) ->
+        @get-signal.clear!
         @send {get: doc-id}, "#{@topic}.get"
         reason, err, res <~ @get-signal.wait 5_000ms
         err = {reason: \timeout} if reason is \timeout
         callback err, res
 
     all: (opts, callback) ->
+        @all-signal.clear!
         @send {all: opts}, "#{@topic}.all"
         reason, err, res <~ @all-signal.wait 5_000ms
         err = {reason: \timeout} if reason is \timeout
         callback err, res
 
     put: (doc, callback) ->
+        @put-signal.clear!
         @send {put: doc}, "#{@topic}.put"
         reason, err, res <~ @put-signal.wait 5_000ms
         err = {reason: \timeout} if reason is \timeout
@@ -60,6 +63,7 @@ export class CouchProxy extends Actor
     view: (_view, opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 
+        @view-signal.clear! 
         @send {view: _view, opts: opts}, "#{@topic}.view"
         reason, err, res <~ @view-signal.wait 5_000ms
         err = {reason: \timeout} if reason is \timeout
