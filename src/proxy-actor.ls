@@ -77,8 +77,8 @@ export class MessageBinder
         @i = 0
         @cache = ""
         @heartbeat = 0
-        const @timeout = 300ms
-        @max-try = 10_times
+        const @timeout = 400ms
+        @max-try = 20_chunks
 
     get-messages: (data) ->
         if typeof! data is \Uint8Array
