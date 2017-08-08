@@ -10,7 +10,7 @@ export class ProxyClient extends ProxyActor
         super \ProxyClient
         # actor behaviours
         @role = \client
-
+        @connected = no
         @data-binder = new MessageBinder!
 
         @auth = new AuthRequest!
@@ -55,9 +55,11 @@ export class ProxyClient extends ProxyActor
         # ----------------------------------------------
         @socket.on \connect, ~>
             @trigger \connected
+            @connected = yes
 
         @socket.on \disconnect, ~>
             @log.log "Client disconnected."
+            @connected = no
 
         @socket.on "data", (data) ~>
             # in "client mode", authorization checks are disabled
@@ -88,6 +90,8 @@ export class ProxyClient extends ProxyActor
             @log.log "sending credentials..."
             err, res <~ @auth.login credentials
             callback err, res
+
+        if @connected => @trigger \relogin 
 
     logout: (callback) ->
         @auth.logout callback
