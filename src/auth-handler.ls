@@ -51,6 +51,7 @@ export class AuthHandler extends ActorBase
                     err, doc <~ @db.get-user msg.auth.user
                     if err
                         @log.err "user \"#{msg.auth.user}\" is not found. err: ", pack err
+                        @send auth: error: err 
                     else
                         if doc.passwd-hash is msg.auth.password
                             err, permissions-db <~ @db.get-permissions
@@ -79,7 +80,7 @@ export class AuthHandler extends ActorBase
                             @send auth: session: session
                         else
                             @log.err "wrong password", doc, msg.auth.password
-                            @send auth: session: \wrong
+                            @send auth: error: "wrong password"
 
                 else if \logout of msg.auth
                     # session end request
@@ -87,12 +88,13 @@ export class AuthHandler extends ActorBase
                         @log.log bg-yellow "No user found with the following token: #{msg.token} "
                         @send auth:
                             logout: \ok
-                            reason: "no such user found"
+                            error: "no such user found"
                         @trigger \logout
                     else
                         @log.log "logging out for #{@session-cache.get msg.token}"
                         @session-cache.drop msg.token
-                        @send auth: logout: \ok
+                        @send auth:
+                            logout: \ok
                         @trigger \logout
 
                 else if \token of msg.auth
@@ -114,7 +116,7 @@ export class AuthHandler extends ActorBase
 
             else
                 @log.log "only public messages allowed, dropping auth messages"
-                @send auth: session: 'NOTAUTHORITY'
+                @send auth: error: 'NOTAUTHORITY'
 
 
     send: (msg) -> @send-raw @msg-template msg <<< sender: @id

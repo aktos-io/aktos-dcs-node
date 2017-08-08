@@ -17,10 +17,12 @@ export class Signal
                 try clear-timeout @timer
 
                 # FIXME: debug
+                """
                 if event.reason is \timeout
                     console.warn "SIGNAL (#{@name}) timed out, args are: ", args
+                """
                 # FIXME
-                
+
                 callback.handler.apply callback.ctx, ([event.reason] ++ args)
             @callbacks = []
 

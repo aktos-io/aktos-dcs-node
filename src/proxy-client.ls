@@ -64,7 +64,7 @@ export class ProxyClient extends ProxyActor
             # message is only forwarded to manager
             for msg in @data-binder.get-messages data
                 if \auth of msg
-                    #@log.log "received auth message, forwarding to AuthRequest."
+                    @log.log "received auth message, forwarding to AuthRequest."
                     @auth.inbox msg
                 else
                     #@log.log "received data: ", pack msg
