@@ -51,7 +51,7 @@ export class AuthHandler extends ActorBase
                     err, doc <~ @db.get-user msg.auth.user
                     if err
                         @log.err "user \"#{msg.auth.user}\" is not found. err: ", pack err
-                        @send auth: error: err 
+                        @send auth: error: err
                     else
                         if doc.passwd-hash is msg.auth.password
                             err, permissions-db <~ @db.get-permissions
@@ -91,7 +91,7 @@ export class AuthHandler extends ActorBase
                             error: "no such user found"
                         @trigger \logout
                     else
-                        @log.log "logging out for #{@session-cache.get msg.token}"
+                        @log.log "logging out for #{pack (@session-cache.get msg.token)}"
                         @session-cache.drop msg.token
                         @send auth:
                             logout: \ok
@@ -108,7 +108,7 @@ export class AuthHandler extends ActorBase
                         @send auth: session: found-session
                     else
                         # means "you are not already logged in, do a logout action over there"
-                        @log.log bg-yellow "client doesn't seem to be logged in already. "
+                        @log.log bg-yellow "client doesn't seem to be logged in yet."
                         <~ sleep @@login-delay
                         @send auth: session: logout: 'yes'
                 else
