@@ -1,7 +1,7 @@
 require! 'net'
 require! './actor': {Actor}
 require! 'colors': {yellow, green, red, blue, bg-green, bg-red}
-require! 'aea': {sleep, hex, ip-to-hex}
+require! 'aea': {sleep, pack, hex, ip-to-hex}
 require! 'prelude-ls': {drop, reverse}
 require! './proxy-client': {ProxyClient}
 
@@ -59,8 +59,8 @@ export class TCPProxyClient extends Actor
     login: (credentials, callback) ->
         unless callback
             callback = (err, res) ~>
-                return @log.err bg-red "Something went wrong while login: ", err if err
-                return @log.err bg-red "Wrong credentials?" unless res.auth?session?token
+                return @log.err bg-red "Something went wrong while login: ", pack(err) if err
+                return @log.err bg-red "Wrong credentials?" if res.auth?error
                 @log.log bg-green "Logged in into the DCS network."
 
         @client-proxy.login credentials, callback

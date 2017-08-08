@@ -64,7 +64,7 @@ export class ProxyClient extends ProxyActor
             # message is only forwarded to manager
             for msg in @data-binder.get-messages data
                 if \auth of msg
-                    #@log.log "received auth message, forwarding to AuthRequest."
+                    @log.log "received auth message, forwarding to AuthRequest."
                     @auth.inbox msg
                 else
                     #@log.log "received data: ", pack msg
@@ -85,9 +85,9 @@ export class ProxyClient extends ProxyActor
     login: (credentials, callback) ->
         @event-handlers['relogin'] = []
         @on \relogin, ~>
+            @log.log "sending credentials..."
             err, res <~ @auth.login credentials
             callback err, res
-        @trigger \relogin
 
     logout: (callback) ->
         @auth.logout callback
