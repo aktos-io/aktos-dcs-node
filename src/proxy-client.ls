@@ -45,7 +45,7 @@ export class ProxyClient extends ProxyActor
                 @socket-ready = no
 
             connected: ~>
-                @log.log "<===> New proxy connection established. name: #{@name}"
+                @log.log "<<=== New proxy connection to the server is established. name: #{@name}"
                 @socket-ready = yes
                 @trigger \relogin # triggering procedures on (re)login
 
@@ -66,7 +66,7 @@ export class ProxyClient extends ProxyActor
             # message is only forwarded to manager
             for msg in @data-binder.get-messages data
                 if \auth of msg
-                    @log.log "received auth message, forwarding to AuthRequest."
+                    #@log.log "received auth message, forwarding to AuthRequest."
                     @auth.inbox msg
                 else
                     #@log.log "received data: ", pack msg
@@ -91,7 +91,7 @@ export class ProxyClient extends ProxyActor
             err, res <~ @auth.login credentials
             callback err, res
 
-        if @connected => @trigger \relogin 
+        if @connected => @trigger \relogin
 
     logout: (callback) ->
         @auth.logout callback

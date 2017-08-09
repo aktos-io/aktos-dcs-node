@@ -4,14 +4,14 @@ require! './signal': {Signal}
 require! 'aea': {pack}
 
 export class CouchProxy extends Actor
-    (@db-name) ->
+    (@doc-type) ->
         super \CouchProxy
         @get-signal = new Signal!
         @all-signal = new Signal!
         @put-signal = new Signal!
         @view-signal = new Signal!
 
-        @topic = "db.#{@db-name}"
+        @topic = "db.#{@doc-type}"
         @subscribe "#{@topic}.**"
 
         @on \data, (msg) ~>
@@ -48,7 +48,9 @@ export class CouchProxy extends Actor
 
     all: (opts, callback) ->
         @all-signal.clear!
-        @send {all: opts}, "#{@topic}.all"
+        topic = "#{@topic}.all"
+        #@log.log "sending `all` message. topic: #{topic}"
+        @send {all: opts}, topic
         reason, err, res <~ @all-signal.wait 5_000ms
         err = {reason: \timeout} if reason is \timeout
         callback err, res
@@ -62,8 +64,7 @@ export class CouchProxy extends Actor
 
     view: (_view, opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
-
-        @view-signal.clear! 
+        @view-signal.clear!
         @send {view: _view, opts: opts}, "#{@topic}.view"
         reason, err, res <~ @view-signal.wait 5_000ms
         err = {reason: \timeout} if reason is \timeout

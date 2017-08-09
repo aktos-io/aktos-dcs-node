@@ -11,7 +11,7 @@ export class ProxyAuthority extends ProxyActor
         super!
         @role = \authority
 
-        @log.log "««==»» New proxy connection established. name: #{@name}"
+        @log.log ">>=== New connection from the client is accepted. name: #{@name}"
 
         @data-binder = new MessageBinder!
         @auth = new AuthHandler @opts.db
