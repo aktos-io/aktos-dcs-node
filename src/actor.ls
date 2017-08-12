@@ -1,4 +1,4 @@
-require! 'aea': {sleep}
+require! 'aea': {sleep, pack}
 require! './core': {ActorBase}
 require! './actor-manager': {ActorManager}
 require! 'prelude-ls': {
@@ -45,11 +45,13 @@ export class Actor extends ActorBase
         @mgr.subscribe-actor this
 
     send: (payload, topic='') ~>
+        debugger if @debug
         enveloped = @msg-template! <<< do
             topic: topic
             payload: payload
         try
             @send-enveloped enveloped
+            @log.log "sending #{pack enveloped}" if @debug 
         catch
             @log.err "sending message failed. msg: ", payload, e
 

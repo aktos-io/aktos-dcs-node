@@ -2,6 +2,7 @@
 require! './actor': {Actor}
 require! './signal': {Signal}
 require! 'aea': {pack}
+require! 'aea/couch-helpers': {pack-id, unpack-id}
 
 export class CouchProxy extends Actor
     (@doc-type) ->
@@ -38,7 +39,9 @@ export class CouchProxy extends Actor
                 else
                     @log.err "unknown msg topic"
 
-
+    pack-id: pack-id
+    unpack-id: unpack-id
+    
     get: (doc-id, callback) ->
         @get-signal.clear!
         @send {get: doc-id}, "#{@topic}.get"
