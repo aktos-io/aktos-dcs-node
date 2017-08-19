@@ -132,8 +132,8 @@ export class AuthHandler extends ActorBase
                 if topic `topic-match` msg.topic
                     delete msg.token
                     return msg
-        else if msg.topic `topic-match` "public.**"
-            @log.err yellow "allowing public message"
+        if msg.topic `topic-match` "public.**"
+            delete msg.token
             return msg
         else
             @log.err bg-red "can not determine authorization."

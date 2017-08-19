@@ -48,6 +48,7 @@ export class ProxyClient extends ProxyActor
                 @log.log "<<=== New proxy connection to the server is established. name: #{@name}"
                 @socket-ready = yes
                 @trigger \relogin # triggering procedures on (re)login
+                @subscribe "public.**"
 
 
         # ----------------------------------------------

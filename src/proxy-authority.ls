@@ -18,6 +18,7 @@ export class ProxyAuthority extends ProxyActor
         @auth.send-raw = (msg) ~>
             @socket.write pack msg
 
+        @subscribe "public.**"
         @auth.on \login, (subscriptions) ~>
             topics = flatten (subscriptions.ro ++ subscriptions.rw)
             @log.log bg-blue "authentication successful, subscribing relevant topics: ", topics
