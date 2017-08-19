@@ -13,8 +13,12 @@ export topic-match = (topic, keypath, opts={}) ->
         # both should be different from undefined
         return no
 
-    topic-arr = split-dot topic
-    keypath-arr = split-dot keypath
+    try
+        topic-arr = split-dot topic
+        keypath-arr = split-dot keypath
+    catch
+        console.error "both topic and keypath should be string."
+        return no 
 
     for index in [til max(topic-arr.length, keypath-arr.length)]
         topic-part = try topic-arr[index]
