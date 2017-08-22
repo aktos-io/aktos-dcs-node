@@ -77,3 +77,6 @@ export class Signal
         @timer = sleep @timeout, ~>
             @should-run = yes
             @fire {reason: \timeout}
+
+    heartbeat: ->
+        @reset-timeout! 
