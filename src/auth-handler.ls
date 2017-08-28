@@ -131,6 +131,10 @@ export class AuthHandler extends ActorBase
             for topic in session.permissions.rw
                 if topic `topic-match` msg.topic
                     delete msg.token
+                    msg.ctx =
+                        user: session.user
+                        permissions: session.permissions
+                        
                     return msg
         if msg.topic `topic-match` "public.**"
             delete msg.token
