@@ -72,11 +72,12 @@ export class Signal
         @timer = void
         @skip-next = no
 
-    reset-timeout: ->
+    reset-timeout: (duration) ->
+        @timeout = duration if duration > 0
         try clear-timeout @timer
         @timer = sleep @timeout, ~>
             @should-run = yes
             @fire {reason: \timeout}
 
-    heartbeat: ->
-        @reset-timeout! 
+    heartbeat: (x) ->
+        @reset-timeout x

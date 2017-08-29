@@ -41,34 +41,57 @@ export class CouchProxy extends Actor
 
     pack-id: pack-id
     unpack-id: unpack-id
-    
-    get: (doc-id, callback) ->
+
+    get: (doc-id, opts, callback) ->
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
+        # end of normalization
+
         @get-signal.clear!
-        @send {get: doc-id}, "#{@topic}.get"
-        reason, err, res <~ @get-signal.wait 5_000ms
+        @send {get: doc-id, opts: opts}, "#{@topic}.get"
+        reason, err, res <~ @get-signal.wait (opts.timeout or 5_000ms)
         err = {reason: \timeout} if reason is \timeout
         callback err, res
 
     all: (opts, callback) ->
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
+        # end of normalization
+
         @all-signal.clear!
         topic = "#{@topic}.all"
         #@log.log "sending `all` message. topic: #{topic}"
         @send {all: opts}, topic
-        reason, err, res <~ @all-signal.wait 5_000ms
+        reason, err, res <~ @all-signal.wait (opts.timeout or 5_000ms)
         err = {reason: \timeout} if reason is \timeout
         callback err, res
 
-    put: (doc, callback) ->
+    put: (doc, opts, callback) ->
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
+        # end of normalization
+
         @put-signal.clear!
         @send {put: doc}, "#{@topic}.put"
-        reason, err, res <~ @put-signal.wait 5_000ms
+        reason, err, res <~ @put-signal.wait (opts.timeout or 5_000ms)
         err = {reason: \timeout} if reason is \timeout
         callback err, res
 
     view: (_view, opts, callback) ->
-        [callback, opts] = [opts, {}] if typeof! opts is \Function
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
+        # end of normalization
+
         @view-signal.clear!
         @send {view: _view, opts: opts}, "#{@topic}.view"
-        reason, err, res <~ @view-signal.wait 5_000ms
+        reason, err, res <~ @view-signal.wait (opts.timeout or 5_000ms)
         err = {reason: \timeout} if reason is \timeout
         callback err, res
