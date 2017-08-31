@@ -109,7 +109,7 @@ export class CouchDcsClient extends Actor
         # end of normalization
 
         @get-att-signal.clear!
-        @send {doc-id: doc-id, att-name: att-name, opts: opts}, "#{@topic}.getAtt"
+        @send {getAtt: {doc-id: doc-id, att-name: att-name, opts: opts}}, "#{@topic}.getAtt"
         reason, err, res <~ @get-att-signal.wait (opts.timeout or 10_000ms)
         err = {reason: \timeout} if reason is \timeout
         callback err, res

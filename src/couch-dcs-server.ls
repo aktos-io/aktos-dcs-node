@@ -22,11 +22,6 @@ export class CouchDcsServer extends Actor
             @log.log "received data: #{pack keys msg.payload} from ctx: #{pack msg.ctx}"
             # `put` message
             if \put of msg.payload
-                # debug
-                if msg.payload.put._attachments
-                    console.log "attachment: ", pack that
-                # /debug
-
                 doc = msg.payload.put
                 # handle autoincrement values here.
                 # if `doc._id` is an array with second item is 'AUTOINCREMENT' string,
@@ -40,7 +35,7 @@ export class CouchDcsServer extends Actor
                             limit: 1
 
                         if err
-                            return @send-log {err: err}, msg.topic
+                            return @send-and-echo {err: err}, msg.topic
 
                         next-id = try
                             res.rows.0.key .1 + 1
@@ -58,27 +53,36 @@ export class CouchDcsServer extends Actor
                 doc.owner = msg.ctx.user unless doc.owner
 
                 err, res <~ @db.put doc
-                @send-log {err: err, res: res or null}, msg.topic
+                @send-and-echo {err: err, res: res or null}, msg.topic
 
             # `get` message
             else if \get of msg.payload
                 doc-id = msg.payload.get
                 opts = msg.payload.opts or {}
                 err, res <~ @db.get doc-id, opts
-                @send-log {err: err, res: res or null}, msg.topic
+                @send-and-echo {err: err, res: res or null}, msg.topic
 
             # `all` message
             else if \all of msg.payload
                 err, res <~ @db.all msg.payload.all
-                @send-log {err: err, res: res or null}, msg.topic
+                @send-and-echo {err: err, res: res or null}, msg.topic
 
             # `view` message
             else if \view of msg.payload
                 @log.log "view message received", pack msg.payload
                 err, res <~ @db.view msg.payload.view, msg.payload.opts
-                @send-log {err: err, res: (res?.rows or null)}, msg.topic
+                @send-and-echo {err: err, res: (res?.rows or null)}, msg.topic
+
+            # `getAtt` message (for getting attachments)
+            else if \getAtt of msg.payload
+                @log.log "get attachment message received", pack msg.payload
+                q = msg.payload.getAtt
+                err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
+                @send-and-echo {err: err, res: res or null}, msg.topic
+
             else
-                @log.err "Unknown method name: full msg: #{pack msg}"
+                err = reason: "Unknown method name: #{pack msg.payload}"
+                @send-and-echo {err: err, res: null}, msg.topic
 
         @log.log green "connecting to database..."
         err, res <~ @db.connect
@@ -88,7 +92,7 @@ export class CouchDcsServer extends Actor
             @log.log bg-green "Connected to database."
             @subscribe "db.**"
 
-    send-log: (msg, topic) ->
+    send-and-echo: (msg, topic) ->
         @log.log "sending topic: #{topic} (#{pack msg .length} bytes) "
         @log.log "error was : #{pack msg.err}" if msg.err
         @send msg, topic
