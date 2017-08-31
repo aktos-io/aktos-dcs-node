@@ -45,7 +45,7 @@ export class ProxyAuthority extends ProxyActor
             for msg in @data-binder.get-messages data
                 if \auth of msg
                     #@log.log green "received auth message: ", msg
-                    @auth._inbox msg
+                    @auth.trigger \receive, msg
                 else
                     msg = @auth.filter-incoming msg
                     if msg
