@@ -1,17 +1,13 @@
-# -------------------------------------------------
 require! './actor': {Actor}
 require! './signal': {Signal}
 require! 'aea': {pack}
-require! 'aea/couch-helpers': {pack-id, unpack-id}
+
 
 export class CouchDcsClient extends Actor
     (@doc-type) ->
         super \CouchProxy
         @topic = "db.#{@doc-type}"
         @subscribe "#{@topic}.**"
-
-    pack-id: pack-id
-    unpack-id: unpack-id
 
     get: (doc-id, opts, callback) ->
         # normalize parameters

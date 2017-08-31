@@ -2,6 +2,7 @@ require! './actor': {Actor}
 require! 'colors': {bg-green, bg-red, green, yellow, bg-yellow}
 require! 'aea':{sleep, pack, CouchNano}
 require! 'prelude-ls': {keys}
+require! './couch-helpers': {pack-id}
 
 
 export class CouchDcsServer extends Actor
@@ -42,7 +43,7 @@ export class CouchDcsServer extends Actor
                         catch
                             0
 
-                        doc._id = @db.pack-id [doc.type, next-id]
+                        doc._id = pack-id [doc.type, next-id]
                         console.log "+++ new doc id: ", doc._id
                         return op!
                     else
