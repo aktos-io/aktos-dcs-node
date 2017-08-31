@@ -91,8 +91,8 @@ export class Actor extends ActorBase
             topic: msg-to-response-to.topic
             payload: payload
             res:
-                id: msg-to-response-to.req.id
-                seq: msg-to-response-to.req.seq
+                id: msg-to-response-to.req?.id
+                seq: msg-to-response-to.req?.seq
 
         #console.log "response sending: ", pack enveloped.res
         @send-enveloped enveloped

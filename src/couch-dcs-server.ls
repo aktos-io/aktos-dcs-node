@@ -53,38 +53,36 @@ export class CouchDcsServer extends Actor
                 doc.owner = msg.ctx.user unless doc.owner
 
                 err, res <~ @db.put doc
-                @send-and-echo {err: err, res: res or null}, msg.topic
+                @send-and-echo msg, {err: err, res: res or null}
 
             # `get` message
             else if \get of msg.payload
                 doc-id = msg.payload.get
                 opts = msg.payload.opts or {}
                 err, res <~ @db.get doc-id, opts
-                @send-and-echo {err: err, res: res or null}, msg.topic
+                @send-and-echo msg, {err: err, res: res or null}
 
             # `all` message
             else if \all of msg.payload
                 err, res <~ @db.all msg.payload.all
-                @send-and-echo {err: err, res: res or null}, msg.topic
+                @send-and-echo msg, {err: err, res: res or null}
 
             # `view` message
             else if \view of msg.payload
                 @log.log "view message received", pack msg.payload
                 err, res <~ @db.view msg.payload.view, msg.payload.opts
-                @send-and-echo {err: err, res: (res?.rows or null)}, msg.topic
+                @send-and-echo msg, {err: err, res: (res?.rows or null)}
 
             # `getAtt` message (for getting attachments)
             else if \getAtt of msg.payload
                 @log.log "get attachment message received", pack msg.payload
                 q = msg.payload.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
-                @send-response msg, {err: err, res: res or null}
-                @log.log "sending topic: #{msg.topic} (#{pack res .length} bytes) "
-                @log.log "error was : #{pack err}" if err
 
+                @send-and-echo msg, {err: err, res: res or null}
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"
-                @send-and-echo {err: err, res: null}, msg.topic
+                @send-and-echo msg, {err: err, res: null}
 
         @log.log green "connecting to database..."
         err, res <~ @db.connect
@@ -94,7 +92,7 @@ export class CouchDcsServer extends Actor
             @log.log bg-green "Connected to database."
             @subscribe "db.**"
 
-    send-and-echo: (msg, topic) ->
-        @log.log "sending topic: #{topic} (#{pack msg .length} bytes) "
-        @log.log "error was : #{pack msg.err}" if msg.err
-        @send msg, topic
+    send-and-echo: (orig, _new) ->
+        @log.log "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
+        @log.log "error was : #{pack _new.err}" if _new.err
+        @send-response orig, _new

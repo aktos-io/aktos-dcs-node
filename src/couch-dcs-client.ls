@@ -7,41 +7,8 @@ require! 'aea/couch-helpers': {pack-id, unpack-id}
 export class CouchDcsClient extends Actor
     (@doc-type) ->
         super \CouchProxy
-        @get-signal = new Signal!
-        @all-signal = new Signal!
-        @put-signal = new Signal!
-        @view-signal = new Signal!
-
         @topic = "db.#{@doc-type}"
         @subscribe "#{@topic}.**"
-
-        @on \data, (msg) ~>
-            if \res of msg.payload
-                err = msg.payload.err
-                res = msg.payload.res
-
-                # `get` message
-                if msg.topic is "#{@topic}.get"
-                    @get-signal.go err, res
-
-                # `all` message
-                else if msg.topic is "#{@topic}.all"
-                    @all-signal.go err, res
-
-                # `put` message
-                else if msg.topic is "#{@topic}.put"
-                    @put-signal.go err, res
-
-                # `view` message
-                else if msg.topic is "#{@topic}.view"
-                    @view-signal.go err, res
-
-                # `getAtt` message
-                else if msg.topic is "#{@topic}.getAtt"
-                    @get-att-signal.go err, res
-
-                else
-                    @log.err "unknown msg topic"
 
     pack-id: pack-id
     unpack-id: unpack-id
@@ -53,11 +20,8 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        @get-signal.clear!
-        @send {get: doc-id, opts: opts}, "#{@topic}.get"
-        reason, err, res <~ @get-signal.wait (opts.timeout or 5_000ms)
-        err = {reason: \timeout} if reason is \timeout
-        callback err, res
+        err, msg <~ @send-request "#{@topic}.get", {get: doc-id, opts: opts}
+        callback (err or msg.payload.err), msg.payload.res
 
     all: (opts, callback) ->
         # normalize parameters
@@ -66,13 +30,8 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        @all-signal.clear!
-        topic = "#{@topic}.all"
-        #@log.log "sending `all` message. topic: #{topic}"
-        @send {all: opts}, topic
-        reason, err, res <~ @all-signal.wait (opts.timeout or 5_000ms)
-        err = {reason: \timeout} if reason is \timeout
-        callback err, res
+        err, msg <~ @send-request "#{@topic}.all", {all: opts}
+        callback (err or msg.payload.err), msg.payload.res
 
     put: (doc, opts, callback) ->
         # normalize parameters
@@ -81,24 +40,18 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        @put-signal.clear!
-        @send {put: doc}, "#{@topic}.put"
-        reason, err, res <~ @put-signal.wait (opts.timeout or 5_000ms)
-        err = {reason: \timeout} if reason is \timeout
-        callback err, res
+        err, msg <~ @send-request "#{@topic}.put", {put: doc}
+        callback (err or msg.payload.err), msg.payload.res
 
-    view: (_view, opts, callback) ->
+    view: (viewName, opts, callback) ->
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
             opts = {}
         # end of normalization
 
-        @view-signal.clear!
-        @send {view: _view, opts: opts}, "#{@topic}.view"
-        reason, err, res <~ @view-signal.wait (opts.timeout or 5_000ms)
-        err = {reason: \timeout} if reason is \timeout
-        callback err, res
+        err, msg <~ @send-request "#{@topic}.view", {view: viewName, opts: opts}
+        callback (err or msg.payload.err), msg.payload.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->
         # normalize parameters
