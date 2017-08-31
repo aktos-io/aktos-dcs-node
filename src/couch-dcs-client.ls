@@ -4,13 +4,14 @@ require! './signal': {Signal}
 require! 'aea': {pack}
 require! 'aea/couch-helpers': {pack-id, unpack-id}
 
-export class CouchProxy extends Actor
+export class CouchDcsClient extends Actor
     (@doc-type) ->
         super \CouchProxy
         @get-signal = new Signal!
         @all-signal = new Signal!
         @put-signal = new Signal!
         @view-signal = new Signal!
+        @get-att-signal = new Signal!
 
         @topic = "db.#{@doc-type}"
         @subscribe "#{@topic}.**"
@@ -35,6 +36,10 @@ export class CouchProxy extends Actor
                 # `view` message
                 else if msg.topic is "#{@topic}.view"
                     @view-signal.go err, res
+
+                # `getAtt` message
+                else if msg.topic is "#{@topic}.getAtt"
+                    @get-att-signal.go err, res
 
                 else
                     @log.err "unknown msg topic"
@@ -93,5 +98,18 @@ export class CouchProxy extends Actor
         @view-signal.clear!
         @send {view: _view, opts: opts}, "#{@topic}.view"
         reason, err, res <~ @view-signal.wait (opts.timeout or 5_000ms)
+        err = {reason: \timeout} if reason is \timeout
+        callback err, res
+
+    get-attachment: (doc-id, att-name, opts, callback) ->
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
+        # end of normalization
+
+        @get-att-signal.clear!
+        @send {doc-id: doc-id, att-name: att-name, opts: opts}, "#{@topic}.getAtt"
+        reason, err, res <~ @get-att-signal.wait (opts.timeout or 10_000ms)
         err = {reason: \timeout} if reason is \timeout
         callback err, res

@@ -128,13 +128,10 @@ export class AuthHandler extends ActorBase
         #@log.log yellow "filter-incoming: input: ", pack msg
         session = @session-cache.get msg.token
         if session?permissions
+            msg.ctx = user: session.user
             for topic in session.permissions.rw
                 if topic `topic-match` msg.topic
                     delete msg.token
-                    msg.ctx =
-                        user: session.user
-                        permissions: session.permissions
-                        
                     return msg
         if msg.topic `topic-match` "public.**"
             delete msg.token
