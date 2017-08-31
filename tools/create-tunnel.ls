@@ -13,7 +13,7 @@ export create-proxy-server-tunnel = (opts, callback) ->
     console.log "Creating tunnel..."
     err, stdout, stderr <~ exec "#{ssh} -L #{mapping.local}:localhost:#{mapping.remote}"
     if err => return console.log "Port mapping failed."
-    console.log "Tunnel is created: #{stdout}, #{stderr}"
+    console.log "Tunnel is created..."
     if typeof! callback is \Function
         callback err, stdout, stderr
 
