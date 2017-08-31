@@ -1,8 +1,8 @@
 require! 'aea': {sleep, pack}
-require! './core': {ActorBase}
+require! './actor-base': {ActorBase}
 require! './actor-manager': {ActorManager}
 require! 'prelude-ls': {
-    split, flatten
+    split, flatten, keys
 }
 
 context-switch = sleep 0
@@ -22,6 +22,8 @@ export class Actor extends ActorBase
         @subscriptions = [] # subscribe all topics by default.
         # if you want to unsubscribe from all topics, do teh following:
         # @subscriptions = void
+
+        @request-queue = {}
 
         @_state =
             kill:
@@ -44,16 +46,75 @@ export class Actor extends ActorBase
         #@log.log "subscribing to ", topic, "subscriptions: ", @subscriptions
         @mgr.subscribe-actor this
 
-    send: (payload, topic='') ~>
+    send: (topic, payload) ~>
+        if (typeof! payload is \String) and (typeof! topic is \Object)
+            # swap the parameters
+            _tmp = payload
+            payload = topic
+            topic = _tmp
+
         debugger if @debug
         enveloped = @msg-template! <<< do
             topic: topic
             payload: payload
         try
             @send-enveloped enveloped
-            @log.log "sending #{pack enveloped}" if @debug 
+            @log.log "sending #{pack enveloped}" if @debug
         catch
             @log.err "sending message failed. msg: ", payload, e
+
+    send-request: (topic, payload, opts, callback) ->
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
+
+        /*
+        opts:
+            timeout: milliseconds
+        */
+
+        enveloped = @msg-template! <<< do
+            topic: topic
+            payload: payload
+
+        enveloped <<< do
+            req:
+                id: @id
+                seq: enveloped.msg_id
+
+        @request-queue[enveloped.req.seq] = callback
+        @send-enveloped enveloped
+
+    send-response: (msg-to-response-to, payload) ->
+        enveloped = @msg-template! <<< do
+            topic: msg-to-response-to.topic
+            payload: payload
+            res:
+                id: msg-to-response-to.req.id
+                seq: msg-to-response-to.req.seq
+
+        #console.log "response sending: ", pack enveloped.res
+        @send-enveloped enveloped
+
+    _inbox: (msg) ->
+        # process one message at a time
+        try
+            if \res of msg
+                if msg.res.id is @id
+                    if msg.res.seq of @request-queue
+                        @request-queue[msg.res.seq] err=null, msg
+                        delete @request-queue[msg.res.seq]
+                        return
+
+            if \update of msg
+                @trigger \update, msg
+            if \payload of msg
+                @trigger \data, msg
+            # deliver every message to receive-handlers
+            @trigger \receive, msg
+        catch
+            @log.err "problem in handler: ", e
 
     send-enveloped: (msg) ->
         msg.sender = @id

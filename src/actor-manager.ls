@@ -1,4 +1,4 @@
-require! './core': {ActorBase}
+require! './actor-base': {ActorBase}
 require! 'aea': {clone, pack}
 require! 'prelude-ls': {reject}
 require! './topic-match': {topic-match}

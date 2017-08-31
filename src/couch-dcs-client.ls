@@ -11,7 +11,6 @@ export class CouchDcsClient extends Actor
         @all-signal = new Signal!
         @put-signal = new Signal!
         @view-signal = new Signal!
-        @get-att-signal = new Signal!
 
         @topic = "db.#{@doc-type}"
         @subscribe "#{@topic}.**"
@@ -108,8 +107,11 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        @get-att-signal.clear!
-        @send {getAtt: {doc-id: doc-id, att-name: att-name, opts: opts}}, "#{@topic}.getAtt"
-        reason, err, res <~ @get-att-signal.wait (opts.timeout or 10_000ms)
-        err = {reason: \timeout} if reason is \timeout
-        callback err, res
+        err, msg <~ @send-request "#{@topic}.getAtt", {
+            getAtt:
+                doc-id: doc-id
+                att-name: att-name
+                opts: opts
+            }, {timeout: 3000ms}
+
+        callback (err or msg.payload.err), msg.payload.res

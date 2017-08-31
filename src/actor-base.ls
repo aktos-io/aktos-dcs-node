@@ -54,24 +54,12 @@ export class ActorBase
 
     msg-template: (msg) ->
         msg-raw =
-            sender: void # will be added while sending
+            sender: null
             timestamp: Date.now! / 1000
             msg_id: @msg-seq++
-            token: void
+            token: null
 
         if msg
             return msg-raw <<<< msg
         else
             return msg-raw
-
-    _inbox: (msg) ->
-        # process one message at a time
-        try
-            if \update of msg
-                @trigger \update, msg
-            if \payload of msg
-                @trigger \data, msg
-            # deliver every message to receive-handlers
-            @trigger \receive, msg
-        catch
-            @log.err "problem in handler: ", e

@@ -1,4 +1,4 @@
-require! './core': {ActorBase}
+require! './actor-base': {ActorBase}
 require! './signal': {Signal}
 require! 'aea': {sleep, logger, pack}
 require! './authorization':{get-all-permissions}
