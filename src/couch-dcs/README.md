@@ -57,10 +57,10 @@ Suppose you will save documents with type `foo` by autoincrementing the ID field
         foo:
             map: (doc) ->
                 if doc.type is 'foo'
-                    arr-id = doc._id.split '/'
+                    arr-id = doc._id.split '.'
                     emit [arr-id.0, parse-int(arr-id.1)], null
     ```
 
 2. Create your document with `_id: 'AUTOINCREMENT'`
 
-3. Save your document with `CouchDcsClient.put` method. Your document id will be `"#{doc.type}/#{next-available-id}"`
+3. Save your document with `CouchDcsClient.put` method. Your document id will be something like `foo.1358`

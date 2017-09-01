@@ -32,7 +32,7 @@ export class CouchDcsServer extends Actor
                         catch
                             0
 
-                        doc._id = "#{doc.type}/#{next-id}"
+                        doc._id = "#{doc.type}.#{next-id}"
                         console.log "+++ new doc id: ", doc._id
                         return op!
                     else
