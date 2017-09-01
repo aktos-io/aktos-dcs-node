@@ -18,12 +18,13 @@ export class CouchDcsServer extends Actor
                 doc = msg.payload.put
                 <~ :lo(op) ~>
                     # handle autoincrement values here.
-                    if (typeof! doc._id is \Array) and doc._id.1 is \AUTOINCREMENT
+                    if doc._id is \AUTOINCREMENT
                         err, res <~ @db.view "autoincrement/#{doc.type}", do
                             descending: yes
                             limit: 1
 
                         if err
+                            err.viewName = "autoincrement/#{doc.type}"
                             return @send-and-echo msg, {err: err, res: null}
 
                         next-id = try
@@ -31,15 +32,15 @@ export class CouchDcsServer extends Actor
                         catch
                             0
 
-                        doc._id = pack-id [doc.type, next-id]
+                        doc._id = "#{doc.type}/#{next-id}"
                         console.log "+++ new doc id: ", doc._id
                         return op!
                     else
                         return op!
 
-                # add server side keys
+                # add server side properties
                 doc.timestamp = Date.now!
-                doc.owner = msg.ctx.user unless doc.owner
+                doc.owner = msg.ctx.user
 
                 err, res <~ @db.put doc
                 @send-and-echo msg, {err: err, res: res or null}
@@ -68,7 +69,7 @@ export class CouchDcsServer extends Actor
                 q = msg.payload.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
                 @send-and-echo msg, {err: err, res: res or null}
-                
+
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"
                 @send-and-echo msg, {err: err, res: null}
