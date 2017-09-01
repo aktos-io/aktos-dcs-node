@@ -1,5 +1,4 @@
 require! '../actor': {Actor}
-require! '../signal': {Signal}
 require! 'aea': {pack}
 
 
