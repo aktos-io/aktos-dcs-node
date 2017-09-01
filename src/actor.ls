@@ -47,11 +47,12 @@ export class Actor extends ActorBase
         @mgr.subscribe-actor this
 
     send: (topic, payload) ~>
-        if (typeof! payload is \String) and (typeof! topic is \Object)
+        if typeof! payload isnt \Object
             # swap the parameters
-            _tmp = payload
-            payload = topic
-            topic = _tmp
+            [payload, topic] = [topic, payload]
+
+        if typeof! topic isnt \String
+            @log.warn "Topic is not string? topic: #{topic}"
 
         debugger if @debug
         enveloped = @msg-template! <<< do
