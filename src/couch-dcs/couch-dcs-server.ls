@@ -1,8 +1,8 @@
 require! '../actor': {Actor}
 require! 'colors': {bg-green, bg-red, green, yellow, bg-yellow}
-require! 'aea':{sleep, pack, CouchNano}
+require! 'aea':{sleep, pack}
 require! 'prelude-ls': {keys}
-require! './couch-helpers': {pack-id}
+require! './couch-nano': {CouchNano}
 
 
 export class CouchDcsServer extends Actor
