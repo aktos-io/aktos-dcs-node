@@ -34,6 +34,8 @@ console.log "response is: ", res
 
 # API
 
+`CouchDcsClient` has the following API:
+
 * `.get 'document-id', [opts, ] callback`
 * `.put doc, callback`
 * `.view 'designName/yourView', [opts, ] callback`
