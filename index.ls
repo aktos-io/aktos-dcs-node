@@ -4,8 +4,10 @@ require! './src/tcp-proxy-client': {TCPProxyClient}
 require! './src/tcp-proxy-server': {TCPProxyServer}
 require! './src/couch-dcs/couch-dcs-client': {CouchDcsClient}
 require! './src/couch-dcs/couch-dcs-server': {CouchDcsServer}
+require! './src/filters': {FpsExec}
 
 module.exports = {
     Actor, SocketIOServer, TCPProxyClient, TCPProxyServer,
     CouchDcsClient, CouchDcsServer
+    FpsExec
 }
