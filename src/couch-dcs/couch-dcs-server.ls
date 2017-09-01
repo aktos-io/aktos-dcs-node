@@ -7,14 +7,6 @@ require! './couch-helpers': {pack-id}
 
 export class CouchDcsServer extends Actor
     (@params) ->
-        """
-        params =
-            user:
-                name: 'your-couchdb-username'
-                password: 'your-password'
-            url: "IP-OR-ADDRESS-OF-YOUR-COUCHDB-INSTANCE"
-            database: 'your-db-name'
-        """
         super \couch-bridge
 
         @db = new CouchNano @params
@@ -36,7 +28,7 @@ export class CouchDcsServer extends Actor
                             limit: 1
 
                         if err
-                            return @send-and-echo {err: err}, msg.topic
+                            return @send-and-echo msg, {err: err, res: null}
 
                         next-id = try
                             res.rows.0.key .1 + 1
