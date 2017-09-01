@@ -2,7 +2,7 @@
 
 This server and client libraries are created to be able to use CouchDB over DCS network. 
 
-In addition to changing transport layer from HTTP to DCS, this library aims to [address CouchDB limitations](./addressing-couchdb-limitations.md). 
+In addition to changing transport layer from HTTP to DCS, this library aims to [address some CouchDB limitations](./addressing-couchdb-limitations.md). 
 
 ## Usage
 
@@ -46,7 +46,7 @@ Callbacks will be called with `error, response` parameters.
 
 # Additional Functionalities
 
-## Create documents with `AUTOINCREMENT`ed ID's
+### Create documents with `AUTOINCREMENT`ed ID's
 
 Suppose you will save documents with type `foo` by autoincrementing the ID field. Follow the steps:
 
