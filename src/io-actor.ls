@@ -38,7 +38,7 @@ export class IoActor extends Actor
     handle_ConnectionStatus: (msg) ->
         @log.log "Not implemented, message: ", msg
 
-    sync: (ractive-var, topic=null, rate=20fps) ->
+    sync: (ractive-var, topic, rate=20fps) ->
         __ = @
         unless @ractive
             @log.err "set ractive variable first!"

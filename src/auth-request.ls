@@ -63,7 +63,6 @@ export class AuthRequest extends ActorBase
 
         callback err, res
 
-
     logout: (callback) ->
         @send-with-token auth: logout: yes
         reason, msg <~ @reply-signal.wait 3000ms
@@ -78,9 +77,11 @@ export class AuthRequest extends ActorBase
 
         callback err, msg
 
-    send: (msg) -> @send-raw @msg-template msg <<< sender: @id
+    send: (msg) ->
+        @send-raw @msg-template msg <<< sender: @id
 
     send-with-token: (msg) ->
+        #@log.log "sending message: #{pack msg}"
         @send-raw msg <<< token: @token
 
     send-raw: (msg) ->

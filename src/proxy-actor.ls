@@ -26,7 +26,7 @@ export class ProxyActor extends Actor
 
         Authority Mode Responsibilities:
 
-            1. [ ] remove any `token` from incoming network messages
+            1. [x] remove any `token` from incoming network messages
             2. [x] subscribe to manager with authorized topics
             3. [x] Deregister on end point disconnect
 
