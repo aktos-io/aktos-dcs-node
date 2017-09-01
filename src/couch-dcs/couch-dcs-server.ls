@@ -1,4 +1,4 @@
-require! './actor': {Actor}
+require! '../actor': {Actor}
 require! 'colors': {bg-green, bg-red, green, yellow, bg-yellow}
 require! 'aea':{sleep, pack, CouchNano}
 require! 'prelude-ls': {keys}
