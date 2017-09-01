@@ -76,8 +76,11 @@ class HostlinkActor extends Actor
         super!
         @socket = socket
 
-        @subscribe "IoMessage.my-test-pin3"
+        @subscribe "io.test-output"
         @fps = new FpsExec 2fps
+
+        @socket.on \connect, ~>
+            @log.log "hostlink actor connected."
 
         @socket.on \data, (data) ~>
             packet = data.to-string!
@@ -91,10 +94,11 @@ class HostlinkActor extends Actor
                 @log.err "Problem: ", e
 
 
-        @on-receive (msg) ~>
+        @on \receive, (msg) ~>
             x = parse-int msg.payload
-            #@log.log "Hostlink actor got message from local interface: ", x
-            <~ @write 0, A_TYPES.data, 1254, [x]
+            x = 0xffff
+            @log.log "Hostlink actor got message from local interface: ", x
+            <~ @write 0, A_TYPES.relay, 0, [x]
             #@log.log "...written"
 
     action: ->
@@ -153,7 +157,7 @@ class HostlinkActor extends Actor
         @read-handler = handler
 
 
-export class HostlinkServerActor extends Actor
+export class HostlinkServer extends Actor
     ->
         super ...
         @server = null
@@ -165,3 +169,12 @@ export class HostlinkServerActor extends Actor
 
         @server.listen 5522, '0.0.0.0', ~>
             @log.log "Broker started listening..."
+
+export class HostlinkClient extends Actor
+    (@opts) ->
+        super @opts.name
+        @socket = new net.Socket!
+        new HostlinkActor @socket
+        @socket.connect 9600, '192.168.250.1'
+
+        @log.log "connecting...."
