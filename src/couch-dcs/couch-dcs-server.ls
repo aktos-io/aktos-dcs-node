@@ -16,12 +16,8 @@ export class CouchDcsServer extends Actor
             # `put` message
             if \put of msg.payload
                 doc = msg.payload.put
-                # handle autoincrement values here.
-                # if `doc._id` is an array with second item is 'AUTOINCREMENT' string,
-                # then try to assign an autoincremented id.
-                # to do so, use doc._id.0 as view name: 'autoincrement/#{doc._id.0}' and
-                # get the last value, increment it, assign to second item.
                 <~ :lo(op) ~>
+                    # handle autoincrement values here.
                     if (typeof! doc._id is \Array) and doc._id.1 is \AUTOINCREMENT
                         err, res <~ @db.view "autoincrement/#{doc.type}", do
                             descending: yes
