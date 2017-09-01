@@ -67,8 +67,8 @@ export class CouchDcsServer extends Actor
                 @log.log "get attachment message received", pack msg.payload
                 q = msg.payload.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
-
                 @send-and-echo msg, {err: err, res: res or null}
+                
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"
                 @send-and-echo msg, {err: err, res: null}
