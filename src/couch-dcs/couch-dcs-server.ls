@@ -19,18 +19,19 @@ export class CouchDcsServer extends Actor
                 <~ :lo(op) ~>
                     # handle autoincrement values here.
                     if doc._id is \AUTOINCREMENT
-                        err, res <~ @db.view "autoincrement/#{doc.type}", do
+                        err, res <~ @db.view "autoincrement/any", do
                             descending: yes
                             limit: 1
+                            startkey: [doc.type, {}]
+                            endkey: [doc.type]
 
                         if err
-                            err.viewName = "autoincrement/#{doc.type}"
                             return @send-and-echo msg, {err: err, res: null}
 
                         next-id = try
                             res.rows.0.key .1 + 1
                         catch
-                            0
+                            1
 
                         doc._id = "#{doc.type}.#{next-id}"
                         console.log "+++ new doc id: ", doc._id

@@ -50,17 +50,51 @@ Callbacks will be called with `error, response` parameters.
 
 Suppose you will save documents with type `foo` by autoincrementing the ID field. Follow the steps:
 
-1. Create `foo` view in `autoincrement` design document:
+1. Create a view with name `any` in `autoincrement` design document for the first time:
+
+    In Livescript:
 
     ```ls
     views:
-        foo:
+        any:
             map: (doc) ->
-                if doc.type is 'foo'
-                    arr-id = doc._id.split '.'
-                    emit [arr-id.0, parse-int(arr-id.1)], null
+                [type, id] = doc._id.split '.'
+                if type is doc.type
+                    emit [type, parse-int(id)], null
     ```
 
-2. Create your document with `_id: 'AUTOINCREMENT'`
+    or in Javascript:
+
+    ```js
+    views: {
+        any: {
+            map: function(doc){
+                var ref$, type, id;
+                ref$ = doc._id.split('.'), type = ref$[0], id = ref$[1];
+                if (type === doc.type) {
+                    return emit([type, parseInt(id)], null);
+                }
+            }
+        }
+    }
+    ```
+
+2. Set your document `_id` to `AUTOINCREMENT`:
+
+```js
+{
+    _id: 'AUTOINCREMENT',
+    type: 'foo',
+    hello: 'there'
+}
+```
 
 3. Save your document with `CouchDcsClient.put` method. Your document id will be something like `foo.1358`
+
+### Troubleshooting
+
+To verify that your view returns the correct ID, use the following filter to get latest ID:
+
+```
+http://example.com/yourdb/_design/autoincrement/_view/any?descending=true&startkey=["foo",{}]&endkey=["foo"]
+```
