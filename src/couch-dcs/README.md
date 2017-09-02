@@ -58,9 +58,11 @@ Suppose you will save documents with type `foo` by autoincrementing the ID field
     views:
         any:
             map: (doc) ->
-                [type, id] = doc._id.split '.'
+                parts = doc._id.split '-'
+                id = parse-int parts.splice -1, 1  # use last portion as ID
+                type = parts.join '-'  # use first parts as type
                 if type is doc.type
-                    emit [type, parse-int(id)], null
+                    emit [type, id], null                
     ```
 
     or in Javascript:
@@ -69,10 +71,12 @@ Suppose you will save documents with type `foo` by autoincrementing the ID field
     views: {
         any: {
             map: function(doc){
-                var ref$, type, id;
-                ref$ = doc._id.split('.'), type = ref$[0], id = ref$[1];
+                var parts, id, type;
+                parts = doc._id.split('-');
+                id = parseInt(parts.splice(-1, 1));
+                type = parts.join('-');
                 if (type === doc.type) {
-                    return emit([type, parseInt(id)], null);
+                    return emit([type, id], null);
                 }
             }
         }
@@ -89,7 +93,7 @@ Suppose you will save documents with type `foo` by autoincrementing the ID field
 }
 ```
 
-3. Save your document with `CouchDcsClient.put` method. Your document id will be something like `foo.1358`
+3. Save your document with `CouchDcsClient.put` method. Your document id will be something like `foo-1358`
 
 ### Troubleshooting
 
