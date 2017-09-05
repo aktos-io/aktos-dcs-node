@@ -46,6 +46,22 @@ export class Actor extends ActorBase
         #@log.log "subscribing to ", topic, "subscriptions: ", @subscriptions
         @mgr.subscribe-actor this
 
+    unsubscribe: (topic) ->
+        @subscriptions = [.. for @subscriptions when .. isnt topic]
+        @mgr.subscribe-actor this
+
+    subscribe-tmp: (topic) ->
+        # returns a callback that will unsubscribe on execution
+        should-unsubscribe = topic not in @subscriptions
+        @log.log "subscribing temporarily to topic: #{topic}"
+        @subscribe topic
+        return ~>
+            if should-unsubscribe
+                @log.log "unsubscribing topic: #{topic}"
+                @unsubscribe topic
+            else
+                @log.log "not unsubscribing topic #{topic}"
+
     send: (topic, payload) ~>
         if typeof! payload isnt \Object
             # swap the parameters
@@ -84,7 +100,12 @@ export class Actor extends ActorBase
                 id: @id
                 seq: enveloped.msg_id
 
-        @request-queue[enveloped.req.seq] = callback
+
+        @subscribe topic
+        @request-queue[enveloped.req.seq] = (...args) ~>
+            callback ...args
+            @unsubscribe topic
+
         @send-enveloped enveloped
 
     send-response: (msg-to-response-to, payload) ->
@@ -115,6 +136,7 @@ export class Actor extends ActorBase
             # deliver every message to receive-handlers
             @trigger \receive, msg
         catch
+            debugger
             @log.err "problem in handler: ", e
 
     send-enveloped: (msg) ->
