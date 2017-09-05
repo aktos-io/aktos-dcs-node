@@ -4,7 +4,7 @@ require! 'aea': {pack}
 
 export class CouchDcsClient extends Actor
     (@doc-type) ->
-        super \CouchProxy
+        super \CouchDcsClient
         @topic = "db.#{@doc-type}"
         @subscribe "#{@topic}.**"
 

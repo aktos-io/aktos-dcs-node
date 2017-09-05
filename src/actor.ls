@@ -12,10 +12,6 @@ export class Actor extends ActorBase
         super name
         @mgr = new ActorManager!
 
-        @log.sections ++= [
-            #\subscriptions
-        ]
-
         @log.section \bare, "actor \"#{@name}\" created with id: #{@actor-id}"
 
         @msg-seq = 0
