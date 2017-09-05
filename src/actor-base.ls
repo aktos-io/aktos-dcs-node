@@ -50,7 +50,10 @@ export class ActorBase
     trigger: (name, ...args) ->
         if @event-handlers[name]
             for handler in @event-handlers[name]
-                handler.apply this, args
+                try
+                    handler.apply this, args
+                catch
+                    @log.err "Error in handler '#{name}': #{e}"
 
     msg-template: (msg) ->
         msg-raw =
