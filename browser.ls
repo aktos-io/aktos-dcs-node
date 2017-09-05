@@ -6,9 +6,12 @@ require! './src/find-actor': {find-actor}
 require! './src/couch-dcs/couch-dcs-client': {CouchDcsClient}
 require! './src/topic-match': {topic-match}
 require! './src/filters': {FpsExec}
+require! './src/ractive-actor': {RactiveActor}
+
 module.exports = {
     IoActor, SocketIOBrowser, Signal, Actor
     find-actor, CouchDcsClient
     topic-match
     FpsExec
+    RactiveActor
 }
