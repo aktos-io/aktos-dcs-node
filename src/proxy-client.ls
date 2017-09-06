@@ -47,7 +47,7 @@ export class ProxyClient extends ProxyActor
             connected: ~>
                 @log.log "<<=== New proxy connection to the server is established. name: #{@name}"
                 @socket-ready = yes
-                @trigger \relogin # triggering procedures on (re)login
+                @trigger \relogin, {forget-password: @opts.forget-password}  # triggering procedures on (re)login
                 @subscribe "public.**"
 
 
@@ -87,12 +87,22 @@ export class ProxyClient extends ProxyActor
 
     login: (credentials, callback) ->
         @event-handlers['relogin'] = []
-        @on \relogin, ~>
+        @on \relogin, (opts) ~>
             @log.log "sending credentials..."
             err, res <~ @auth.login credentials
+            if opts?.forget-password
+                @log.warn "forgetting password"
+                credentials := token: try
+                    res.auth.session.token
+                catch
+                    null
+
+                @log.warn "current credentials:", credentials, "res was:", res
+
             callback err, res
 
-        if @connected => @trigger \relogin
+        if @connected
+            @trigger \relogin, {forget-password: @opts.forget-password}
 
     logout: (callback) ->
         @auth.logout callback
