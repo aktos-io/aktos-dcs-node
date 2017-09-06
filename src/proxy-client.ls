@@ -97,8 +97,6 @@ export class ProxyClient extends ProxyActor
                 catch
                     null
 
-                @log.warn "current credentials:", credentials, "res was:", res
-
             callback err, res
 
         if @connected
