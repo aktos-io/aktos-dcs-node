@@ -15,15 +15,7 @@ export class Signal
             @should-run = no
             for callback in @callbacks
                 try clear-timeout @timer
-
-                # FIXME: debug
-                """
-                if event.reason is \timeout
-                    console.warn "SIGNAL (#{@name}) timed out, args are: ", args
-                """
-                # FIXME
-
-                callback.handler.apply callback.ctx, ([event.reason] ++ args)
+                callback.handler.apply callback.ctx, ([event?.reason] ++ args)
             @callbacks = []
 
 
@@ -47,7 +39,7 @@ export class Signal
             @reset-timeout!
 
         # try to run signal if it is set as `go` before reaching "wait" line
-        @fire {reason: \hasevent}
+        @fire!
 
     skip-next-go: ->
         @skip-next = yes
@@ -62,7 +54,7 @@ export class Signal
 
         #@log.log "called 'go!'"
         @should-run = yes
-        @fire.apply this, ([{reason: \hasevent}] ++ args)
+        @fire.apply this, ([null] ++ args)
 
     reset: ->
         @callbacks = []

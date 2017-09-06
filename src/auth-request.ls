@@ -27,7 +27,7 @@ export class AuthRequest extends ActorBase
         if credentials.password
             credentials.password = hash-passwd credentials.password
 
-        @log.log "Trying to authenticate with #{keys credentials |> join ", "}"
+        @log.log "Trying to authenticate with", keys credentials
 
         if \token of credentials
             if credentials.token.length < 10
@@ -40,12 +40,7 @@ export class AuthRequest extends ActorBase
         @send auth: credentials
         # FIXME: why do we need to clear the signal?
         @reply-signal.clear!
-        reason, res <~ @reply-signal.wait 3000ms
-        err = if reason is \timeout
-            {reason: \timeout}
-        else
-            no
-
+        err, res <~ @reply-signal.wait 3000ms
         #@log.log "auth replay is: ", pack res
         try
             unless err
@@ -59,18 +54,13 @@ export class AuthRequest extends ActorBase
                     else if res.auth.session.logout is \yes
                         @trigger \logout
         catch
-            @log.err "something went wrong here: ", pack(e), (pack res), (pack err)
+            @log.err "something went wrong here: ex: ", e, "res: ", res, "err:", err
 
         callback err, res
 
     logout: (callback) ->
         @send-with-token auth: logout: yes
-        reason, msg <~ @reply-signal.wait 3000ms
-        err = if reason is \timeout
-            {reason: 'timeout'}
-        else
-            no
-
+        err, msg <~ @reply-signal.wait 3000ms
         if not err and msg.auth.logout is \ok
             @log.log "clearing token from AuthRequest cache"
             @token = null
