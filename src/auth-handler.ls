@@ -36,25 +36,25 @@ class SessionCache
 export class AuthHandler extends ActorBase
     @login-delay = 10ms
     @i = 0
-    (@db) ->
+    (db) ->
         super "AuthHandler.#{@@i++}"
         @session-cache = new SessionCache!
 
-        unless @db
+        unless db
             @log.log bg-yellow "No db supplied, only public messages are allowed."
 
         @on \receive, (msg) ~>
             #@log.log "Processing authentication message"
-            if @db
+            if db
                 if \user of msg.auth
                     # login request
-                    err, doc <~ @db.get-user msg.auth.user
+                    err, doc <~ db.get-user msg.auth.user
                     if err
                         @log.err "user \"#{msg.auth.user}\" is not found. err: ", pack err
                         @send auth: error: err
                     else
                         if doc.passwd-hash is msg.auth.password
-                            err, permissions-db <~ @db.get-permissions
+                            err, permissions-db <~ db.get-permissions
                             if err
                                 @log.log "error while getting permissions"
                                 # FIXME: send exception message to the client

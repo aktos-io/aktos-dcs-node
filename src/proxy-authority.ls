@@ -7,26 +7,34 @@ require! 'prelude-ls': {split, flatten, split-at}
 
 
 export class ProxyAuthority extends ProxyActor
-    (@socket, @opts) ->
-        super!
+    (@socket, opts) ->
+        """
+        opts:
+            name: name
+            creator: parent object
+            db: auth-db instance
+        """
+        super opts.name
+
         @role = \authority
 
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
 
         @data-binder = new MessageBinder!
-        @auth = new AuthHandler @opts.db
+        @auth = new AuthHandler opts.db
         @auth.send-raw = (msg) ~>
             @socket.write pack msg
 
         @subscribe "public.**"
         @auth.on \login, (subscriptions) ~>
-            topics = flatten (subscriptions.ro ++ subscriptions.rw)
-            @log.log bg-blue "authentication successful, subscribing relevant topics: ", topics
-            @subscribe topics
+            @log.log bg-blue "subscribing readonly: ", subscriptions.ro
+            @subscribe subscriptions.ro
+            @log.log bg-yellow "subscribing read/write: ", subscriptions.rw
+            @subscribe subscriptions.rw
 
         @auth.on \logout, ~>
             # remove all subscriptions
-            @mgr.unsubscribe this
+            @subscriptions = []
 
         # actor behaviours
         @on do
@@ -60,7 +68,7 @@ export class ProxyAuthority extends ProxyActor
         #    unhandled events (no action taken). do we need them?
         # -------------------------------------------------------------
         @socket.on \error, (e) ~>
-            @log.log bg-red "UNHANDLED EVENT: proxy authority  has an error"
+            @log.log bg-red "UNHANDLED EVENT: proxy authority  has an error", e
 
         @socket.on \disconnect, ~>
             @log.log bg-red "UNHANDLED EVENT: Client disconnected."

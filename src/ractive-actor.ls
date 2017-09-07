@@ -9,7 +9,7 @@ export class RactiveActor extends Actor
             super "#{name}-wid.#{that}", opts
             @subscribe "my.wid.#{that}"
         else
-            super "#{name}", opts 
+            super "#{name}", opts
 
         @on \data, (msg) ~>
             if \get of msg.payload
@@ -20,10 +20,4 @@ export class RactiveActor extends Actor
                 @log.log "responding for #{keypath}:", val
                 @log.warn "message for this request was: ", msg
                 @send-response msg, {res: val}
-
-    request: (topic, msg, callback) ->
-        @log.warn "sending request for topic:", topic
-        cancel = @subscribe-tmp topic
-        err, msg <~ @send-request topic, msg
-        cancel!
-        callback err, msg
+        

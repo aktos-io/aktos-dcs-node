@@ -6,4 +6,4 @@ export find-actor = (id) ->
         console.error "id is required!"
         return void
     mgr = new ActorManager!
-    return find (.id is id), mgr.actor-list
+    return find (.id is id), mgr.actors
