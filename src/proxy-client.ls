@@ -6,8 +6,9 @@ require! 'prelude-ls': {split, flatten, split-at}
 require! './signal':{Signal}
 
 export class ProxyClient extends ProxyActor
-    (@socket, @opts) ->
+    (@socket, opts) ->
         super \ProxyClient
+        @opts <<< opts
         # actor behaviours
         @role = \client
         @connected = no

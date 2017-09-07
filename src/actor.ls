@@ -2,13 +2,13 @@ require! 'aea': {sleep, pack}
 require! './actor-base': {ActorBase}
 require! './actor-manager': {ActorManager}
 require! 'prelude-ls': {
-    split, flatten, keys
+    split, flatten, keys, unique
 }
 
 context-switch = sleep 0
 
 export class Actor extends ActorBase
-    (name, opts={})->
+    (name, @opts={}) ->
         super name
         @mgr = new ActorManager!
 
@@ -26,37 +26,15 @@ export class Actor extends ActorBase
                 started: no
                 finished: no
 
-        # registering to ActorManager requires completion of this
-        # constructor, so manually switch the context
-        unless opts.register-manually
-            <~ context-switch
-            @mgr.register this
-            <~ context-switch
-            @action! if typeof! @action is \Function
+        @action! if typeof! @action is \Function
+        @mgr.register-actor this
 
     subscribe: (topics) ->
-        # log section prefix: s1
-        topics = flatten [topics]
-        for topic in topics when topic not in @subscriptions
+        for topic in unique flatten [topics]
             @subscriptions.push topic
-        #@log.log "subscribing to ", topic, "subscriptions: ", @subscriptions
-        @mgr.subscribe-actor this
 
     unsubscribe: (topic) ->
-        @subscriptions = [.. for @subscriptions when .. isnt topic]
-        @mgr.subscribe-actor this
-
-    subscribe-tmp: (topic) ->
-        # returns a callback that will unsubscribe on execution
-        should-unsubscribe = topic not in @subscriptions
-        @log.log "subscribing temporarily to topic: #{topic}"
-        @subscribe topic
-        return ~>
-            if should-unsubscribe
-                @log.log "unsubscribing topic: #{topic}"
-                @unsubscribe topic
-            else
-                @log.log "not unsubscribing topic #{topic}"
+        @subscriptions.splice (@subscriptions.index-of topic), 1
 
     send: (topic, payload) ~>
         if typeof! payload isnt \Object
@@ -77,15 +55,15 @@ export class Actor extends ActorBase
             @log.err "sending message failed. msg: ", payload, e
 
     send-request: (topic, payload, opts, callback) ->
-        # normalize parameters
-        if typeof! opts is \Function
-            callback = opts
-            opts = {}
-
         /*
         opts:
             timeout: milliseconds
         */
+
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
 
         enveloped = @msg-template! <<< do
             topic: topic
@@ -96,7 +74,7 @@ export class Actor extends ActorBase
                 id: @id
                 seq: enveloped.msg_id
 
-
+        @log.log "sending request: ", enveloped if @opts.debug
         @subscribe topic
         @request-queue[enveloped.req.seq] = (...args) ~>
             callback ...args
@@ -140,13 +118,14 @@ export class Actor extends ActorBase
         if not msg.topic and not (\auth of msg)
             @log.err "send-enveloped: Message has no topic. Not sending."
             return
-        @mgr.inbox-put msg, (@_inbox.bind this)
+        @log.log "sending message: ", msg if @opts.debug
+        @mgr.distribute msg
 
     kill: (...reason) ->
         unless @_state.kill.started
             @_state.kill.started = yes
             @log.section \debug-kill, "deregistering from manager"
-            @mgr.deregister this
+            @mgr.deregister-actor this
             @log.section \debug-kill, "deregistered from manager"
             @trigger.apply this, ([\kill] ++ reason)
             @_state.kill.finished = yes

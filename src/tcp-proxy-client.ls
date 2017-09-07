@@ -7,8 +7,9 @@ require! './proxy-client': {ProxyClient}
 
 
 export class TCPProxyClient extends Actor
-    (@opts={}) ->
-        super @opts.name or \TCPProxyClient
+    (opts={}) ->
+        super opts.name or \TCPProxyClient
+        @opts <<< opts 
         @client = null
         @client-connected = no
         @client-actor = null

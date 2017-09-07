@@ -4,51 +4,52 @@ require! 'aea': {sleep, pack, unpack, Logger}
 require! 'prelude-ls': {split, flatten, split-at}
 
 
+
 export class ProxyActor extends Actor
+    """
+    ProxyActor is a handler that any type of protocol (socket.io, tcp, etc...)
+    uses as its handler.
 
-    ->
-        """
-        ProxyActor is a handler that any type of protocol (socket.io, tcp, etc...)
-        uses as its handler.
+    This handler forwards from `network` interface to `local`
+    interface and vice versa.
 
-        This handler forwards from `network` interface to `local`
-        interface and vice versa.
+    Before start forwarding, it opens a secure¹ and authenticated (optional)
+    channel and modifies the outgoing and incoming messages.
 
-        Before start forwarding, it opens a secure¹ and authenticated (optional)
-        channel and modifies the outgoing and incoming messages.
+    Client Mode Responsibilities:
 
-        Client Mode Responsibilities:
+        1. [x] Add `token` to outgoing messages
+        2. [x] Subscribe to manager for authorized topics.
+        3. forward any incoming network messages to manager
+        4. Reconnect on disconnect if opts.reconnect is "yes"
 
-            1. [x] Add `token` to outgoing messages
-            2. [x] Subscribe to manager for authorized topics.
-            3. forward any incoming network messages to manager
-            4. Reconnect on disconnect if opts.reconnect is "yes"
+    Authority Mode Responsibilities:
 
-        Authority Mode Responsibilities:
+        1. [x] remove any `token` from incoming network messages
+        2. [x] subscribe to manager with authorized topics
+        3. [x] Deregister on end point disconnect
 
-            1. [x] remove any `token` from incoming network messages
-            2. [x] subscribe to manager with authorized topics
-            3. [x] Deregister on end point disconnect
+    Parameters:
+    ===========
 
-        Parameters:
-        ===========
+        1. Socket, which has the following methods:
+            1. write: send data by network interface
+            2. on 'data', (data) -> : fired when data is received by network interface
+            3. on 'error', (e) -> : fired on error
+            4. on 'disconnect', -> : fired on disconnect
 
-            1. Socket, which has the following methods:
-                1. write: send data by network interface
-                2. on 'data', (data) -> : fired when data is received by network interface
-                3. on 'error', (e) -> : fired on error
-                4. on 'disconnect', -> : fired on disconnect
+        2. Options:
+            1. role (required): [ONE_OF 'client', 'authority']
+            2. name (optional, default: this.id)
+            3. creator (required): creator of this actor
+            4. reconnect (optional, default: no): [yes/no]
+                This actor will try to reconnect or not
 
-            2. Options:
-                1. role (required): [ONE_OF 'client', 'authority']
-                2. name (optional, default: this.id)
-                3. creator (required): creator of this actor
-                4. reconnect (optional, default: no): [yes/no]
-                    This actor will try to reconnect or not
+    ¹: TODO
+    """
 
-        ¹: TODO
-        """
-        super @opts.name
+    (name) ->
+        super name
 
 
 

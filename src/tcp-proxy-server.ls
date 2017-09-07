@@ -7,10 +7,15 @@ require! './proxy-authority':{ProxyAuthority}
 
 
 export class TCPProxyServer extends Actor
-    (@opts={}) ->
+    (opts={}) ->
+        """
+        opts:
+            db: auth-db object
+            port: dcs port
+        """
         super \TCPProxyServer
         @server = null
-        @port = if @opts.port => that else 5523
+        @port = if opts.port => that else 5523
 
         @server = net.create-server (socket) ~>
             name = "H#{ip-to-hex (drop 7, socket.remoteAddress)}:#{hex socket.remotePort}"
@@ -18,7 +23,7 @@ export class TCPProxyServer extends Actor
             proxy = new ProxyAuthority socket, do
                 name: name
                 creator: this
-                db: @opts.db
+                db: opts.db
 
             proxy.on \kill, (reason) ~>
                 @log.log "Creator says proxy actor (authority) (#{proxy.id}) just died!"
