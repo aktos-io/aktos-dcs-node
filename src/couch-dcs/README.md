@@ -102,3 +102,9 @@ To verify that your view returns the correct ID, use the following filter to get
 ```
 http://example.com/yourdb/_design/autoincrement/_view/any?descending=true&startkey=["foo",{}]&endkey=["foo"]
 ```
+
+# Roadmap 
+
+- [ ] Add document deduplication support 
+- [ ] Provide a way to resume interrupted downloads/uploads 
+- [ ] Stream videos directly from database
