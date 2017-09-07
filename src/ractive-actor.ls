@@ -17,10 +17,7 @@ export class RactiveActor extends Actor
         @on \data, (msg) ~>
             if \get of msg.payload
                 keypath = msg.payload.get
-                @log.log "received request for keypath: '#{keypath}'"
+                #@log.log "received request for keypath: '#{keypath}'"
+                #@log.log "responding for #{keypath}:", val
                 val = @instance.get keypath
-                @log.log "responding for #{keypath}:", val
-                val = @instance.get keypath
-                @log.log "responding for2222 #{keypath}:", val
-                @log.warn "message for this request was: ", msg
                 @send-response msg, {res: val}
