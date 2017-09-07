@@ -11,7 +11,7 @@ export class RactiveActor extends Actor
         else
             super "#{name}", opts
 
-        @instance.on \unrender, ~>
+        @instance.onteardown ~>
             @kill \unrender
 
         @on \data, (msg) ~>
