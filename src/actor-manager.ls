@@ -24,5 +24,6 @@ export class ActorManager extends ActorBase
         for actor in @actors when actor.id isnt msg.sender
             for topic in actor.subscriptions
                 if msg.topic `topic-match` topic
+                    #@log.log "putting message: #{msg.sender}-#{msg.msg_id} -> actor: #{actor.id}"
                     actor._inbox msg
                     break
