@@ -11,13 +11,16 @@ export class RactiveActor extends Actor
         else
             super "#{name}", opts
 
+        @instance.on \unrender, ~>
+            @kill \unrender
+
         @on \data, (msg) ~>
             if \get of msg.payload
                 keypath = msg.payload.get
-                @log.log "requested getting #{keypath}..."
-                <~ sleep 1000ms
+                @log.log "received request for keypath: '#{keypath}'"
                 val = @instance.get keypath
                 @log.log "responding for #{keypath}:", val
+                val = @instance.get keypath
+                @log.log "responding for2222 #{keypath}:", val
                 @log.warn "message for this request was: ", msg
                 @send-response msg, {res: val}
-        
