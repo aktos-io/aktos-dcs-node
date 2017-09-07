@@ -8,7 +8,7 @@ require! 'prelude-ls': {
 context-switch = sleep 0
 
 export class Actor extends ActorBase
-    (name, opts={})->
+    (name, @opts={}) ->
         super name
         @mgr = new ActorManager!
 
@@ -28,7 +28,7 @@ export class Actor extends ActorBase
 
         # registering to ActorManager requires completion of this
         # constructor, so manually switch the context
-        unless opts.register-manually
+        unless @opts.register-manually
             <~ context-switch
             @mgr.register this
             <~ context-switch
@@ -77,15 +77,15 @@ export class Actor extends ActorBase
             @log.err "sending message failed. msg: ", payload, e
 
     send-request: (topic, payload, opts, callback) ->
-        # normalize parameters
-        if typeof! opts is \Function
-            callback = opts
-            opts = {}
-
         /*
         opts:
             timeout: milliseconds
         */
+
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
 
         enveloped = @msg-template! <<< do
             topic: topic
@@ -96,11 +96,10 @@ export class Actor extends ActorBase
                 id: @id
                 seq: enveloped.msg_id
 
-
-        @subscribe topic
+        cancel = @subscribe-tmp topic
         @request-queue[enveloped.req.seq] = (...args) ~>
             callback ...args
-            @unsubscribe topic
+            cancel!
 
         @send-enveloped enveloped
 
@@ -140,6 +139,7 @@ export class Actor extends ActorBase
         if not msg.topic and not (\auth of msg)
             @log.err "send-enveloped: Message has no topic. Not sending."
             return
+        @log.log "sending message: ", msg if @opts.debug
         @mgr.inbox-put msg, (@_inbox.bind this)
 
     kill: (...reason) ->

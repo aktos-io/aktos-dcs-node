@@ -1,22 +1,28 @@
 require! './actor': {Actor}
-require! 'aea': {pack}
+require! 'aea': {pack, sleep}
 
 export class RactiveActor extends Actor
-    (@instance, name) ->
+    (@instance, opts) ->
+        name = opts if typeof! opts is \String
+        name = opts.name
         if @instance.get \wid
-            super "#{name}-wid.#{that}"
+            super "#{name}-wid.#{that}", opts
             @subscribe "my.wid.#{that}"
         else
-            super "#{name}"
+            super "#{name}", opts 
 
         @on \data, (msg) ~>
             if \get of msg.payload
                 keypath = msg.payload.get
+                @log.log "requested getting #{keypath}..."
+                <~ sleep 1000ms
                 val = @instance.get keypath
-                @log.log "requested getting #{keypath}, which is :", val
-                @send-response msg, {res: @instance.get keypath}
+                @log.log "responding for #{keypath}:", val
+                @log.warn "message for this request was: ", msg
+                @send-response msg, {res: val}
 
     request: (topic, msg, callback) ->
+        @log.warn "sending request for topic:", topic
         cancel = @subscribe-tmp topic
         err, msg <~ @send-request topic, msg
         cancel!

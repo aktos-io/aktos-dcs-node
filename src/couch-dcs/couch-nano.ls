@@ -1,6 +1,6 @@
 require! 'prelude-ls': {flatten, join, split}
 require! 'nano'
-require! 'colors': {bg-red, bg-green, bg-yellow}
+require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
 require! 'aea': {sleep, pack, logger}
 
 export class CouchNano
@@ -32,7 +32,7 @@ export class CouchNano
         if headers?
             if headers['set-cookie']
                 @cookie = that
-                @log.log bg-yellow "----------set-cookie is received, using it: #{that}"
+                @log.log bg-blue ">>> set-cookie is received, refreshing cookie with the new one."
 
         err = {reason: err.reason, name: err.name, message: err.reason} if err
         callback err, res, headers
