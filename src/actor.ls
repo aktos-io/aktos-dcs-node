@@ -1,6 +1,7 @@
 require! 'aea': {sleep, pack}
 require! './actor-base': {ActorBase}
 require! './actor-manager': {ActorManager}
+require! './signal': {Signal}
 require! 'prelude-ls': {
     split, flatten, keys, unique
 }
@@ -55,16 +56,15 @@ export class Actor extends ActorBase
         catch
             @log.err "sending message failed. msg: ", payload, e
 
-    send-request: (topic, payload, opts, callback) ->
+    send-request: (_topic, payload, callback) ->
         /*
         opts:
             timeout: milliseconds
         */
-
         # normalize parameters
-        if typeof! opts is \Function
-            callback = opts
-            opts = {}
+        switch typeof! _topic
+            when \String => [topic, timeout] = [_topic, 0]
+            when \Object => [topic, timeout] = [_topic.topic, _topic.timeout]
 
         enveloped = @msg-template! <<< do
             topic: topic
@@ -77,9 +77,14 @@ export class Actor extends ActorBase
 
         @log.log "sending request: ", enveloped if @opts.debug
         @subscribe topic
-        @request-queue[enveloped.req.seq] = (...args) ~>
-            callback ...args
+        response-signal = new Signal!
+        @request-queue[enveloped.req.seq] = response-signal
+
+        do
+            @log.log "waiting for response"
+            timeout, msg <~ response-signal.wait timeout
             @unsubscribe topic
+            callback timeout, msg
 
         @send-enveloped enveloped
 
@@ -100,7 +105,7 @@ export class Actor extends ActorBase
             if \res of msg
                 if msg.res.id is @id
                     if msg.res.seq of @request-queue
-                        @request-queue[msg.res.seq] err=null, msg
+                        @request-queue[msg.res.seq].go msg
                         delete @request-queue[msg.res.seq]
                         return
 
