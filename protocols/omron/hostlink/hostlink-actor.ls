@@ -8,10 +8,15 @@ require! './helpers': {
 
 
 export class HostlinkActor extends Actor
-    (@socket) ->
+    (@socket, opts) ->
         super 'Hostlink Handler'
-        @log.log "A Hostlink handler is created."
-        @subscribe "public.**"
+        @opts <<< opts
+        @log.log "A Hostlink handler is created, opts: ", @opts
+
+        @unit-no = @opts.unit-no or 0
+        if @opts.subscriptions
+            @subscribe that
+
         @write-res = new Signal!
         @read-res = new Signal!
 
@@ -60,7 +65,7 @@ export class HostlinkActor extends Actor
                 #@log.log "processing cmd: ", cmd
                 area = keys cmd.addr .0
                 address = cmd.addr[area]
-                err, res <~ @write 0, area, address, cmd.data
+                err, res <~ @write @unit-no, area, address, cmd.data
                 #@log.log "...written"
                 @send-response msg, {err: err, res: res}
 
@@ -69,7 +74,7 @@ export class HostlinkActor extends Actor
                 #@log.log "processing cmd: ", cmd
                 area = keys cmd.addr .0
                 address = cmd.addr[area]
-                err, res <~ @read 0, area, address, cmd.size
+                err, res <~ @read @unit-no, area, address, cmd.size
                 #@log.log "...read response received"
                 @send-response msg, {err: err, res: res}
 
@@ -79,7 +84,7 @@ export class HostlinkActor extends Actor
                 @send-response msg, err
 
 
-    read: (unit-no=0, address-type, address, size, callback) ->
+    read: (unit-no, address-type, address, size, callback) ->
         try
             packet = "
                 @
@@ -105,7 +110,7 @@ export class HostlinkActor extends Actor
         #@log.log "response of read packet: err: ", err, "res: ", res
         callback (timeout or err), res
 
-    write: (unit-no=0, address-type, address, data, callback) ->
+    write: (unit-no, address-type, address, data, callback) ->
         try
             packet = "
                 @

@@ -11,8 +11,9 @@ export class HostlinkTcpServer extends Actor
 
     create-server: ->
         @server = net.create-server (socket) ->
-            new HostlinkActor socket
+            new HostlinkActor socket, do
+                unit-no: 0
+                subscriptions: 'public.**'
 
-        port = 2000
         @server.listen @port, '0.0.0.0', ~>
             @log.log "Hostlink Server started listening on port: #{@port}"
