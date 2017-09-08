@@ -14,8 +14,10 @@ export class RactiveActor extends Actor
         else
             super "#{name}", opts
 
-        @instance.onteardown ~>
-            @kill \unrender
+        @instance.on do
+            teardown: ~>
+                @log.log "Ractive actor is being killed because component is tearing down"
+                @kill \unrender
 
         @on \data, (msg) ~>
             if \get of msg.payload
