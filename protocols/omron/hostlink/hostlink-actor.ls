@@ -10,12 +10,8 @@ export class HostlinkActor extends Actor
     (@socket) ->
         super!
         @subscribe "public.**"
-        @fps = new FpsExec 2fps
         @write-res = new Signal!
         @read-res = new Signal!
-
-        @socket.on \connect, ~>
-            @log.log "hostlink actor connected."
 
         @socket.on \data, (data) ~>
             packet = data.to-string!
@@ -59,22 +55,18 @@ export class HostlinkActor extends Actor
             */
             if \write of msg.payload
                 cmd = msg.payload.write
+                @log.log "processing cmd: ", cmd
                 area = keys cmd.addr .0
                 address = cmd.addr[area]
-                <~ @write 0, area, address, cmd.data
+                err, res <~ @write 0, area, address, cmd.data
                 @log.log "...written"
+                @send-response msg, {err: err, res: res}
+
+            else
+                @log.warn "got an unknown cmd: ", msg.payload
 
     action: ->
         @log.log "A Hostlink device is connected."
-
-    disabled-action: ->
-        @log.log "starting write loop"
-        <~ :lo(op) ~>
-            <~ @write 0, addr.relay, 92, [0]
-            <~ sleep 1000ms
-            <~ @write 0, addr.relay, 92, [1]
-            <~ sleep 1000ms
-            lo(op)
 
     read: (unit-no=0, address-type, address, size, handler) ->
         packet = "
@@ -100,20 +92,14 @@ export class HostlinkActor extends Actor
         callback (timeout or err), res
 
     write: (unit-no=0, address-type, address, data, callback) ->
-        try
-            @log.warn "address type: ", address-type
-            @log.warn "address: ", address
-            @log.warn "data", data
-            packet = "
-                @
-                #{unit-no |> pad-two}
-                W
-                #{address-type}
-                #{address |> pad-four}
-                #{data |> map pad-four |> join ''}
-                "
-        catch
-            @log.err "exception: ", e
+        packet = "
+            @
+            #{unit-no |> pad-two}
+            W
+            #{address-type}
+            #{address |> pad-four}
+            #{data |> map pad-four |> join ''}
+            "
 
         _packet = "
             #{packet}
