@@ -15,20 +15,20 @@ export class HostlinkActor extends Actor
 
         @socket.on \data, (data) ~>
             packet = data.to-string!
-            @log.log "data received: ", packet
+            #@log.log "data received: ", packet
             try
                 check-hostlink-packet packet
                 data-part = get-data packet
-                @log.log "data part is: ", data-part
+                #@log.log "data part is: ", data-part
                 if (packet |> take 5) is '@00WR'
                     if (packet |> take 7) is '@00WR00'
-                        @log.log "write response is ok"
+                        #@log.log "write response is ok"
                         @write-res.go null, {ok: yes}
                     else
-                        @log.log "write response seems erroneous"
+                        #@log.log "write response seems erroneous"
                         @write-res {packet: packet}, null
                 else
-                    @log.log "read response: ", data-part
+                    #@log.log "read response: ", data-part
                     @read-res.go null, data-part
             catch
                 @write-res.go {err: e}, null
@@ -39,7 +39,7 @@ export class HostlinkActor extends Actor
             @kill \disconnected
 
         @on \data, (msg) ~>
-            @log.log "Hostlink actor got message from local interface: ", msg.payload
+            #@log.log "Hostlink actor got message from local interface: ", msg.payload
             /*
             message structure:
 
@@ -55,7 +55,7 @@ export class HostlinkActor extends Actor
             */
             if \write of msg.payload
                 cmd = msg.payload.write
-                @log.log "processing cmd: ", cmd
+                #@log.log "processing cmd: ", cmd
                 area = keys cmd.addr .0
                 address = cmd.addr[area]
                 err, res <~ @write 0, area, address, cmd.data
