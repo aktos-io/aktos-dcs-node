@@ -26,8 +26,9 @@ export class Actor extends ActorBase
                 started: no
                 finished: no
 
-        @action! if typeof! @action is \Function
         @mgr.register-actor this
+        <~ context-switch # required to properly set the context
+        try @action!
 
     subscribe: (topics) ->
         for topic in unique flatten [topics]
