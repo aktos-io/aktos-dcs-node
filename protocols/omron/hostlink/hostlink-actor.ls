@@ -1,5 +1,5 @@
 require! 'dcs': {Actor, Signal}
-require! 'prelude-ls': {keys, map, join, take}
+require! 'prelude-ls': {keys, map, join, take, at, drop}
 require! 'aea': {sleep, pack}
 require! './helpers': {
     get-data, check-hostlink-packet, addr, calc-fcs
@@ -45,6 +45,16 @@ export class HostlinkActor extends Actor
             @log.log "Hostlink connection is closed."
             @kill \disconnected
 
+        parse-addr = (address-part) ->
+            if typeof! address-part is \Object
+                area = keys address-part .0
+                address = address-part[area]
+            else
+                area = address-part |> at 0
+                address = address-part |> drop 1
+
+            [area.to-upper-case!, address]
+
         @on \data, (msg) ~>
             #@log.log "Hostlink actor got message from local interface: ", msg.payload
             /*
@@ -63,8 +73,7 @@ export class HostlinkActor extends Actor
             if \write of msg.payload
                 cmd = msg.payload.write
                 #@log.log "processing cmd: ", cmd
-                area = keys cmd.addr .0
-                address = cmd.addr[area]
+                [area, address] = parse-addr cmd.addr
                 err, res <~ @write @unit-no, area, address, cmd.data
                 #@log.log "...written"
                 @send-response msg, {err: err, res: res}
@@ -72,8 +81,7 @@ export class HostlinkActor extends Actor
             else if \read of msg.payload
                 cmd = msg.payload.read
                 #@log.log "processing cmd: ", cmd
-                area = keys cmd.addr .0
-                address = cmd.addr[area]
+                [area, address] = parse-addr cmd.addr
                 err, res <~ @read @unit-no, area, address, cmd.size
                 #@log.log "...read response received"
                 @send-response msg, {err: err, res: res}
