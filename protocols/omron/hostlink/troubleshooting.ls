@@ -12,13 +12,17 @@ class TestWrite extends Actor
         val = 0
         <~ :lo(op) ~>
             @log.log "sending #{val}..."
-            @send "public.x", do
+            timeout, msg <~ @send-request {topic: "public.x", timeout: 500ms}, do
                 write:
                     addr:
                         R: 92
                     data: [val]
-            val := (val + 1) %% 2
-            <~ sleep 2000ms
+
+            @log.log "response is: ", msg?.payload, "timeout: ", timeout
+            err = timeout or msg?.err
+            unless err
+                val := (val + 1) %% 2
+            <~ sleep 1000ms
             lo(op)
 
 new HostlinkTcpServer!
