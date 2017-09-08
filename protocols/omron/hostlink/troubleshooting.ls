@@ -3,9 +3,11 @@ require! 'aea': {sleep}
 
 require! './hostlink-tcp-server': {HostlinkTcpServer}
 
+test-addr = R: 92
+
 class TestWrite extends Actor
     ->
-        super ...
+        super 'test writer'
         @subscribe 'public.**'
 
     action: ->
@@ -14,16 +16,36 @@ class TestWrite extends Actor
             @log.log "sending #{val}..."
             timeout, msg <~ @send-request {topic: "public.x", timeout: 500ms}, do
                 write:
-                    addr:
-                        R: 92
+                    addr: test-addr
                     data: [val]
 
             @log.log "response is: ", msg?.payload, "timeout: ", timeout
             err = timeout or msg?.err
             unless err
                 val := (val + 1) %% 2
-            <~ sleep 1000ms
+            <~ sleep 2000ms
             lo(op)
+
+
+
+class TestRead extends Actor
+    ->
+        super 'test reader'
+        @subscribe 'public.**'
+
+    action: ->
+        <~ :lo(op) ~>
+            @log.log "reading ", test-addr
+            timeout, msg <~ @send-request {topic: "public.x", timeout: 500ms}, do
+                read:
+                    addr: test-addr
+                    size: 1
+
+            @log.log "response is: ", msg?.payload, "timeout: ", timeout
+            <~ sleep 2000ms
+            lo(op)
+
 
 new HostlinkTcpServer!
 new TestWrite!
+new TestRead!

@@ -1,14 +1,16 @@
-require! 'dcs': {Actor, FpsExec, Signal}
+require! 'dcs': {Actor, Signal}
 require! 'prelude-ls': {keys, map, join, take}
 require! 'aea': {sleep, pack}
-require! './helpers': {get-data, check-hostlink-packet, addr, calc-fcs}
+require! './helpers': {
+    get-data, check-hostlink-packet, addr, calc-fcs
+    pad-two, pad-four
+}
 
-pad-two = (x) -> "00#{x}".slice -2
-pad-four = (x) -> "0000#{x}".slice -4
 
 export class HostlinkActor extends Actor
     (@socket) ->
-        super!
+        super 'Hostlink Handler'
+        @log.log "A Hostlink handler is created."
         @subscribe "public.**"
         @write-res = new Signal!
         @read-res = new Signal!
@@ -59,57 +61,73 @@ export class HostlinkActor extends Actor
                 area = keys cmd.addr .0
                 address = cmd.addr[area]
                 err, res <~ @write 0, area, address, cmd.data
-                @log.log "...written"
+                #@log.log "...written"
+                @send-response msg, {err: err, res: res}
+
+            else if \read of msg.payload
+                cmd = msg.payload.read
+                #@log.log "processing cmd: ", cmd
+                area = keys cmd.addr .0
+                address = cmd.addr[area]
+                err, res <~ @read 0, area, address, cmd.size
+                #@log.log "...read response received"
                 @send-response msg, {err: err, res: res}
 
             else
-                @log.warn "got an unknown cmd: ", msg.payload
+                err= {message: "got an unknown cmd"}
+                @log.warn err.message, msg.payload
+                @send-response msg, err
 
-    action: ->
-        @log.log "A Hostlink device is connected."
 
-    read: (unit-no=0, address-type, address, size, handler) ->
-        packet = "
-            @
-            #{unit-no |> pad-two}
-            R
-            #{address-type}
-            #{address |> pad-four}
-            #{size |> pad-four}
-            "
+    read: (unit-no=0, address-type, address, size, callback) ->
+        try
+            packet = "
+                @
+                #{unit-no |> pad-two}
+                R
+                #{address-type}
+                #{address |> pad-four}
+                #{size |> pad-four}
+                "
 
-        _packet = "
-            #{packet}
-            #{packet |> calc-fcs}
-            *\r
-            "
+            _packet = "
+                #{packet}
+                #{packet |> calc-fcs}
+                *\r
+                "
+        catch
+            @log.err e
 
         #@log.log "packet sent: #{_packet}"
         @read-res.clear!
         @socket.write _packet
         timeout, err, res <~ @read-res.wait 3000ms
-        @log.log "response of read packet: err: ", err, "res: ", res
+        #@log.log "response of read packet: err: ", err, "res: ", res
         callback (timeout or err), res
 
     write: (unit-no=0, address-type, address, data, callback) ->
-        packet = "
-            @
-            #{unit-no |> pad-two}
-            W
-            #{address-type}
-            #{address |> pad-four}
-            #{data |> map pad-four |> join ''}
-            "
+        try
+            packet = "
+                @
+                #{unit-no |> pad-two}
+                W
+                #{address-type}
+                #{address |> pad-four}
+                #{data |> map pad-four |> join ''}
+                "
 
-        _packet = "
-            #{packet}
-            #{packet |> calc-fcs}
-            *\r
-            "
+            _packet = "
+                #{packet}
+                #{packet |> calc-fcs}
+                *\r
+                "
+        catch
+            @log.err e
+
 
         #@log.log "sending write packet: #{_packet}"
         @write-res.clear!
         @socket.write _packet
         timeout, err, res <~ @write-res.wait 3000ms
-        @log.log "response of write packet: err: ", err, "res: ", res
+        #@log.log "response of write packet: err: ", err, "res: ", res
         callback (timeout or err), res

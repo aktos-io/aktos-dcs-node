@@ -65,3 +65,9 @@ export get-data = (packet) ->
             result.push _first
         result
     slice-every 4, data-part
+
+export pad-two = (x) ->
+    "00#{x}".slice -2
+    
+export pad-four = (x) ->
+    "0000#{x}".slice -4
