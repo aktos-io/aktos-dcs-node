@@ -10,18 +10,13 @@ check = (handler) ->
 
 export class ActorBase
     (@name) ->
-        @actor-id = uuid4!
-        @id = @actor-id
-        @name = @name or @actor-id
+        @id = uuid4!
+        @name = @name or @id
         @log = new logger @name
 
         @event-handlers = {}
 
         @msg-seq = 0
-        <~ sleep 0
-        @post-init!
-
-    post-init: ->
 
     on: (event, handler) ->
         # usage:
