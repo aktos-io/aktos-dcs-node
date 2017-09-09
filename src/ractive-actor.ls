@@ -2,27 +2,30 @@ require! './actor': {Actor}
 require! 'aea': {pack, sleep}
 
 export class RactiveActor extends Actor
-    (@instance, opts) ->
+    (@ractive, opts) ->
         name = if typeof! opts is \String
             opts
+        else if opts?.name
+            that
         else
-            opts.name
+            'RactiveActor'
 
-        if @instance.get \wid
+        if @ractive.get \wid
             super "#{name}-wid.#{that}", opts
             @subscribe "my.wid.#{that}"
         else
             super "#{name}", opts
 
-        @instance.on do
+        @ractive.on do
             teardown: ~>
                 @log.log "Ractive actor is being killed because component is tearing down"
                 @kill \unrender
 
         @on \data, (msg) ~>
-            if \get of msg.payload
-                keypath = msg.payload.get
-                #@log.log "received request for keypath: '#{keypath}'"
-                #@log.log "responding for #{keypath}:", val
-                val = @instance.get keypath
-                @send-response msg, {res: val}
+            if typeof! msg.payload is \Object
+                if \get of msg.payload
+                    keypath = msg.payload.get
+                    #@log.log "received request for keypath: '#{keypath}'"
+                    #@log.log "responding for #{keypath}:", val
+                    val = @ractive.get keypath
+                    @send-response msg, {res: val}

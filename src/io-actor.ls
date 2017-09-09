@@ -16,34 +16,24 @@ IoActor is an actor that subscribes IoMessage messages
 
  */
 
-require! './actor': {Actor}
+require! './ractive-actor': {RactiveActor}
 require! './filters': {FpsExec}
 require! 'aea': {sleep}
 
 context-switch = sleep 0
 
-export class IoActor extends Actor
-    (@pin-name) ->
-        super @pin-name
+export class IoActor extends RactiveActor
+    (ractive, name) ->
+        super ractive, name
 
-    post-init: ->
+    action : ->
         @subscribe "ConnectionStatus"
-        @subscribe "io.#{@pin-name}" if @pin-name
-        #@log.log "this is post init, subscriptions:", @subscriptions
-
-
-    action :->
-        @log.section \vvv, "actor is created with the following name: ", @actor-name, "and ID: #{@actor-id}"
+        @log.log "IoActor is created with the following name: ", @name, "and ID: #{@id}"
 
     handle_ConnectionStatus: (msg) ->
         @log.log "Not implemented, message: ", msg
 
-    sync: (ractive-var, topic, rate=10fps) ->
-        __ = @
-        unless @ractive
-            @log.err "set ractive variable first!"
-            return
-
+    sync: (keypath, topic, rate=20fps) ->
         unless topic
             @log.err 'Topic should be set first!'
             return
@@ -52,7 +42,7 @@ export class IoActor extends Actor
 
         fps = new FpsExec rate
         first-time = yes
-        handle = @ractive.observe ractive-var, (_new) ~>
+        handle = @ractive.observe keypath, (_new) ~>
             if first-time
                 first-time := no
                 return
@@ -64,5 +54,5 @@ export class IoActor extends Actor
                 @log.err "HOW COME WE GET SOMETHING WE DIDN'T SUBSCRIBE???"
 
             handle.silence!
-            @ractive.set ractive-var, msg.payload
+            @ractive.set keypath, msg.payload
             handle.resume!
