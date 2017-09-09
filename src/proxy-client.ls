@@ -92,7 +92,7 @@ export class ProxyClient extends ProxyActor
             @log.log "sending credentials..."
             err, res <~ @auth.login credentials
             if opts?.forget-password
-                @log.warn "forgetting password"
+                #@log.warn "forgetting password"
                 credentials := token: try
                     res.auth.session.token
                 catch
