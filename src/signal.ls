@@ -1,6 +1,7 @@
 require! 'aea': {sleep}
 require! 'aea/debug-log': {logger}
 require! 'uuid4'
+require! 'prelude-ls': {is-it-NaN}
 
 export class Signal
     ->
@@ -27,6 +28,7 @@ export class Signal
         # re-arrange arguments
         if typeof! timeout is \Function
             callback = timeout
+            timeout = 0
         # /re-arrange arguments
 
 
@@ -34,9 +36,10 @@ export class Signal
             @callbacks.push {ctx: this, handler: callback}
         @waiting = yes
 
-        if typeof! timeout is \Number
-            @timeout = timeout
-            @reset-timeout!
+        unless is-it-NaN timeout
+            if timeout > 0
+                @timeout = timeout
+                @reset-timeout!
 
         # try to run signal if it is set as `go` before reaching "wait" line
         @fire!
