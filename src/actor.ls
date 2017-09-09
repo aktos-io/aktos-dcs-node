@@ -81,7 +81,6 @@ export class Actor extends ActorBase
         @request-queue[enveloped.req.seq] = response-signal
 
         do
-            @log.log "waiting for response"
             timeout, msg <~ response-signal.wait timeout
             @unsubscribe topic
             callback timeout, msg
