@@ -3,11 +3,6 @@ require! 'aea': {sleep, logger, debug-levels, merge, EventEmitter}
 require! 'prelude-ls': {empty}
 
 
-check = (handler) ->
-    if typeof! handler isnt \Function
-        console.error "ERR: parameter passed to 'on-receive' should be a function."
-        return \failed
-
 export class ActorBase extends EventEmitter
     (@name) ->
         super!
