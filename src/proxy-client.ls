@@ -87,7 +87,7 @@ export class ProxyClient extends ProxyActor
             @trigger \needReconnect
 
     login: (credentials, callback) ->
-        @event-handlers['relogin'] = []
+        @off \relogin 
         @on \relogin, (opts) ~>
             @log.log "sending credentials..."
             err, res <~ @auth.login credentials

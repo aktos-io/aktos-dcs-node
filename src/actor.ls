@@ -12,8 +12,7 @@ export class Actor extends ActorBase
     (name, @opts={}) ->
         super name
         @mgr = new ActorManager!
-
-        @log.section \bare, "actor \"#{@name}\" created with id: #{@actor-id}"
+        #@log.log "actor \"#{@name}\" created with id: #{@id}"
 
         @msg-seq = 0
         @subscriptions = [] # subscribe all topics by default.
@@ -129,10 +128,8 @@ export class Actor extends ActorBase
     kill: (...reason) ->
         unless @_state.kill.started
             @_state.kill.started = yes
-            @log.section \debug-kill, "deregistering from manager"
             @mgr.deregister-actor this
-            @log.section \debug-kill, "deregistered from manager"
-            @trigger.apply this, ([\kill] ++ reason)
+            @trigger \kill, ...reason
             @_state.kill.finished = yes
 
     request-update: ->
