@@ -1,5 +1,6 @@
 require! './actor': {Actor}
 require! 'aea': {pack, sleep}
+require! './signal': {Signal}
 
 export class RactiveActor extends Actor
     (@ractive, opts) ->
@@ -12,20 +13,47 @@ export class RactiveActor extends Actor
 
         if @ractive.get \wid
             super "#{name}-wid.#{that}", opts
-            @subscribe "my.wid.#{that}"
+            @default-topic = "my.wid.#{that}"
+            @subscribe @default-topic
+            @log.log "Initializing RactiveActor. topic: #{@default-topic}"
         else
             super "#{name}", opts
+
+        @subscribe 'my.router.changes'
 
         @ractive.on do
             teardown: ~>
                 @log.log "Ractive actor is being killed because component is tearing down"
                 @kill \unrender
 
+        teleport-signal = new Signal
         @on \data, (msg) ~>
-            if typeof! msg.payload is \Object
-                if \get of msg.payload
-                    keypath = msg.payload.get
-                    #@log.log "received request for keypath: '#{keypath}'"
-                    #@log.log "responding for #{keypath}:", val
-                    val = @ractive.get keypath
-                    @send-response msg, {res: val}
+            switch msg.topic
+
+            when @default-topic =>
+                if typeof! msg.payload is \Object
+                    if \get of msg.payload
+                        keypath = msg.payload.get
+                        #@log.log "received request for keypath: '#{keypath}'"
+                        #@log.log "responding for #{keypath}:", val
+                        val = @ractive.get keypath
+                        @send-response msg, {res: val}
+
+                    else if \cmd of msg.payload
+                        switch msg.payload.cmd
+                        | \ctx      => @send-response msg, {res: @ractive.get-context! }
+                        | \target   => @send-response msg, {res: @ractive.target}
+                        | \ractive  => @send-response msg, {res: @ractive}
+                        | \teleport =>
+                            teleport-signal.clear!
+                            prev-location = @ractive.target
+                            @send-response msg, do
+                                ractive: @ractive
+                                prev-location: prev-location
+                            timeout <~ teleport-signal.wait
+                            @ractive.insert prev-location
+
+                else
+                    debugger
+            when 'my.router.changes'
+                teleport-signal.go!
