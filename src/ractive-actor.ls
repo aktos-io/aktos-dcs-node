@@ -27,6 +27,8 @@ export class RactiveActor extends Actor
                 @log.log "Ractive actor is being killed because component is tearing down"
                 @kill \unrender
 
+        orig-location = @ractive.target
+
         @on \data, (msg) ~>
             switch msg.topic
 
@@ -46,12 +48,12 @@ export class RactiveActor extends Actor
                         | \ractive  => @send-response msg, {res: @ractive}
                         | \teleport =>
                             teleport-signal.clear!
-                            prev-location = @ractive.target
                             @send-response msg, do
                                 ractive: @ractive
-                                prev-location: prev-location
                             timeout <~ teleport-signal.wait
-                            @ractive.insert prev-location
+                            @ractive.insert orig-location
+                        | \teleport-restore => teleport-signal.go!
+                        |_ => @log.err "Not a known command:", msg.payload.cmd
 
                 else
                     debugger
