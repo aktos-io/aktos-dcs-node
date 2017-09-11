@@ -50,9 +50,7 @@ export class IoActor extends RactiveActor
 
 
         @on \data, (msg) ~>
-            unless msg.topic in @subscriptions
-                @log.err "HOW COME WE GET SOMETHING WE DIDN'T SUBSCRIBE???"
-
-            handle.silence!
-            @ractive.set keypath, msg.payload
-            handle.resume!
+            if msg.topic is topic
+                handle.silence!
+                @ractive.set keypath, msg.payload
+                handle.resume!
