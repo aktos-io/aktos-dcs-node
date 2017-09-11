@@ -20,13 +20,13 @@ export class RactiveActor extends Actor
             super "#{name}", opts
 
         @subscribe 'my.router.changes'
+        teleport-signal = new Signal
 
         @ractive.on do
             teardown: ~>
                 @log.log "Ractive actor is being killed because component is tearing down"
                 @kill \unrender
 
-        teleport-signal = new Signal
         @on \data, (msg) ~>
             switch msg.topic
 
@@ -56,4 +56,6 @@ export class RactiveActor extends Actor
                 else
                     debugger
             when 'my.router.changes'
-                teleport-signal.go!
+                if msg.payload.scene
+                    # put the node back only on scene changes
+                    teleport-signal.go!
