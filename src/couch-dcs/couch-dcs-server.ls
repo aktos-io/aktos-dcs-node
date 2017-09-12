@@ -1,5 +1,8 @@
 require! '../actor': {Actor}
-require! 'colors': {bg-green, bg-red, green, yellow, bg-yellow}
+require! 'colors': {
+    bg-green, bg-red, bg-yellow
+    green, yellow, blue
+}
 require! 'aea':{sleep, pack}
 require! 'prelude-ls': {keys}
 require! './couch-nano': {CouchNano}
@@ -10,6 +13,7 @@ export class CouchDcsServer extends Actor
         super (@params.name or \CouchDcsServer)
 
         if @params.subscribe
+            @log.log green "Subscribing to #{that}"
             @subscribe that
         else
             @log.warn "No subscriptions provided to #{@name}"
@@ -17,7 +21,7 @@ export class CouchDcsServer extends Actor
         @db = new CouchNano @params
 
         @on \data, (msg) ~>
-            @log.log "received data: #{pack keys msg.payload} from ctx: #{pack msg.ctx}"
+            @log.log "received data: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
             if \put of msg.payload
                 doc = msg.payload.put
@@ -46,7 +50,7 @@ export class CouchDcsServer extends Actor
 
                 # add server side properties
                 doc.timestamp = Date.now!
-                doc.owner = msg.ctx.user
+                doc.owner = if msg.ctx => that.user else \_process
 
                 err, res <~ @db.put doc
                 @send-and-echo msg, {err: err, res: res or null}
@@ -71,7 +75,7 @@ export class CouchDcsServer extends Actor
 
             # `getAtt` message (for getting attachments)
             else if \getAtt of msg.payload
-                @log.log "get attachment message received", pack msg.payload
+                @log.log "get attachment message received", msg.payload
                 q = msg.payload.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
                 @send-and-echo msg, {err: err, res: res or null}
