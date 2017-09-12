@@ -58,12 +58,14 @@ export class DOutput extends Io
         super ...
         output = new Gpio @opts.pin, \out
 
-        send-value = (value) ~>
+        send-value = (value, reply-to) ~>
             @log.log "sending prev: #{@prev} -> curr: #{value}"
             @send {curr: value, prev: @prev}, @topic
+            @send-response reply-to, {curr: value, prev: @prev} if reply-to
             @prev = value
 
-        write = (value) ~>
+        write = (value, reply-to) ~>
+            value = if value => 1 else 0
             @log.log "writing: #{value}"
             output.write value, (err) ~>
                 if err
@@ -71,13 +73,13 @@ export class DOutput extends Io
                     @kill 'READERR'
                     @send {error: reason: 'can not write to output'}, @topic
                     return
-                send-value value
+                send-value value, reply-to
 
 
         write (@opts.initial or 0)
 
         @on \data, (msg) ~>
-            write msg.payload.val if msg.payload.val?
+            write msg.payload.val, msg if msg.payload.val?
 
         @on \update, ~>
             @log.log "requested update, sending current status..."
