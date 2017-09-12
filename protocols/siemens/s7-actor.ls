@@ -1,5 +1,5 @@
 require! 'dcs': {Actor}
-require! './nodeS7': nodes7
+require! './nodeS7': NodeS7
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {at, split}
 require! 'colors': {yellow, red, green}
@@ -9,10 +9,14 @@ export class S7Actor extends Actor
     (@opts) ->
         super @opts.name
 
+    action: ->
+        @debug = @opts.debug
+
         @topic-prefix = @opts.name
         if @opts.public
             @topic-prefix = "public.#{@topic-prefix}"
         @subscribe "#{@topic-prefix}.**"
+
 
         @log.log-green "Subscriptions:", @subscriptions
 
@@ -20,7 +24,7 @@ export class S7Actor extends Actor
             prefix: "#{@topic-prefix}."
 
         # S7 client
-        @conn = new nodes7 {+silent}
+        @conn = new NodeS7 {+silent}
         @addr-to-name = {}
         @first-read-done = no
 
@@ -46,7 +50,6 @@ export class S7Actor extends Actor
             for key, val of @prev-data
                 @prev-data[key] = void
 
-    action: ->
         @log.log "S7 Actor is created: ", @opts.target, @opts.name
         @start!
 
@@ -70,11 +73,12 @@ export class S7Actor extends Actor
                 for io-addr, io-val of data when io-addr is prev-io-addr
                     if io-val isnt prev-io-val
                         x = @io-map.get-meaningful io-addr, io-val
-                        unless @first-read-done
+                        if not @first-read-done or @debug
                             @first-read-done = yes
                             @log.log (yellow '[ DEBUG (first read)]'), "Read: #{x.name} (#{io-addr}) = #{x.value}"
 
                         @send x.value, "#{@topic-prefix}.#{x.name}"
+                        @log.log "read some values"
 
             @prev-data = data
             <~ sleep 500ms

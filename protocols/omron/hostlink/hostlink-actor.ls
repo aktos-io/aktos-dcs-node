@@ -10,11 +10,10 @@ require! './helpers': {
 export class HostlinkActor extends Actor
     (@socket, opts) ->
         super 'Hostlink Handler'
-        @opts <<< opts
-        @log.log "A Hostlink handler is created, opts: ", @opts
+        @log.log "A Hostlink handler is created, opts: ", opts
 
-        @unit-no = @opts.unit-no or 0
-        if @opts.subscriptions
+        @unit-no = opts.unit-no or 0
+        if opts.subscriptions
             @subscribe that
 
         @write-res = new Signal!

@@ -6,9 +6,10 @@ require! 'prelude-ls': {split, flatten, split-at}
 require! './signal':{Signal}
 
 export class ProxyClient extends ProxyActor
-    (@socket, opts) ->
+    (@socket, @opts) ->
         super \ProxyClient
-        @opts <<< opts
+
+    action: -> 
         # actor behaviours
         @role = \client
         @connected = no
@@ -87,7 +88,7 @@ export class ProxyClient extends ProxyActor
             @trigger \needReconnect
 
     login: (credentials, callback) ->
-        @off \relogin 
+        @off \relogin
         @on \relogin, (opts) ~>
             @log.log "sending credentials..."
             err, res <~ @auth.login credentials

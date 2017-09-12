@@ -9,10 +9,11 @@ require! 'prelude-ls': {
 context-switch = sleep 0
 
 export class Actor extends ActorBase
-    (name, @opts={}) ->
+    (name, opts={}) ->
         super name
         @mgr = new ActorManager!
         #@log.log "actor \"#{@name}\" created with id: #{@id}"
+        @debug = opts.debug
 
         @msg-seq = 0
         @subscriptions = [] # subscribe all topics by default.
@@ -27,8 +28,7 @@ export class Actor extends ActorBase
                 finished: no
 
         @mgr.register-actor this
-        <~ context-switch # required to properly set the context
-        try @action!
+        @action! if typeof! @action is \Function
 
     subscribe: (topics) ->
         for topic in unique flatten [topics]
@@ -74,7 +74,7 @@ export class Actor extends ActorBase
                 id: @id
                 seq: enveloped.msg_id
 
-        @log.log "sending request: ", enveloped if @opts.debug
+        @log.log "sending request: ", enveloped if @debug
         @subscribe topic
         response-signal = new Signal!
         @request-queue[enveloped.req.seq] = response-signal
@@ -122,7 +122,7 @@ export class Actor extends ActorBase
         if not msg.topic and not (\auth of msg)
             @log.err "send-enveloped: Message has no topic. Not sending."
             return
-        @log.log "sending message: ", msg if @opts.debug
+        @log.log "sending message: ", msg if @debug
         @mgr.distribute msg
 
     kill: (...reason) ->

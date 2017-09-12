@@ -7,7 +7,12 @@ require! './couch-nano': {CouchNano}
 
 export class CouchDcsServer extends Actor
     (@params) ->
-        super \couch-bridge
+        super (@params.name or \CouchDcsServer)
+
+        if @params.subscribe
+            @subscribe that
+        else
+            @log.warn "No subscriptions provided to #{@name}"
 
         @db = new CouchNano @params
 
@@ -81,7 +86,6 @@ export class CouchDcsServer extends Actor
             @log.log bg-red "Problem while connecting database: ", err
         else
             @log.log bg-green "Connected to database."
-            @subscribe "db.**"
 
     send-and-echo: (orig, _new) ->
         @log.log "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
