@@ -78,7 +78,6 @@ export class S7Actor extends Actor
                             @log.log (yellow '[ DEBUG (first read)]'), "Read: #{x.name} (#{io-addr}) = #{x.value}"
 
                         @send x.value, "#{@topic-prefix}.#{x.name}"
-                        @log.log "read some values"
 
             @prev-data = data
             <~ sleep 500ms
