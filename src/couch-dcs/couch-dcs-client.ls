@@ -1,12 +1,13 @@
 require! '../actor': {Actor}
-require! 'aea': {pack}
 
 
 export class CouchDcsClient extends Actor
-    (@doc-type) ->
-        super \CouchDcsClient
-        @topic = "db.#{@doc-type}"
-        @subscribe "#{@topic}.**"
+    (opts) ->
+        super "CouchDcs #{opts.name or 'Client'}"
+        if opts.topic
+            @topic = that
+        else
+            throw 'No default topic is given.'
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
