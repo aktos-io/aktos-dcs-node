@@ -80,7 +80,7 @@ export class S7Actor extends Actor
                         @send x.value, "#{@topic-prefix}.#{x.name}"
 
             @prev-data = data
-            <~ sleep 500ms
+            <~ sleep (@opts.period or 500ms)
             lo(op)
 
 
