@@ -11,15 +11,15 @@ export class RactiveActor extends Actor
         else
             'RactiveActor'
 
-        if @ractive.get \wid
-            super "#{name}-wid.#{that}", opts
-            @default-topic = "my.wid.#{that}"
-            @subscribe @default-topic
-            @log.log "Initializing RactiveActor. topic: #{@default-topic}"
-        else
-            super "#{name}", opts
+        super "#{name}", opts
 
+        if @ractive.get \wid
+            @subscribe "my.wid.#{that}"
+            @name = that
+        if opts.subscribe
+            @subscribe that
         @subscribe 'my.router.changes'
+
         teleport-signal = new Signal
 
         @ractive.on do
