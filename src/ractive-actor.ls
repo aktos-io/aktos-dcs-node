@@ -3,23 +3,19 @@ require! 'aea': {pack, sleep}
 require! './signal': {Signal}
 
 export class RactiveActor extends Actor
-    (@ractive, opts) ->
-        name = if typeof! opts is \String
-            opts
-        else if opts?.name
-            that
-        else
-            'RactiveActor'
-
+    (@ractive, opts={}) ->
+        name = opts if typeof! opts is \String
         super "#{name}", opts
 
-        if @ractive.get \wid
-            @subscribe "my.wid.#{that}"
-            @name = that
-        if opts.subscribe
-            @subscribe that
+        @default-topic = "app.wid.#{that}" if @ractive.get \wid
+        @name = @default-topic or opts.name or name
+
+        # subscriptions
+        @subscribe that if opts.subscribe
+        @subscribe @default-topic
         @subscribe 'my.router.changes'
 
+        # teleport signal is used for restoring a node after teleportation
         teleport-signal = new Signal
 
         @ractive.on do
@@ -54,9 +50,9 @@ export class RactiveActor extends Actor
                             @ractive.insert orig-location
                         | \teleport-restore => teleport-signal.go!
                         |_ => @log.err "Not a known command:", msg.payload.cmd
-
                 else
                     debugger
+
             when 'my.router.changes'
                 if msg.payload.scene
                     # put the node back only on scene changes
