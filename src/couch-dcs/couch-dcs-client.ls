@@ -36,7 +36,9 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        err, msg <~ @send-request "#{@topic}.put", {put: doc}
+        err, msg <~ @send-request {
+            topic: "#{@topic}.put" 
+            timeout: opts.timeout or 20_000ms}, {put: doc}
         callback (err or msg?.payload.err), msg?.payload.res
 
     view: (viewName, opts, callback) ->
