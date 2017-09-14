@@ -27,12 +27,15 @@ export class CouchDcsServer extends Actor
                 doc = msg.payload.put
                 <~ :lo(op) ~>
                     # handle autoincrement values here.
-                    if doc._id is \AUTOINCREMENT
-                        err, res <~ @db.view "autoincrement/any", do
+                    autoinc = doc._id.split /#/
+                    if autoinc.length > 1
+                        prefix = autoinc.0.split /[^a-zA-Z]+/ .0.to-upper-case!
+                        @log.log "prefix is: ", prefix
+                        err, res <~ @db.view "autoincrement/short", do
                             descending: yes
                             limit: 1
-                            startkey: [doc.type, {}]
-                            endkey: [doc.type]
+                            startkey: [prefix, {}]
+                            endkey: [prefix]
 
                         if err
                             return @send-and-echo msg, {err: err, res: null}
@@ -42,15 +45,22 @@ export class CouchDcsServer extends Actor
                         catch
                             1
 
-                        doc._id = "#{doc.type}-#{next-id}"
-                        console.log "+++ new doc id: ", doc._id
+                        doc._id = "#{prefix}#{next-id}"
+                        @log.log blue "+++ new doc id: ", doc._id
                         return op!
                     else
                         return op!
 
                 # add server side properties
-                doc.timestamp = Date.now!
-                doc.owner = if msg.ctx => that.user else \_process
+                # ---------------------------
+                # FIXME: "Set unless null" strategy can be hacked in the client
+                # (client may set it to any value) but the original value is kept
+                # in the first revision . Fetch the first version on request.
+                unless doc.timestamp
+                    doc.timestamp = Date.now!
+                    
+                unless doc.owner
+                    doc.owner = if msg.ctx => that.user else \_process
 
                 err, res <~ @db.put doc
                 @send-and-echo msg, {err: err, res: res or null}

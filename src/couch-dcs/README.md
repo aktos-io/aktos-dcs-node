@@ -48,63 +48,44 @@ Callbacks will be called with `error, response` parameters.
 
 ### Create documents with `AUTOINCREMENT`ed ID's
 
-Suppose you will save documents with type `foo` by autoincrementing the ID field. Follow the steps:
+Suppose you will save documents by autoincrementing the ID field. Follow the steps:
 
-1. Create a view with name `any` in `autoincrement` design document for the first time:
-
-    In Livescript:
+1. Create a view with name `short` in `autoincrement` design document (do this for the first time):
 
     ```ls
     views:
-        any:
+        short:
             map: (doc) ->
-                parts = doc._id.split '-'
-                id = parse-int parts.splice -1, 1  # use last portion as ID
-                type = parts.join '-'  # use first parts as type
-                if type is doc.type
-                    emit [type, id], null                
+                prefix = doc._id.split /[0-9]+/ .0
+                if prefix
+                    seq = if doc._id.split prefix .1 => parse-int that else 0
+                    prefix = prefix.split /[^a-zA-Z]+/ .0.to-upper-case!
+                    emit [prefix, seq], null
     ```
 
-    or in Javascript:
 
-    ```js
-    views: {
-        any: {
-            map: function(doc){
-                var parts, id, type;
-                parts = doc._id.split('-');
-                id = parseInt(parts.splice(-1, 1));
-                type = parts.join('-');
-                if (type === doc.type) {
-                    return emit([type, id], null);
-                }
-            }
-        }
-    }
-    ```
-
-2. Set your document `_id` to `AUTOINCREMENT`:
+2. When creating a document, set `_id`  field to `foo####`:
 
 ```js
 {
-    _id: 'AUTOINCREMENT',
-    type: 'foo',
+    _id: 'foo####',
+    type: 'bar',
     hello: 'there'
 }
 ```
 
-3. Save your document with `CouchDcsClient.put` method. Your document id will be something like `foo-1358`
+3. Save your document with `CouchDcsClient.put` method. Your document id will be something like `FOO1358`
 
 ### Troubleshooting
 
 To verify that your view returns the correct ID, use the following filter to get latest ID:
 
 ```
-http://example.com/yourdb/_design/autoincrement/_view/any?descending=true&startkey=["foo",{}]&endkey=["foo"]
+http://example.com/yourdb/_design/autoincrement/_view/any?descending=true&startkey=["FOO",{}]&endkey=["FOO"]
 ```
 
-# Roadmap 
+# Roadmap
 
-- [ ] Add document deduplication support 
-- [ ] Provide a way to resume interrupted downloads/uploads 
+- [ ] Add document deduplication support
+- [ ] Provide a way to resume interrupted downloads/uploads
 - [ ] Stream videos directly from database
