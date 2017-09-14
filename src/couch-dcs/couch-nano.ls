@@ -10,7 +10,6 @@ export class CouchNano
         @password = @cfg.user.password
         @db-name = @cfg.database
         @db = nano url: @cfg.url
-        @connect!
 
     request: (opts, callback) ~>
 
