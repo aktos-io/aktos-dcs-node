@@ -27,3 +27,7 @@ export class ActorManager extends ActorBase
                     #@log.log "putting message: #{msg.sender}-#{msg.msg_id} -> actor: #{actor.id}"
                     actor._inbox msg
                     break
+
+    kill: (...args) ->
+        for actor in @actors
+            actor.trigger \kill, ...args
