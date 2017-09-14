@@ -1,10 +1,20 @@
 require! 'prelude-ls': {flatten, join, split}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
-require! 'aea': {sleep, pack, logger}
+require! 'aea': {sleep, pack, logger, EventEmitter}
 
-export class CouchNano
+export class CouchNano extends EventEmitter
+    """
+    Events:
+
+        * connected
+        * disconnected
+        * refresh-cookie
+        * error
+
+    """
     (@cfg) ->
+        super!
         @log = new logger "db:#{@cfg.database}"
         @username = @cfg.user.name
         @password = @cfg.user.password
@@ -12,7 +22,6 @@ export class CouchNano
         @db = nano url: @cfg.url
 
     request: (opts, callback) ~>
-
         opts.headers = {} unless opts.headers
         opts.headers['X-CouchDB-WWW-Authenticate'] = 'Cookie'
         opts.headers.cookie = @cookie
@@ -20,52 +29,45 @@ export class CouchNano
         #console.log "request opts : ", opts
         err, res, headers <~ @db.request opts
         if err => if err.statusCode is 401
-            # we are unauthorized, try to login again
-            @log.log bg-yellow "Trying to re-login"
+            @trigger \disconnected, {err}
             @connect (err) ~>
                 unless err
-                    @log.log bg-green "logged in again."
+                    @trigger \connected
                     @request opts, callback
             return
 
         if headers?
             if headers['set-cookie']
                 @cookie = that
-                @log.log bg-blue ">>> set-cookie is received, refreshing cookie with the new one."
+                @trigger \refresh-cookie
 
         err = {reason: err.reason, name: err.name, message: err.reason} if err
         callback err, res, headers
 
-    connect: (callback) ->
-        if typeof! callback isnt \Function
-            callback = ->
-
+    connect: ->
+        callback = (->) if typeof! callback isnt \Function
         @log.log "Authenticating as #{@username}"
         @cookie = null
         err, body, headers <~ @db.auth @username, @password
         if err
-            #@log.log "error while authenticating: ", err
-            return callback err, null
+            @trigger \error, err
+            return
 
         if headers
             if headers['set-cookie']
-                @cookie = that
-
-                /*
-                # Debug Start
-                # make cookie a garbage, thus break the session
-                @log.log "DEBUG MODE: will break connection in 5 seconds by invalidating the cookie"
-                sleep 5000ms ~>
-                    @cookie = "something-obviously-not-a-valid-cookie"
-                    @log.log "DEBUG MODE: connection should be broken by now."
-                # Debug End
-                */
-
                 # connection is successful
-                return callback null, 'ok'
+                @cookie = that
+                @trigger \connected
+                return
 
-        @log.log bg-red "unexpected response."
-        return callback {text: "unexpected response"}, null
+        @trigger \error, {text: "unexpected response"}
+
+    invalidate: ->
+        # Debug Start
+        # make cookie a garbage, thus break the session
+        @log.log "DEBUG MODE: will break connection by invalidating the cookie"
+        @cookie = "something-obviously-not-a-valid-cookie"
+        @log.log "DEBUG MODE: connection should be broken by now."
 
     put: (doc, callback) ->
         @request do
@@ -182,41 +184,3 @@ export class CouchNano
             encoding: null
             dontParse: true
             , callback
-
-if require.main is module
-    test = new CouchNano do
-        user:
-            name: 'theseencedidesceepediven'
-            password: '09b8c87f79bd2072dc7cb20bad67138f578d7a03'
-        url: "https://aktos.cloudant.com"
-        database: \test
-    <~ test.connect
-
-    const i = 35
-    count = 10
-    _tmp = i
-
-    ->
-        <~ :lo(op) ~>
-            err, res <~ test.put do
-                _id: "hello#{_tmp++}"
-                val: 1
-
-            return test.log.err "error while putting document: ", err if err
-            test.log.log "success: ", res
-
-            return op! if _tmp > i + count
-            lo(op)
-
-        test.log.log "all documents are put"
-
-    _tmp = i
-    <~ :lo(op) ~>
-        err, res <~ test.get "hello#{_tmp++}"
-        return test.log.err "error while getting document: ", err if err
-        test.log.log "success: ", res
-
-        return op! if _tmp > i + count
-        lo(op)
-
-    test.log.log "all documents are read"

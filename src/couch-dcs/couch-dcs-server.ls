@@ -12,6 +12,7 @@ export class CouchDcsServer extends Actor
     (@params) ->
         super (@params.name or \CouchDcsServer)
 
+    action: ->
         if @params.subscribe
             @log.log green "Subscribing to #{that}"
             @subscribe that
@@ -19,6 +20,17 @@ export class CouchDcsServer extends Actor
             @log.warn "No subscriptions provided to #{@name}"
 
         @db = new CouchNano @params
+            ..on do
+                connected: ~>
+                    @log.log bg-green "Connected to database."
+
+                error: (err) ~>
+                    @log.log (bg-red "Problem while connecting database: "), err
+
+                disconnected: ~>
+                    @log.log bg-red "Disconnected..."
+
+            ..connect!
 
         @on \data, (msg) ~>
             @log.log "received data: ", keys(msg.payload), "from ctx:", msg.ctx
@@ -58,7 +70,7 @@ export class CouchDcsServer extends Actor
                 # in the first revision . Fetch the first version on request.
                 unless doc.timestamp
                     doc.timestamp = Date.now!
-                    
+
                 unless doc.owner
                     doc.owner = if msg.ctx => that.user else \_process
 
@@ -94,12 +106,6 @@ export class CouchDcsServer extends Actor
                 err = reason: "Unknown method name: #{pack msg.payload}"
                 @send-and-echo msg, {err: err, res: null}
 
-        @log.log green "connecting to database..."
-        err, res <~ @db.connect
-        if err
-            @log.log bg-red "Problem while connecting database: ", err
-        else
-            @log.log bg-green "Connected to database."
 
     send-and-echo: (orig, _new) ->
         @log.log "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
