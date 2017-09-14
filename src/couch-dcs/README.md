@@ -46,42 +46,72 @@ Callbacks will be called with `error, response` parameters.
 
 # Additional Functionalities
 
-### Create documents with `AUTOINCREMENT`ed ID's
+## Create documents with `AUTOINCREMENT`ed ID's
 
 Suppose you will save documents by autoincrementing the ID field. Follow the steps:
 
-1. Create a view with name `short` in `autoincrement` design document (do this for the first time):
+### 1. Setup
 
-    ```ls
-    views:
-        short:
-            map: (doc) ->
-                prefix = doc._id.split /[0-9]+/ .0
-                if prefix
-                    seq = if doc._id.split prefix .1 => parse-int that else 0
-                    prefix = prefix.split /[^a-zA-Z]+/ .0.to-upper-case!
-                    emit [prefix, seq], null
-    ```
+Create a view with name `short` in `autoincrement` design document in your db:
+
+```ls
+views:
+    short:
+        map: (doc) ->
+            prefix = doc._id.split /[0-9]+/ .0
+            if prefix
+                seq = if doc._id.split prefix .1 => parse-int that else 0
+                prefix = prefix.split /[^a-zA-Z]+/ .0.to-upper-case!
+                emit [prefix, seq], null
+```
 
 
-2. When creating a document, set `_id`  field to `foo####`:
+### Creating a document
+
+1. If you want to assign an autoincremented ID, append '#' character to your document's `_id`  field:
 
 ```js
 {
-    _id: 'foo####',
+    _id: 'foo-####',
     type: 'bar',
     hello: 'there'
 }
 ```
 
-3. Save your document with `CouchDcsClient.put` method. Your document id will be something like `FOO1358`
+2. Save your document with `CouchDcsClient.put` method, as usual.
+
+Your document id will be something like `foo-1358`
+
+### Notes
+
+1. *On save*: Your prefix is calculated by splitting right before first '#'
+character and grabbing left side of the result.
+
+| Autoincrement ID | Calculated Prefix | Example ID |
+| ---- | ----- | ---- |
+| `foo###` | `foo` | `foo1234` |
+| `foo-###` | `foo-` | `foo-1234` |
+| `Foo-###` | `Foo-` | `Foo-1234` |
+
+2. *On calculating next ID*: Current biggest ID is calculated by splitting right before any alphanumeric characters, grabbing left side, converting to upper case.
+
+For example, we have `foo-5` in the database. Following autoincremented IDs will be assigned for the IDs:
+
+| Seq. | Provided `doc._id` | Saved as |
+| ---- | ----- | ----- |
+| 1 | `foo-#` | `foo-6` |
+| 2 | `foo-#` | `foo-7` |
+| 3 | `foo#`  | `foo8`
+| 4 | `FoO---###` | `FoO---9` |
+| 5 | `fooo-#` | `fooo-1` |
+| 6 | `fOO#####` | `fOO10` |
 
 ### Troubleshooting
 
 To verify that your view returns the correct ID, use the following filter to get latest ID:
 
 ```
-http://example.com/yourdb/_design/autoincrement/_view/any?descending=true&startkey=["FOO",{}]&endkey=["FOO"]
+http://example.com/yourdb/_design/autoincrement/_view/short?descending=true&startkey=["FOO",{}]&endkey=["FOO"]
 ```
 
 # Roadmap

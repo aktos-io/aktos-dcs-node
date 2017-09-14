@@ -1,6 +1,6 @@
 require! '../actor': {Actor}
 require! 'colors': {
-    bg-green, bg-red, bg-yellow
+    bg-green, bg-red, bg-yellow, bg-blue
     green, yellow, blue
 }
 require! 'aea':{sleep, pack}
@@ -39,15 +39,16 @@ export class CouchDcsServer extends Actor
                 doc = msg.payload.put
                 <~ :lo(op) ~>
                     # handle autoincrement values here.
-                    autoinc = doc._id.split /#/
+                    autoinc = doc._id.split /#+/
                     if autoinc.length > 1
-                        prefix = autoinc.0.split /[^a-zA-Z]+/ .0.to-upper-case!
+                        prefix = autoinc.0
                         @log.log "prefix is: ", prefix
+                        view-prefix = prefix.split /[^a-zA-Z]+/ .0.to-upper-case!
                         err, res <~ @db.view "autoincrement/short", do
                             descending: yes
                             limit: 1
-                            startkey: [prefix, {}]
-                            endkey: [prefix]
+                            startkey: [view-prefix, {}]
+                            endkey: [view-prefix]
 
                         if err
                             return @send-and-echo msg, {err: err, res: null}
@@ -58,7 +59,7 @@ export class CouchDcsServer extends Actor
                             1
 
                         doc._id = "#{prefix}#{next-id}"
-                        @log.log blue "+++ new doc id: ", doc._id
+                        @log.log bg-blue "+++ new doc id: ", doc._id
                         return op!
                     else
                         return op!
