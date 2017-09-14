@@ -1,5 +1,8 @@
-export class Wrapper
+require! 'aea': {EventEmitter}
+
+export class Wrapper extends EventEmitter
     (@orig) ->
+        super!
         @handlers = {}
         @orig.on \aea, (data) ~>
             @trigger \data, data
@@ -12,10 +15,3 @@ export class Wrapper
 
     write: (data) ->
         @orig.emit \aea, data
-
-    on: (_event, handler) ->
-        @handlers[_event] = handler
-
-    trigger: (_event, ...args) ->
-        if @handlers[_event]
-            that.apply that, args

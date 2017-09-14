@@ -1,6 +1,7 @@
 require! 'aea': {sleep}
 require! 'aea/debug-log': {logger}
 require! 'uuid4'
+require! 'prelude-ls': {is-it-NaN}
 
 export class Signal
     ->
@@ -15,15 +16,7 @@ export class Signal
             @should-run = no
             for callback in @callbacks
                 try clear-timeout @timer
-
-                # FIXME: debug
-                """
-                if event.reason is \timeout
-                    console.warn "SIGNAL (#{@name}) timed out, args are: ", args
-                """
-                # FIXME
-
-                callback.handler.apply callback.ctx, ([event.reason] ++ args)
+                callback.handler.apply callback.ctx, ([event?.reason] ++ args)
             @callbacks = []
 
 
@@ -35,6 +28,7 @@ export class Signal
         # re-arrange arguments
         if typeof! timeout is \Function
             callback = timeout
+            timeout = 0
         # /re-arrange arguments
 
 
@@ -42,12 +36,13 @@ export class Signal
             @callbacks.push {ctx: this, handler: callback}
         @waiting = yes
 
-        if typeof! timeout is \Number
-            @timeout = timeout
-            @reset-timeout!
+        unless is-it-NaN timeout
+            if timeout > 0
+                @timeout = timeout
+                @reset-timeout!
 
         # try to run signal if it is set as `go` before reaching "wait" line
-        @fire {reason: \hasevent}
+        @fire!
 
     skip-next-go: ->
         @skip-next = yes
@@ -62,7 +57,7 @@ export class Signal
 
         #@log.log "called 'go!'"
         @should-run = yes
-        @fire.apply this, ([{reason: \hasevent}] ++ args)
+        @fire.apply this, ([null] ++ args)
 
     reset: ->
         @callbacks = []

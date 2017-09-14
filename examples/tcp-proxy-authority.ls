@@ -6,6 +6,8 @@ require! 'colors': {bg-green, bg-red}
 class Simulator extends Actor
     ->
         super \authority-simulator
+
+    action: ->
         @subscribe 'authorization.**'
 
         @on \receive, (msg) ~>
@@ -14,7 +16,6 @@ class Simulator extends Actor
             else
                 @log.log bg-red "got message: ", msg.payload
 
-    action: ->
         do ~>
             <~ :lo(op) ~>
                 msg = "message from #{@name}...."
@@ -22,7 +23,6 @@ class Simulator extends Actor
                 @send msg, 'authorization.test1'
                 <~ sleep 2000ms
                 lo(op)
-
 
 
 new TCPProxy do

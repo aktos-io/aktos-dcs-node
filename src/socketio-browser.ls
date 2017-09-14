@@ -14,6 +14,7 @@ export class SocketIOBrowser extends Actor
         @proxy = new ProxyClient (new Wrapper socket), do
             name: \client-proxy
             creator: this
+            forget-password: yes
 
         @proxy.on \connected, ~>
             @log.log "Connected to server with id: ", socket.io.engine.id

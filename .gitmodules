@@ -3,4 +3,4 @@
 	url = https://github.com/aktos-io/aktos-dcs-design
 [submodule "protocols/siemens/nodeS7"]
 	path = protocols/siemens/nodeS7
-	url = https://github.com/plcpeople/nodeS7
+	url = https://github.com/ceremcem/nodeS7

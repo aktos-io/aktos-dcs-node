@@ -1,12 +1,13 @@
 require! '../actor': {Actor}
-require! 'aea': {pack}
 
 
 export class CouchDcsClient extends Actor
-    (@doc-type) ->
-        super \CouchProxy
-        @topic = "db.#{@doc-type}"
-        @subscribe "#{@topic}.**"
+    (opts) ->
+        super "CouchDcs #{opts.name or 'Client'}"
+        if opts.topic
+            @topic = that
+        else
+            throw 'No default topic is given.'
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
@@ -16,7 +17,7 @@ export class CouchDcsClient extends Actor
         # end of normalization
 
         err, msg <~ @send-request "#{@topic}.get", {get: doc-id, opts: opts}
-        callback (err or msg.payload.err), msg.payload.res
+        callback (err or msg?.payload.err), msg?.payload.res
 
     all: (opts, callback) ->
         # normalize parameters
@@ -26,7 +27,7 @@ export class CouchDcsClient extends Actor
         # end of normalization
 
         err, msg <~ @send-request "#{@topic}.all", {all: opts}
-        callback (err or msg.payload.err), msg.payload.res
+        callback (err or msg?.payload.err), msg?.payload.res
 
     put: (doc, opts, callback) ->
         # normalize parameters
@@ -35,8 +36,10 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        err, msg <~ @send-request "#{@topic}.put", {put: doc}
-        callback (err or msg.payload.err), msg.payload.res
+        err, msg <~ @send-request {
+            topic: "#{@topic}.put" 
+            timeout: opts.timeout or 20_000ms}, {put: doc}
+        callback (err or msg?.payload.err), msg?.payload.res
 
     view: (viewName, opts, callback) ->
         # normalize parameters
@@ -46,7 +49,7 @@ export class CouchDcsClient extends Actor
         # end of normalization
 
         err, msg <~ @send-request "#{@topic}.view", {view: viewName, opts: opts}
-        callback (err or msg.payload.err), msg.payload.res
+        callback (err or msg?.payload.err), msg?.payload.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->
         # normalize parameters
@@ -55,11 +58,10 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        err, msg <~ @send-request "#{@topic}.getAtt", {
+        err, msg <~ @send-request {topic: "#{@topic}.getAtt", timeout: 5000ms}, do
             getAtt:
                 doc-id: doc-id
                 att-name: att-name
                 opts: opts
-            }, {timeout: 3000ms}
 
-        callback (err or msg.payload.err), msg.payload.res
+        callback (err or msg?.payload.err), msg?.payload.res
