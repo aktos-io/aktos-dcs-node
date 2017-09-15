@@ -1,4 +1,5 @@
 require! './actor': {Actor}
+require! 'aea': {sleep}
 
 export class BrowserStorage extends Actor
     (@prefix) ->
@@ -9,15 +10,16 @@ export class BrowserStorage extends Actor
 
     set: (key, value) ->
         try
+            @log.log "saving key: ", key, "value: ", value, JSON.stringify value
             @s.set-item "#{@name}-#{key}", JSON.stringify value
         catch
-            debugger
             err =
                 title: "Browser Storage: Set"
                 message:
                     "Error while saving key: ", key, "error is: ", e
 
             @log.err err.message
+            <~ sleep 500ms  # maybe logger is not ready yet. wait a little bit.
             @send 'app.log.err', err
 
     del: (key) ->
@@ -25,13 +27,18 @@ export class BrowserStorage extends Actor
 
     get: (key) ->
         try
-            JSON.parse @s.get-item "#{@name}-#{key}"
+            if @s.get-item "#{@name}-#{key}"
+                if that is "undefined"
+                    return undefined
+                else
+                    JSON.parse that 
         catch
-            debugger
+            @del key
             err =
                 title: "Browser Storage: Get"
                 message:
                     "Error while getting key: ", key, "err is: ", e
 
             @log.err err.message
+            <~ sleep 500ms  # maybe logger is not ready yet. wait a little bit.
             @send 'app.log.err', err
