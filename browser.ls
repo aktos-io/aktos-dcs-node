@@ -7,6 +7,7 @@ require! './src/couch-dcs/couch-dcs-client': {CouchDcsClient}
 require! './src/topic-match': {topic-match}
 require! './src/filters': {FpsExec}
 require! './src/ractive-actor': {RactiveActor}
+require! './src/browser-storage': {BrowserStorage}
 
 module.exports = {
     IoActor, SocketIOBrowser, Signal, Actor
@@ -14,4 +15,5 @@ module.exports = {
     topic-match
     FpsExec
     RactiveActor
+    BrowserStorage
 }
