@@ -1,4 +1,4 @@
-require! '../actor': {Actor}
+require! '../../src/actor': {Actor}
 require! 'colors': {
     bg-green, bg-red, bg-yellow, bg-blue
     green, yellow, blue

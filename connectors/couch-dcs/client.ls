@@ -1,4 +1,4 @@
-require! '../actor': {Actor}
+require! '../../src/actor': {Actor}
 
 
 export class CouchDcsClient extends Actor
@@ -37,7 +37,7 @@ export class CouchDcsClient extends Actor
         # end of normalization
 
         err, msg <~ @send-request {
-            topic: "#{@topic}.put" 
+            topic: "#{@topic}.put"
             timeout: opts.timeout or 20_000ms}, {put: doc}
         callback (err or msg?.payload.err), msg?.payload.res
 

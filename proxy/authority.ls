@@ -1,9 +1,9 @@
-require! './proxy-helpers': {MessageBinder}
-require! './auth-handler': {AuthHandler}
+require! './helpers': {MessageBinder}
+require! '../src/auth-handler': {AuthHandler}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! 'aea': {pack}
 require! 'prelude-ls': {split, flatten, split-at}
-require! './actor': {Actor}
+require! '../src/actor': {Actor}
 
 
 export class ProxyAuthority extends Actor

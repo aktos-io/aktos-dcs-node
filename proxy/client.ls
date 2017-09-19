@@ -1,10 +1,10 @@
-require! './proxy-helpers': {MessageBinder}
-require! './auth-request': {AuthRequest}
+require! './helpers': {MessageBinder}
+require! '../src/auth-request': {AuthRequest}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at}
-require! './signal':{Signal}
-require! './actor': {Actor}
+require! '../src/signal':{Signal}
+require! '../src/actor': {Actor}
 
 
 export class ProxyClient extends Actor
