@@ -1,22 +1,21 @@
-require! './actor-base': {ActorBase}
 require! './signal': {Signal}
-require! 'aea': {sleep, pack, clone}
+require! 'aea': {sleep, pack, clone, EventEmitter, Logger}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
 require! 'colors': {red, green, yellow, bg-red, bg-yellow}
-require! 'aea/debug-log': {logger}
 require! './auth-helpers': {hash-passwd}
 require! './topic-match': {topic-match}
 require! 'prelude-ls': {keys, join}
 
-export class AuthRequest extends ActorBase
+export class AuthRequest extends EventEmitter
     @i = 0
     ->
-        super "AuthRequest.#{@@i++}"
+        super!
+        @log = new Logger "AuthRequest.#{@@i++}"
         @reply-signal = new Signal!
 
-    inbox: (msg) ->
-        @reply-signal.go msg
+        @on \from-server, (msg) ->
+            @reply-signal.go msg
 
     login: (_credentials, callback) ->
         # credentials might be one of the following:
@@ -37,8 +36,8 @@ export class AuthRequest extends ActorBase
                 callback err, null
                 return
 
-        @send auth: credentials
-        # FIXME: why do we need to clear the signal?
+        @trigger \to-server, {auth: credentials}
+
         @reply-signal.clear!
         err, res <~ @reply-signal.wait 3000ms
         #@log.log "auth replay is: ", pack res
@@ -59,7 +58,7 @@ export class AuthRequest extends ActorBase
         callback err, res
 
     logout: (callback) ->
-        @send-with-token auth: logout: yes
+        @trigger \to-server, @add-token {auth: logout: yes}
         err, msg <~ @reply-signal.wait 3000ms
         if not err and msg.auth.logout is \ok
             @log.log "clearing token from AuthRequest cache"
@@ -67,12 +66,5 @@ export class AuthRequest extends ActorBase
 
         callback err, msg
 
-    send: (msg) ->
-        @send-raw @msg-template msg <<< sender: @id
-
-    send-with-token: (msg) ->
-        #@log.log "sending message: #{pack msg}"
-        @send-raw msg <<< token: @token
-
-    send-raw: (msg) ->
-        ...
+    add-token: (msg) ->
+        return msg <<< {token: @token}

@@ -1,24 +1,23 @@
-require! 'aea': {sleep, pack}
-require! './actor-base': {ActorBase}
+require! 'aea': {sleep, pack, EventEmitter, Logger}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
 require! 'prelude-ls': {
     split, flatten, keys, unique
 }
+require! uuid4
 
-context-switch = sleep 0
 
-export class Actor extends ActorBase
+export class Actor extends EventEmitter
     (name, opts={}) ->
-        super name
+        super!
         @mgr = new ActorManager!
-        #@log.log "actor \"#{@name}\" created with id: #{@id}"
+        @id = uuid4!
+        @name = name or @id
+        @log = new Logger @name
         @debug = opts.debug
 
         @msg-seq = 0
         @subscriptions = [] # subscribe all topics by default.
-        # if you want to unsubscribe from all topics, do teh following:
-        # @subscriptions = void
 
         @request-queue = {}
 
@@ -29,6 +28,18 @@ export class Actor extends ActorBase
 
         @mgr.register-actor this
         @action! if typeof! @action is \Function
+
+    msg-template: (msg) ->
+        msg-raw =
+            sender: null
+            timestamp: Date.now! / 1000
+            msg_id: @msg-seq++
+            token: null
+
+        if msg
+            return msg-raw <<<< msg
+        else
+            return msg-raw
 
     subscribe: (topics) ->
         for topic in unique flatten [topics]
@@ -133,9 +144,8 @@ export class Actor extends ActorBase
             @_state.kill.finished = yes
 
     request-update: ->
-        <~ context-switch
         #@log.log "requesting update!"
-        for topic in @subscriptions
+        for let topic in @subscriptions
             @send-enveloped @msg-template do
                 update: yes
                 topic: topic

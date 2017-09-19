@@ -1,22 +1,24 @@
-require! './proxy-actor': {ProxyActor, MessageBinder}
+require! './proxy-helpers': {MessageBinder}
 require! './auth-request': {AuthRequest}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! 'aea': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at}
 require! './signal':{Signal}
+require! './actor': {Actor}
 
-export class ProxyClient extends ProxyActor
+
+export class ProxyClient extends Actor
     (@socket, @opts) ->
         super \ProxyClient
 
-    action: -> 
+    action: ->
         # actor behaviours
         @role = \client
         @connected = no
         @data-binder = new MessageBinder!
 
         @auth = new AuthRequest!
-        @auth.send-raw = (msg) ~>
+        @auth.on \to-server, (msg) ~>
             @socket.write pack msg
 
         @auth.on \login, (permissions) ~>
@@ -25,15 +27,16 @@ export class ProxyClient extends ProxyActor
             @subscribe topics
             @log.log "requesting update messages for subscribed topics"
             for topic in topics
-                @auth.send-with-token @msg-template do
-                    topic: topic
-                    update: yes
+                {topic, +update}
+                |> @msg-template
+                |> @auth.add-token
+                |> @send-enveloped
 
         @on do
             receive: (msg) ~>
                 #@log.log "forwarding message #{msg.topic} to network interface"
                 if @socket-ready
-                    @auth.send-with-token msg
+                    msg |> @auth.add-token |> @send-enveloped
                 else
                     @log.log bg-yellow "Socket not ready, not sending message: "
                     console.log "msg is: ", msg
@@ -70,7 +73,7 @@ export class ProxyClient extends ProxyActor
             for msg in @data-binder.get-messages data
                 if \auth of msg
                     #@log.log "received auth message, forwarding to AuthRequest."
-                    @auth.inbox msg
+                    @auth.trigger \from-server, msg
                 else
                     #@log.log "received data: ", pack msg
                     @send-enveloped msg

@@ -1,16 +1,14 @@
-require! './actor-base': {ActorBase}
 require! 'prelude-ls': {reject, find}
 require! './topic-match': {topic-match}
 
 
-export class ActorManager extends ActorBase
+export class ActorManager
     @instance = null
     ->
         # Make this class Singleton
         return @@instance if @@instance
         @@instance = this
 
-        super \ActorManager
         @actors = []
 
     register-actor: (actor) ->
