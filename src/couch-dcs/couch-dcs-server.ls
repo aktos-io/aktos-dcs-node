@@ -27,8 +27,8 @@ export class CouchDcsServer extends Actor
                 error: (err) ~>
                     @log.log (bg-red "Problem while connecting database: "), err
 
-                disconnected: ~>
-                    @log.log bg-red "Disconnected..."
+                disconnected: (err) ~>
+                    @log.log (bg-red "Disconnected..."), err
 
             ..connect!
 
@@ -38,6 +38,7 @@ export class CouchDcsServer extends Actor
             if \put of msg.payload
                 doc = msg.payload.put
                 <~ :lo(op) ~>
+                    return op! unless doc._id
                     # handle autoincrement values here.
                     autoinc = doc._id.split /#+/
                     if autoinc.length > 1
