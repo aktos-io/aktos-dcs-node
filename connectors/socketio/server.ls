@@ -1,7 +1,10 @@
-require! './proxy-authority': {ProxyAuthority}
 require! 'socket.io': socketio
-require! './socketio-helpers': {Wrapper}
+require! './helpers': {Wrapper}
 require! 'aea': {Logger}
+require! '../../src/actor': {Actor}
+require! './helpers': {Wrapper}
+require! '../../proxy/authority': {ProxyAuthority}
+
 
 export class SocketIOServer
     (@http, opts={}) ->

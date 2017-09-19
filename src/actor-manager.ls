@@ -15,6 +15,10 @@ export class ActorManager
         unless find (.id is actor.id), @actors
             @actors.push actor
 
+    find-actor: (id) ->
+        throw 'id is required!' unless id
+        return find (.id is id), @actors
+
     deregister-actor: (actor) ->
         @actors = reject (.id is actor.id), @actors
 

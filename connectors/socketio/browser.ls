@@ -1,6 +1,6 @@
-require! './actor': {Actor}
-require! './socketio-helpers': {Wrapper}
-require! './proxy-client': {ProxyClient}
+require! '../../src/actor': {Actor}
+require! './helpers': {Wrapper}
+require! '../../proxy/client': {ProxyClient}
 
 export class SocketIOBrowser extends ProxyClient
     (opts) ->

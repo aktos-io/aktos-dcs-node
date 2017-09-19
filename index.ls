@@ -1,11 +1,11 @@
 require! './src/actor': {Actor}
-require! './src/socketio-server': {SocketIOServer}
-require! './src/tcp-proxy-client': {TCPProxyClient}
-require! './src/tcp-proxy-server': {TCPProxyServer}
-require! './src/couch-dcs/couch-dcs-client': {CouchDcsClient}
-require! './src/couch-dcs/couch-dcs-server': {CouchDcsServer}
 require! './src/filters': {FpsExec}
 require! './src/signal': {Signal}
+require! './connectors/socketio/server' {SocketIOServer}
+require! './connectors/tcp/client': {TCPProxyClient}
+require! './connectors/tcp/server': {TCPProxyServer}
+require! './connectors/couch-dcs/client': {CouchDcsClient}
+require! './connectors/couch-dcs/server': {CouchDcsServer}
 
 module.exports = {
     Actor, SocketIOServer, TCPProxyClient, TCPProxyServer,
