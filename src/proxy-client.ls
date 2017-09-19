@@ -30,13 +30,17 @@ export class ProxyClient extends Actor
                 {topic, +update}
                 |> @msg-template
                 |> @auth.add-token
-                |> @send-enveloped
+                |> pack
+                |> @socket.write
 
         @on do
             receive: (msg) ~>
-                #@log.log "forwarding message #{msg.topic} to network interface"
+                @log.log "forwarding message #{msg.topic} to network interface"
                 if @socket-ready
-                    msg |> @auth.add-token |> @send-enveloped
+                    msg
+                    |> @auth.add-token
+                    |> pack
+                    |> @socket.write
                 else
                     @log.log bg-yellow "Socket not ready, not sending message: "
                     console.log "msg is: ", msg

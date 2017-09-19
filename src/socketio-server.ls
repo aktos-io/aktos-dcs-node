@@ -1,12 +1,12 @@
-require! './actor': {Actor}
 require! './proxy-authority': {ProxyAuthority}
 require! 'socket.io': socketio
 require! './socketio-helpers': {Wrapper}
+require! 'aea': {Logger}
 
-export class SocketIOServer extends Actor
+export class SocketIOServer
     (@http, opts={}) ->
-        super 'SocketIO Server'
         @io = socketio @http
+        @log = new Logger \SocketIOServer
         @connected-user-count = 0
         @handler-counter = 0
 
@@ -24,5 +24,5 @@ export class SocketIOServer extends Actor
                 @log.log "Creator says proxy actor (authority) (#{proxy.id}) just died!"
                 @connected-user-count++
 
-    action: ->
+
         @log.log "SocketIO server started..."

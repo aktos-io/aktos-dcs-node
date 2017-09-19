@@ -137,15 +137,14 @@ export class AuthHandler extends EventEmitter
             #@log.log yellow "filter-incoming: input: ", pack msg
             session = @session-cache.get msg.token
             if session?permissions
-                msg.ctx = user: session.user
+                msg.ctx = {user: session.user}
                 for topic in session.permissions.rw
                     if topic `topic-match` msg.topic
                         delete msg.token
                         @trigger \passed-filter, msg
-            if msg.topic `topic-match` "public.**"
+            else if msg.topic `topic-match` "public.**"
                 delete msg.token
                 @trigger \passed-filter, msg
             else
-                @log.err bg-red "can not determine authorization."
-
-            @log.err bg-red "filter-incoming dropping unauthorized message!"
+                @log.err (bg-red "filter-incoming dropping unauthorized message!"),
+                    msg

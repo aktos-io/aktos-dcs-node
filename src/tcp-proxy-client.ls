@@ -1,21 +1,17 @@
 require! 'net'
-require! './actor': {Actor}
 require! 'colors': {yellow, green, red, blue, bg-green, bg-red}
-require! 'aea': {sleep, pack, hex, ip-to-hex}
+require! 'aea': {sleep, pack, hex, ip-to-hex, Logger}
 require! 'prelude-ls': {drop, reverse}
 require! './proxy-client': {ProxyClient}
 
 
-export class TCPProxyClient extends Actor
+export class TCPProxyClient
     (@opts={}) ->
-        super @opts.name or \TCPProxyClient
-
-    action: -> 
         @client = null
         @client-connected = no
         @client-actor = null
         @port = if @opts.port => that else 5523
-
+        @log = new Logger \TCPProxyClient
         @client = new net.Socket!
         @log.log "Starting..."
 
