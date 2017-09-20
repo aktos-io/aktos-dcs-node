@@ -18,24 +18,24 @@ export class ProxyClient extends Actor
         @data-binder = new MessageBinder!
 
         @auth = new AuthRequest!
-        @auth.on \to-server, (msg) ~>
-            @socket.write pack msg
+            ..on \to-server, (msg) ~>
+                @socket.write pack msg
 
-        @auth.on \login, (permissions) ~>
-            topics = permissions.rw
-            @log.log "logged in succesfully. subscribing to: ", topics
-            @subscribe topics
-            @log.log "requesting update messages for subscribed topics"
-            for topic in topics
-                {topic, +update}
-                |> @msg-template
-                |> @auth.add-token
-                |> pack
-                |> @socket.write
+            ..on \login, (permissions) ~>
+                topics = permissions.rw
+                @log.log "logged in succesfully. subscribing to: ", topics
+                @subscribe topics
+                @log.log "requesting update messages for subscribed topics"
+                for topic in topics
+                    {topic, +update}
+                    |> @msg-template
+                    |> @auth.add-token
+                    |> pack
+                    |> @socket.write
 
         @on do
             receive: (msg) ~>
-                @log.log "forwarding message #{msg.topic} to network interface"
+                #@log.log "forwarding message #{msg.topic} to network interface"
                 if @socket-ready
                     msg
                     |> @auth.add-token
@@ -47,8 +47,9 @@ export class ProxyClient extends Actor
 
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
-                @socket.end!
-                @socket.destroy 'KILLED'
+                @socket
+                    ..end!
+                    ..destroy 'KILLED'
 
             needReconnect: ~>
                 @socket-ready = no
@@ -63,36 +64,37 @@ export class ProxyClient extends Actor
         # ----------------------------------------------
         #            network interface events
         # ----------------------------------------------
-        @socket.on \connect, ~>
-            @trigger \connected
-            @connected = yes
+        @socket
+            ..on \connect, ~>
+                @trigger \connected
+                @connected = yes
 
-        @socket.on \disconnect, ~>
-            @log.log "Client disconnected."
-            @connected = no
+            ..on \disconnect, ~>
+                @log.log "Client disconnected."
+                @connected = no
 
-        @socket.on "data", (data) ~>
-            # in "client mode", authorization checks are disabled
-            # message is only forwarded to manager
-            for msg in @data-binder.get-messages data
-                if \auth of msg
-                    #@log.log "received auth message, forwarding to AuthRequest."
-                    @auth.trigger \from-server, msg
+            ..on "data", (data) ~>
+                # in "client mode", authorization checks are disabled
+                # message is only forwarded to manager
+                for msg in @data-binder.get-messages data
+                    if \auth of msg
+                        #@log.log "received auth message, forwarding to AuthRequest."
+                        @auth.trigger \from-server, msg
+                    else
+                        #@log.log "received data: ", pack msg
+                        @send-enveloped msg
+
+            ..on \error, (e) ~>
+                if e.code in <[ EPIPE ECONNREFUSED ECONNRESET ETIMEDOUT ]>
+                    @log.err red "Socket Error: ", e.code
                 else
-                    #@log.log "received data: ", pack msg
-                    @send-enveloped msg
+                    @log.err bg-red "Other Socket Error: ", e
 
-        @socket.on \error, (e) ~>
-            if e.code in <[ EPIPE ECONNREFUSED ECONNRESET ETIMEDOUT ]>
-                @log.err red "Socket Error: ", e.code
-            else
-                @log.err bg-red "Other Socket Error: ", e
+                @trigger \needReconnect, e.code
 
-            @trigger \needReconnect, e.code
-
-        @socket.on \end, ~>
-            @log.log "socket end!"
-            @trigger \needReconnect
+            ..on \end, ~>
+                @log.log "socket end!"
+                @trigger \needReconnect
 
     login: (credentials, callback) ->
         @off \relogin
