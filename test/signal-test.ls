@@ -1,11 +1,10 @@
 require! '../src/signal': {Signal}
-require! 'aea/debug-log': {logger}
-require! '../lib': {sleep}
+require! '../lib': {sleep, Logger}
 
 
 tests =
     * ->
-        log = new logger \signal-test-1
+        log = new Logger \signal-test-1
         my-timeout = new Signal!
         log.log "signal will run because it will receive an event"
         do
@@ -22,7 +21,7 @@ tests =
             log.log "fired my-timeout! This should happen at +2000ms"
 
     * ->
-        log = new logger \signal-test-2
+        log = new Logger \signal-test-2
         my-timeout = new Signal!
         log.log "signal will run because it will timeout"
 
@@ -40,7 +39,7 @@ tests =
             log.log "fired my-timeout! This should happen at +2000ms"
 
     * ->
-        log = new logger \signal-test-3
+        log = new Logger \signal-test-3
         log.log "started watchdog test"
         my-timeout = new Signal!
 

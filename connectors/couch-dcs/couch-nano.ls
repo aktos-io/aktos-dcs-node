@@ -15,7 +15,7 @@ export class CouchNano extends EventEmitter
     """
     (@cfg) ->
         super!
-        @log = new logger "db:#{@cfg.database}"
+        @log = new Logger "db:#{@cfg.database}"
         @username = @cfg.user.name
         @password = @cfg.user.password
         @db-name = @cfg.database
