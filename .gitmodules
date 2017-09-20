@@ -1,5 +1,5 @@
 [submodule "aktos-dcs-design"]
-	path = aktos-dcs-design
+	path = aktos-dcs
 	url = https://github.com/aktos-io/aktos-dcs-design
 [submodule "protocols/siemens/nodeS7"]
 	path = protocols/siemens/nodeS7
