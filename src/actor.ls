@@ -132,6 +132,7 @@ export class Actor extends EventEmitter
         msg.sender = @id
         if not msg.topic and not (\auth of msg)
             @log.err "send-enveloped: Message has no topic. Not sending."
+            debugger
             return
         @log.log "sending message: ", msg if @debug
         @mgr.distribute msg
@@ -146,6 +147,7 @@ export class Actor extends EventEmitter
     request-update: ->
         #@log.log "requesting update!"
         for let topic in @subscriptions
+            debugger unless topic 
             @send-enveloped @msg-template do
                 update: yes
                 topic: topic

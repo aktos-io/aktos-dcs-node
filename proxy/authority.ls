@@ -55,7 +55,7 @@ export class ProxyAuthority extends Actor
                     #@log.log green "received auth message: ", msg
                     @auth.trigger \check-auth, msg
                 else
-                    @log.log "received normal message:", msg
+                    #@log.log "received normal message:", msg
                     @auth.trigger \filter, msg
 
 
