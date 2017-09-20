@@ -14,6 +14,12 @@ class Pinger extends Actor
             lo(op)
 
 
+# If authentication and authorization is required, pass a `AuthDB` object
+# to TCPProxyServer:
+#
+#     require! './users-and-permissions': {users, permissions}
+#     db = new AuthDB users, permissions
+#
 new TCPProxyServer do
     port: 5678
 
