@@ -1,8 +1,9 @@
-require! 'dcs/src/auth-helpers': {hash-passwd}
-require! '../lib':{sleep}
-require! 'prelude-ls': {find}
+# use this file as follows:
+# db = new AuthDB users, permissions 
 
-users-db =
+require! '../src/auth-helpers': {hash-passwd}
+
+export users =
     * _id: 'user1'
       passwd-hash: hash-passwd "hello world"
       roles:
@@ -14,7 +15,7 @@ users-db =
           \test-area-writer
 
 
-permissions-db =
+export permissions =
     * _id: \test-area-reader
       ro: \authorization.test1
 
@@ -37,33 +38,3 @@ permissions-db =
           \test-area-writer
       rw:
           'my-test-topicrw4'
-
-
-
-class Database
-    ->
-
-    get: (filter-name, callback) ->
-        response = switch filter-name
-        | \users => users-db
-        | \permissions => permissions-db
-        <~ sleep 200ms
-        callback err=null, response
-
-    get-user: (username, callback) ->
-        <~ sleep 200ms
-        doc = find (._id is username), users-db
-        err = unless doc
-            reason: 'user not found'
-        else
-            null
-
-        callback err, doc
-
-    get-permissions: (callback) ->
-        <~ sleep 200ms
-        callback err=null, permissions-db
-
-
-
-export db = new Database!
