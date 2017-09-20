@@ -1,6 +1,6 @@
 require! '../src/signal': {Signal}
 require! 'aea/debug-log': {logger}
-require! 'aea': {sleep}
+require! '../lib': {sleep}
 
 
 tests =

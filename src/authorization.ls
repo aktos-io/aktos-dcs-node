@@ -1,4 +1,4 @@
-require! 'aea':{is-nodejs, merge, pack}
+require! '../lib':{is-nodejs, merge, pack}
 require! 'prelude-ls': {flatten, find}
 require! 'colors': {green}
 require! './auth-helpers': {hash-passwd}
