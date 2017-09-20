@@ -1,5 +1,5 @@
 require! './signal': {Signal}
-require! 'aea': {sleep, Logger, pack, EventEmitter}
+require! '../lib': {sleep, Logger, pack, EventEmitter}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
 require! 'colors': {
@@ -124,6 +124,8 @@ export class AuthHandler extends EventEmitter
                             auth:
                                 session:
                                     logout: 'yes'
+                else if \guest of msg.auth
+                    @log.log "TODO: implement public login (one-time-session)"
                 else
                     @log.err yellow "Can not determine which auth request this was: ", pack msg
 

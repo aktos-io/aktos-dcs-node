@@ -1,4 +1,4 @@
-require! 'aea': {sleep, pack, EventEmitter, Logger}
+require! '../lib': {sleep, pack, EventEmitter, Logger}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
 require! 'prelude-ls': {
@@ -147,7 +147,7 @@ export class Actor extends EventEmitter
     request-update: ->
         #@log.log "requesting update!"
         for let topic in @subscriptions
-            debugger unless topic 
+            debugger unless topic
             @send-enveloped @msg-template do
                 update: yes
                 topic: topic

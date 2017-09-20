@@ -1,7 +1,7 @@
 require! 'prelude-ls': {flatten, join, split}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
-require! 'aea': {sleep, pack, logger, EventEmitter}
+require! '../../lib': {Logger, sleep, pack, EventEmitter}
 
 export class CouchNano extends EventEmitter
     """

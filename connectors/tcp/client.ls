@@ -1,6 +1,6 @@
 require! 'net'
 require! 'colors': {yellow, green, red, blue, bg-green, bg-red}
-require! 'aea': {sleep, pack, hex, ip-to-hex, Logger}
+require! '../../lib': {sleep, pack, hex, ip-to-hex, Logger}
 require! 'prelude-ls': {drop, reverse}
 require! '../../proxy/client': {ProxyClient}
 

@@ -1,5 +1,5 @@
 require! 'dcs/src/auth-helpers': {hash-passwd}
-require! 'aea':{sleep}
+require! '../lib':{sleep}
 require! 'prelude-ls': {find}
 
 users-db =
@@ -66,4 +66,4 @@ class Database
 
 
 
-export test-db = new Database!
+export db = new Database!

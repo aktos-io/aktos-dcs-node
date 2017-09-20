@@ -1,5 +1,5 @@
-require! 'aea': {sleep}
-require! 'dcs': {Actor}
+require! '../lib': {sleep}
+require! '..': {Actor}
 require! 'colors': {bg-green, bg-red}
 require! 'onoff': {Gpio}
 

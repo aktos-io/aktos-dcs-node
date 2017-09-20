@@ -1,7 +1,7 @@
 require! './helpers': {MessageBinder}
 require! '../src/auth-request': {AuthRequest}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
-require! 'aea': {sleep, pack, unpack}
+require! '../lib': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at}
 require! '../src/signal':{Signal}
 require! '../src/actor': {Actor}

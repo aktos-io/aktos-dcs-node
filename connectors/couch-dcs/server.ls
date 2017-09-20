@@ -3,7 +3,7 @@ require! 'colors': {
     bg-green, bg-red, bg-yellow, bg-blue
     green, yellow, blue
 }
-require! 'aea':{sleep, pack}
+require! '../../lib':{sleep, pack}
 require! 'prelude-ls': {keys}
 require! './couch-nano': {CouchNano}
 

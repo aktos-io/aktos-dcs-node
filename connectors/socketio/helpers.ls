@@ -1,4 +1,4 @@
-require! 'aea': {EventEmitter}
+require! '../../lib': {EventEmitter}
 
 export class Wrapper extends EventEmitter
     (@orig) ->

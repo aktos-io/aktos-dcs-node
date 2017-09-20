@@ -1,6 +1,6 @@
 require! 'dcs': {Actor, Signal}
 require! 'prelude-ls': {keys, map, join, take, at, drop}
-require! 'aea': {sleep, pack}
+require! '../lib': {sleep, pack}
 require! './helpers': {
     get-data, check-hostlink-packet, addr, calc-fcs
     pad-two, pad-four

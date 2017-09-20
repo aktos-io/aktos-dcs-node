@@ -1,6 +1,6 @@
 require! 'dcs': {Actor}
 require! 'dcs/src/signal': {Signal}
-require! 'aea': {sleep, pack}
+require! '../lib': {sleep, pack}
 require! 'omron-fins': fins
 require! 'prelude-ls': {chars, reverse}
 
