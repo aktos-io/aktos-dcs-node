@@ -1,5 +1,4 @@
-require! 'aea': {sleep}
-require! 'aea/debug-log': {logger}
+require! '../lib': {sleep}
 require! 'uuid4'
 require! 'prelude-ls': {is-it-NaN}
 

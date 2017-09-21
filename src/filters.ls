@@ -1,4 +1,4 @@
-require! 'aea': {sleep}
+require! '../lib': {sleep}
 
 export class FpsExec
     (fps=20fps) ->

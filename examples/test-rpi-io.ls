@@ -1,4 +1,4 @@
-require! 'aea': {sleep}
+require! '../lib': {sleep}
 require! 'dcs': {Actor, TCPProxyClient}
 require! 'colors': {bg-green, bg-red}
 require! './rpi-io': {DInput, DOutput}
@@ -15,7 +15,6 @@ class Simulator extends Actor
                 i := (++i) %% 2
                 <~ sleep 1000ms
                 lo(op)
-
 
 
 console.log "starting..."
