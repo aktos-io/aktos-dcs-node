@@ -1,5 +1,5 @@
-require! '../src/actor': {Actor}
-require! '../lib': {sleep, pack, unpack}
+require! '..': {Actor, sleep}
+require! '../lib': {pack, unpack}
 
 
 class Pinger extends Actor

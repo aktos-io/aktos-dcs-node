@@ -1,5 +1,5 @@
-require! '..': {Actor, TCPProxyServer}
-require! '../lib': {sleep}
+require! '..': {Actor, sleep, TCPProxyServer}
+
 
 class Pinger extends Actor
     ->

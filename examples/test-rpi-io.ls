@@ -1,7 +1,6 @@
-require! '../lib': {sleep}
-require! 'dcs': {Actor, TCPProxyClient}
-require! 'colors': {bg-green, bg-red}
-require! './rpi-io': {DInput, DOutput}
+require! '..': {Actor, sleep, TCPProxyClient}
+require! '../connectors/rpi': {DInput, DOutput}
+
 
 class Simulator extends Actor
     ->
