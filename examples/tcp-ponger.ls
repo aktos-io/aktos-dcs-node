@@ -1,5 +1,5 @@
-require! '..': {Actor, TCPProxyClient}
-require! '../lib': {sleep}
+require! '..': {Actor, sleep, TCPProxyClient}
+
 
 class Ponger extends Actor
     ->
