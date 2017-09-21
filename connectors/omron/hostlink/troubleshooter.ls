@@ -1,5 +1,5 @@
 require! 'dcs': {Actor}
-require! 'aea': {sleep}
+require! '../lib': {sleep}
 
 require! './hostlink-tcp-server': {HostlinkTcpServer}
 

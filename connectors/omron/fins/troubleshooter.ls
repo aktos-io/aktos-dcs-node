@@ -1,5 +1,5 @@
 require! 'dcs': {Actor}
-require! 'aea': {sleep, pack}
+require! '../lib': {sleep, pack}
 require! './omron-fins-client': {OmronFinsClient}
 
 class Simulator extends Actor

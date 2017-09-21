@@ -1,7 +1,7 @@
 require! 'net'
 require! '../../src/actor': {Actor}
 require! 'colors': {yellow, green, red, blue}
-require! 'aea': {sleep, hex, ip-to-hex}
+require! '../../lib': {sleep, hex, ip-to-hex}
 require! 'prelude-ls': {drop, reverse}
 require! '../../proxy/authority':{ProxyAuthority}
 

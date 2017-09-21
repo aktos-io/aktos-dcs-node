@@ -1,5 +1,5 @@
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
-require! 'aea': {sleep, pack, unpack, Logger}
+require! '../lib': {sleep, pack, unpack, Logger}
 require! 'prelude-ls': {split, flatten, split-at}
 
 

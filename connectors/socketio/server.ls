@@ -1,6 +1,6 @@
 require! 'socket.io': socketio
 require! './helpers': {Wrapper}
-require! 'aea': {Logger}
+require! '../../lib': {Logger}
 require! '../../src/actor': {Actor}
 require! './helpers': {Wrapper}
 require! '../../proxy/authority': {ProxyAuthority}

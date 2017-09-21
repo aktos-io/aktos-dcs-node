@@ -1,9 +1,9 @@
 require! 'dcs': {Actor}
 require! './nodeS7': NodeS7
-require! 'aea': {sleep, pack, unpack}
+require! '../../lib': {sleep, pack, unpack}
 require! 'prelude-ls': {at, split}
 require! 'colors': {yellow, red, green}
-require! 'aea/memory-map': {MemoryMap}
+require! '../../lib/memory-map': {MemoryMap}
 
 export class S7Actor extends Actor
     (@opts) ->

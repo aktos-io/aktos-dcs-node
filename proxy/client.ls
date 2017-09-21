@@ -1,7 +1,7 @@
 require! './helpers': {MessageBinder}
 require! '../src/auth-request': {AuthRequest}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
-require! 'aea': {sleep, pack, unpack}
+require! '../lib': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at}
 require! '../src/signal':{Signal}
 require! '../src/actor': {Actor}
@@ -23,15 +23,18 @@ export class ProxyClient extends Actor
 
             ..on \login, (permissions) ~>
                 topics = permissions.rw
-                @log.log "logged in succesfully. subscribing to: ", topics
-                @subscribe topics
-                @log.log "requesting update messages for subscribed topics"
-                for topic in topics
-                    {topic, +update}
-                    |> @msg-template
-                    |> @auth.add-token
-                    |> pack
-                    |> @socket.write
+                if topics
+                    @log.log "logged in succesfully. subscribing to: ", topics
+                    @subscribe topics
+                    @log.log "requesting update messages for subscribed topics"
+                    for topic in topics
+                        {topic, +update}
+                        |> @msg-template
+                        |> @auth.add-token
+                        |> pack
+                        |> @socket.write
+                else
+                    @log.warn "logged in, but there is no rw permissions found."
 
         @on do
             receive: (msg) ~>

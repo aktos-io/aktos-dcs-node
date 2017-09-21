@@ -1,5 +1,5 @@
 require! './signal': {Signal}
-require! 'aea': {sleep, pack, clone, EventEmitter, Logger}
+require! '../lib': {sleep, pack, clone, EventEmitter, Logger}
 require! './authorization':{get-all-permissions}
 require! 'uuid4'
 require! 'colors': {red, green, yellow, bg-red, bg-yellow}
@@ -17,24 +17,30 @@ export class AuthRequest extends EventEmitter
         @on \from-server, (msg) ->
             @reply-signal.go msg
 
-    login: (_credentials, callback) ->
+    login: (_credentials={}, callback) ->
         # credentials might be one of the following:
         # 1. {username: ..., password: ...}
         # 2. {token: ...}
+        # 3. undefined (used for public message exchange)
 
         credentials = clone _credentials
         if credentials.password
+            # username, password
             credentials.password = hash-passwd credentials.password
 
-        @log.log "Trying to authenticate with", keys credentials
-
-        if \token of credentials
+        else if \token of credentials
+            # token
             if credentials.token.length < 10
                 err = "Token seems empty, not attempting to login."
                 @log.log err
                 @trigger \logout
                 callback err, null
                 return
+        else
+            # public
+            credentials = {'guest'}
+
+        @log.log "Trying to authenticate with", keys credentials
 
         @trigger \to-server, {auth: credentials}
 
@@ -54,6 +60,7 @@ export class AuthRequest extends EventEmitter
                         @trigger \logout
         catch
             @log.err "something went wrong here: ex: ", e, "res: ", res, "err:", err
+            err = e 
 
         callback err, res
 

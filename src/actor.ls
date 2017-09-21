@@ -1,10 +1,9 @@
-require! 'aea': {sleep, pack, EventEmitter, Logger}
+require! '../lib': {sleep, pack, EventEmitter, Logger}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
-require! 'prelude-ls': {
-    split, flatten, keys, unique
-}
+require! 'prelude-ls': {split, flatten, keys, unique}
 require! uuid4
+require! './topic-match': {topic-match}
 
 
 export class Actor extends EventEmitter
@@ -128,6 +127,11 @@ export class Actor extends EventEmitter
             debugger
             @log.err "problem in handler: ", e
 
+    on-topic: (topic, handler) ->
+        @on \data, (msg) ~>
+            if msg.topic `topic-match` topic
+                handler msg 
+
     send-enveloped: (msg) ->
         msg.sender = @id
         if not msg.topic and not (\auth of msg)
@@ -147,7 +151,7 @@ export class Actor extends EventEmitter
     request-update: ->
         #@log.log "requesting update!"
         for let topic in @subscriptions
-            debugger unless topic 
+            debugger unless topic
             @send-enveloped @msg-template do
                 update: yes
                 topic: topic

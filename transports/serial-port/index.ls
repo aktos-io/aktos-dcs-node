@@ -1,5 +1,5 @@
 require! 'serialport': SerialPort
-require! 'aea': {sleep, EventEmitter}
+require! '../lib': {sleep, EventEmitter}
 require! 'dcs': {Actor}
 require! 'colors': {bg-green, bg-red}
 

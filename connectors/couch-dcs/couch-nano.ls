@@ -1,7 +1,7 @@
 require! 'prelude-ls': {flatten, join, split}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
-require! 'aea': {sleep, pack, logger, EventEmitter}
+require! '../../lib': {Logger, sleep, pack, EventEmitter}
 
 export class CouchNano extends EventEmitter
     """
@@ -15,7 +15,7 @@ export class CouchNano extends EventEmitter
     """
     (@cfg) ->
         super!
-        @log = new logger "db:#{@cfg.database}"
+        @log = new Logger "db:#{@cfg.database}"
         @username = @cfg.user.name
         @password = @cfg.user.password
         @db-name = @cfg.database
