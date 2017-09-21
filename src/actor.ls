@@ -1,10 +1,9 @@
 require! '../lib': {sleep, pack, EventEmitter, Logger}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
-require! 'prelude-ls': {
-    split, flatten, keys, unique
-}
+require! 'prelude-ls': {split, flatten, keys, unique}
 require! uuid4
+require! './topic-match': {topic-match}
 
 
 export class Actor extends EventEmitter
@@ -127,6 +126,11 @@ export class Actor extends EventEmitter
         catch
             debugger
             @log.err "problem in handler: ", e
+
+    on-topic: (topic, handler) ->
+        @on \data, (msg) ~>
+            if msg.topic `topic-match` topic
+                handler msg 
 
     send-enveloped: (msg) ->
         msg.sender = @id
