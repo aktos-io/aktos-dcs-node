@@ -1,6 +1,21 @@
 export class EventEmitter
     ->
         @_events = {}
+        @_one_time_events = {}
+
+    once: (type, callback) ->
+        add-listener = (type, callback) ~>
+            if typeof! @_one_time_events[type] isnt \Array
+                @_one_time_events[type] = []
+            @_one_time_events[type].push callback.bind this
+
+        switch typeof! type
+            when \String =>
+                add-listener type, callback
+            when \Object =>
+                for name, callback of type
+                    add-listener name, callback
+
 
     on: (type, callback) ->
         """
@@ -40,4 +55,9 @@ export class EventEmitter
         """
         if @_events[type]
             for handler in that
+                handler ...args
+
+        if @_one_time_events[type]
+            for i in [1 to that.length]
+                handler = that.shift!
                 handler ...args
