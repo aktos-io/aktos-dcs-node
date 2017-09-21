@@ -3,7 +3,7 @@ require! '../..': {Actor, sleep, EventEmitter, Logger}
 require! '../../lib': {pack}
 
 
-class SerialPortTransport extends EventEmitter
+export class SerialPortTransport extends EventEmitter
     (opts) ->
         """
         opts =
