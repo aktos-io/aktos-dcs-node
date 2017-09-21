@@ -60,6 +60,7 @@ export class AuthRequest extends EventEmitter
                         @trigger \logout
         catch
             @log.err "something went wrong here: ex: ", e, "res: ", res, "err:", err
+            err = e 
 
         callback err, res
 
