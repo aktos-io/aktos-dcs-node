@@ -14,10 +14,10 @@ message structure:
 """
 require! '../..': {Actor}
 
-
+i = 0
 export class OmronProtocolActor extends Actor
     (@protocol, opts={}) ->
-        super (opts.name or 'ProtocolActor')
+        super (opts.name or "ProtocolActor-#{i++}")
 
         @subscribe that if opts.subscribe
 
@@ -33,7 +33,9 @@ export class OmronProtocolActor extends Actor
                 err, res <~ @protocol.read cmd.addr, cmd.size
                 @send-response msg, {err: err, res: res}
 
+            else if \error of msg.payload
+                @log.log "this is a error message from outside."
             else
-                err= {message: "got an unknown cmd"}
+                err= {error: message: "got an unknown cmd"}
                 @log.warn err.message, msg.payload
                 @send-response msg, err
