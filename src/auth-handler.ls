@@ -44,31 +44,29 @@ export class AuthHandler extends EventEmitter
             @log.log bg-yellow "No db supplied, only public messages are allowed."
 
         @on \check-auth, (msg) ~>
-            #@log.log "Processing authentication message"
+            #@log.log "Processing authentication message", msg
 
-            if \user of msg.auth
-                # login request
-                if msg.auth.user is \guest
-                    token = uuid4!
+            if msg.auth? and (msg.auth.user is \guest)
+                token = uuid4!
 
-                    session =
-                        token: token
-                        user: msg.auth.user
-                        date: Date.now!
-                        permissions: {rw: 'public.**'}
-                        opening-scene: undefined
+                session =
+                    token: token
+                    user: msg.auth.user
+                    date: Date.now!
+                    permissions: {rw: 'public.**'}
+                    opening-scene: undefined
 
-                    @session-cache.add session
+                @session-cache.add session
 
-                    @log.log bg-green "new Guest Login: #{msg.auth.user} (#{token})"
-                    @log.log "(...sending with #{@@login-delay}ms delay)"
+                @log.log bg-green "new Guest Login: #{msg.auth.user} (#{token})"
+                @log.log "(...sending with #{@@login-delay}ms delay)"
 
 
-                    @trigger \login, session.permissions
-                    <~ sleep @@login-delay
-                    @trigger \to-client, do
-                        auth:
-                            session: session
+                @trigger \login, session.permissions
+                <~ sleep @@login-delay
+                @trigger \to-client, do
+                    auth:
+                        session: session
 
             else if db
                 if \user of msg.auth
