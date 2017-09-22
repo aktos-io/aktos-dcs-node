@@ -13,7 +13,7 @@ usage:
         subscribe: 'hey.**'
 """
 
-export class HostlinkSerialActor extends OmronProtocolActor
+export class HostlinkSerialConnector extends OmronProtocolActor
     (opts={}) ->
         default-opts =
             transport:
