@@ -38,7 +38,7 @@ export class AuthRequest extends EventEmitter
                 return
         else
             # public
-            credentials = {'guest'}
+            credentials = {user: 'guest', password: null}
 
         @log.log "Trying to authenticate with", keys credentials
 
@@ -60,7 +60,7 @@ export class AuthRequest extends EventEmitter
                         @trigger \logout
         catch
             @log.err "something went wrong here: ex: ", e, "res: ", res, "err:", err
-            err = e 
+            err = e
 
         callback err, res
 

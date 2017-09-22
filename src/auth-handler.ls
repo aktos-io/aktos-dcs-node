@@ -45,9 +45,33 @@ export class AuthHandler extends EventEmitter
 
         @on \check-auth, (msg) ~>
             #@log.log "Processing authentication message"
-            if db
+
+            if \user of msg.auth
+                # login request
+                if msg.auth.user is \guest
+                    token = uuid4!
+
+                    session =
+                        token: token
+                        user: msg.auth.user
+                        date: Date.now!
+                        permissions: {rw: 'public.**'}
+                        opening-scene: undefined
+
+                    @session-cache.add session
+
+                    @log.log bg-green "new Guest Login: #{msg.auth.user} (#{token})"
+                    @log.log "(...sending with #{@@login-delay}ms delay)"
+
+
+                    @trigger \login, session.permissions
+                    <~ sleep @@login-delay
+                    @trigger \to-client, do
+                        auth:
+                            session: session
+
+            else if db
                 if \user of msg.auth
-                    # login request
                     err, doc <~ db.get-user msg.auth.user
                     if err
                         @log.err "user \"#{msg.auth.user}\" is not found. err: ", pack err
@@ -124,8 +148,6 @@ export class AuthHandler extends EventEmitter
                             auth:
                                 session:
                                     logout: 'yes'
-                else if \guest of msg.auth
-                    @log.log "TODO: implement public login (one-time-session)"
                 else
                     @log.err yellow "Can not determine which auth request this was: ", pack msg
 
