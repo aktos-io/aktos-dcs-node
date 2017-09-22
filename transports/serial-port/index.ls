@@ -49,7 +49,7 @@ export class SerialPortTransport extends EventEmitter
 
                     ..on \data, (data) ~>
                         recv += data.to-string!
-                        #@log.log "data is: ", recv
+                        #@log.log "data is: ", JSON.stringify recv
                         if recv.index-of(opts.split-at) > -1
                             @trigger \data, recv
                             recv := ''
