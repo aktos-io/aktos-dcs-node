@@ -24,6 +24,7 @@ export class ProxyClient extends Actor
             ..on \login, (permissions) ~>
                 topics = permissions.rw
                 if topics
+                    topics = [topics] unless typeof! topics is \Array
                     @log.log "logged in succesfully. subscribing to: ", topics
                     @subscribe topics
                     @log.log "requesting update messages for subscribed topics"
@@ -33,6 +34,7 @@ export class ProxyClient extends Actor
                         |> @auth.add-token
                         |> pack
                         |> @socket.write
+
                 else
                     @log.warn "logged in, but there is no rw permissions found."
 
@@ -100,6 +102,11 @@ export class ProxyClient extends Actor
                 @trigger \needReconnect
 
     login: (credentials, callback) ->
+        # normalize parameters
+        if typeof! credentials is \Function
+            callback = credentials
+            credentials = null
+
         @off \relogin
         @on \relogin, (opts) ~>
             @log.log "sending credentials..."
@@ -110,6 +117,8 @@ export class ProxyClient extends Actor
                     res.auth.session.token
                 catch
                     null
+            unless err
+                @trigger \logged-in
 
             callback err, res
 
