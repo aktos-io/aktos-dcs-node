@@ -1,3 +1,18 @@
+# Description
+
+A `Transport` is responsible to transport the telegram to another connector's
+transport (or to a physical device) and may be one of the followings:
+
+* TCP
+* *UDP*
+* Websocket
+* Socket.io
+* *WebRTC*
+* Serial Port (RS-232, RS-485, etc...)
+* *USB*
+* *Can-Bus*
+* Yet another `Actor`
+
 # Transport Properties
 
 * SHOULD reconnect on connection failures.
