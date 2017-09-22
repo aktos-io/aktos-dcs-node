@@ -1,7 +1,16 @@
-require! 'dcs': {Actor}
-require! '../lib': {sleep}
+require! '../connectors/omron': {OmronProtocolActor, HostlinkProtocol}
+require! '..': {Actor, sleep}
+require! 'net'
 
-require! './hostlink-tcp-server': {HostlinkTcpServer}
+
+server = net.create-server (socket) ->
+    transport = socket
+    protocol = new HostlinkProtocol transport
+    new OmronProtocolActor protocol, do
+        subscribe: 'public.**'
+
+server.listen 2000, '0.0.0.0', ~>
+    console.log "Hostlink Server started listening on port: 2000"
 
 test-addr = R: 92
 
@@ -14,7 +23,7 @@ class TestWrite extends Actor
         val = 0
         <~ :lo(op) ~>
             @log.log "sending #{val}..."
-            timeout, msg <~ @send-request {topic: "public.x", timeout: 500ms}, do
+            timeout, msg <~ @send-request {topic: "public.x", timeout: 1500ms}, do
                 write:
                     addr: test-addr
                     data: [val]
@@ -36,7 +45,7 @@ class TestRead extends Actor
     action: ->
         <~ :lo(op) ~>
             @log.log "reading ", test-addr
-            timeout, msg <~ @send-request {topic: "public.x", timeout: 500ms}, do
+            timeout, msg <~ @send-request {topic: "public.x", timeout: 1500ms}, do
                 read:
                     addr: test-addr
                     size: 1
@@ -46,6 +55,5 @@ class TestRead extends Actor
             lo(op)
 
 
-new HostlinkTcpServer!
 new TestWrite!
 new TestRead!
