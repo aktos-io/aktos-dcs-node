@@ -14,10 +14,10 @@ message structure:
 """
 require! '../..': {Actor}
 
-
+i = 0
 export class OmronProtocolActor extends Actor
     (@protocol, opts={}) ->
-        super (opts.name or 'ProtocolActor')
+        super (opts.name or "ProtocolActor-#{i++}")
 
         @subscribe that if opts.subscribe
 
