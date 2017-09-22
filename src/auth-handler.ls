@@ -157,18 +157,18 @@ export class AuthHandler extends EventEmitter
                     auth:
                         error: 'NOTAUTHORITY'
 
-        @on \filter, (msg) ~>
-            #@log.log yellow "filter-incoming: input: ", pack msg
-            session = @session-cache.get msg.token
-            if session?permissions
-                msg.ctx = {user: session.user}
-                for topic in session.permissions.rw
-                    if topic `topic-match` msg.topic
-                        delete msg.token
-                        @trigger \passed-filter, msg
-            else if msg.topic `topic-match` "public.**"
-                delete msg.token
-                @trigger \passed-filter, msg
-            else
-                @log.err (bg-red "filter-incoming dropping unauthorized message!"),
-                    msg
+    check-permissions: (msg) ->
+        #@log.log yellow "filter-incoming: input: ", pack msg
+        session = @session-cache.get msg.token
+        if session?permissions
+            msg.ctx = {user: session.user}
+            for topic in session.permissions.rw
+                if topic `topic-match` msg.topic
+                    delete msg.token
+                    return msg
+        if msg.topic `topic-match` "public.**"
+            delete msg.token
+            return msg
+        else
+            @log.err (bg-red "filter-incoming dropping unauthorized message!"),
+            throw 'unauthorized message'

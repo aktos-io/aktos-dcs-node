@@ -56,11 +56,13 @@ export class ProxyAuthority extends Actor
                     @auth.trigger \check-auth, msg
                 else
                     #@log.log "received normal message:", msg
-                    @auth.trigger \filter, msg
+                    try
+                        msg
+                        |> @auth.check-permissions
+                        #|> (x) -> console.log "checked permissions", x; return x
+                        |> @send-enveloped
 
-
-        @auth.on \passed-filter, (msg) ~>
-            @send-enveloped msg
+                        #@log.log "forwarding to DCS network..."
 
 
         @socket.on \end, ~>
