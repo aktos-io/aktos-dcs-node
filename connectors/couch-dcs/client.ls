@@ -58,7 +58,9 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        err, msg <~ @send-request {topic: "#{@topic}.getAtt", timeout: 5000ms}, do
+        timeout = opts.timeout or 5000ms
+
+        err, msg <~ @send-request {topic: "#{@topic}.getAtt", timeout}, do
             getAtt:
                 doc-id: doc-id
                 att-name: att-name
