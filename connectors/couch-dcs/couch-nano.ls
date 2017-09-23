@@ -2,6 +2,7 @@ require! 'prelude-ls': {flatten, join, split}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
 require! '../../lib': {Logger, sleep, pack, EventEmitter}
+require! 'follow'
 
 export class CouchNano extends EventEmitter
     """
@@ -184,3 +185,19 @@ export class CouchNano extends EventEmitter
             encoding: null
             dontParse: true
             , callback
+
+    follow: (callback) ->
+        @on \connected, ~> 
+            qs =
+                db: "#{@cfg.url}/#{@db-name}"
+                headers:
+                    'X-CouchDB-WWW-Authenticate': 'Cookie'
+                    cookie: @cookie
+                feed: 'continuous'
+                since: 'now'
+
+            @log.warn "db: ", qs
+
+            feed = new follow.Feed qs
+            feed.on \change, callback
+            feed.follow!

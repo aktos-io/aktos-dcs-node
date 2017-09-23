@@ -32,6 +32,9 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
+        @db.follow (changes) ~>
+            @log.log "changes: ", changes
+
         @on \data, (msg) ~>
             @log.log "received data: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
