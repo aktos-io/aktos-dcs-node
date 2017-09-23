@@ -32,8 +32,16 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
-        @db.follow (changes) ~>
-            @log.log "changes: ", changes
+            ..follow {filter: 'orders/getOrders'}, (change) ~>
+                @log.log ".................order change: id: ", change.id, "changes: ", change.changes
+
+            #..follow {filter: 'products/getPanels'}, (change) ~>
+            #    @log.log "panel change: id: ", change.id, "changes: ", change.changes
+            #
+            #..follow (change) ~>
+            #    @log.log "any change: id: ", change.id, "changes: ", change.changes
+
+
 
         @on \data, (msg) ~>
             @log.log "received data: ", keys(msg.payload), "from ctx:", msg.ctx
@@ -106,6 +114,10 @@ export class CouchDcsServer extends Actor
                 q = msg.payload.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
                 @send-and-echo msg, {err: err, res: res or null}
+
+            else if \cmd of msg.payload
+                cmd = msg.payload.cmd
+                @log.warn "got a cmd:", cmd
 
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"

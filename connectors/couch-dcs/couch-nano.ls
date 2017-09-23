@@ -1,8 +1,8 @@
 require! 'prelude-ls': {flatten, join, split}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
-require! '../../lib': {Logger, sleep, pack, EventEmitter}
-require! 'follow'
+require! '../../lib': {Logger, sleep, pack, EventEmitter, merge}
+require! 'cloudant-follow': follow
 
 export class CouchNano extends EventEmitter
     """
@@ -186,18 +186,50 @@ export class CouchNano extends EventEmitter
             dontParse: true
             , callback
 
-    follow: (callback) ->
-        @on \connected, ~> 
-            qs =
-                db: "#{@cfg.url}/#{@db-name}"
-                headers:
-                    'X-CouchDB-WWW-Authenticate': 'Cookie'
-                    cookie: @cookie
-                feed: 'continuous'
-                since: 'now'
 
-            @log.warn "db: ", qs
+    follow: (opts, callback) ->
+        # follow changes
+        # https://www.npmjs.com/package/cloudant-follow
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
 
-            feed = new follow.Feed qs
-            feed.on \change, callback
-            feed.follow!
+        <~ @on \connected
+
+        default-opts =
+            db: "#{@cfg.url}/#{@db-name}"
+            headers:
+                'X-CouchDB-WWW-Authenticate': 'Cookie'
+                cookie: @cookie
+            feed: 'continuous'
+            since: 'now'
+
+        x = default-opts `merge` opts
+
+        @log.log "merged opts: ", x
+
+        feed = new follow.Feed x
+
+        if x.filter
+            console.log "getting filter"
+            [ddoc-name, view-name] = that.split '/'
+            err, res <~ @get "_design/#{ddoc-name}"
+            console.log res.javascript
+            feed-filter = (doc) ->
+                emit = -> true
+                view = eval res.javascript .views[view-name]['map']
+                return view doc
+            x =
+                type: 'order'
+
+            console.log JSON.stringify feed-filter(x)
+            feed.filter =  feed-filter
+
+        feed
+            ..on \change, (changes) ~>
+                callback changes
+
+            ..on \error, (error) ~>
+                @log.log "error is: ", error
+
+            ..follow!
