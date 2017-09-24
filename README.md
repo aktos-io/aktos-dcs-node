@@ -11,6 +11,30 @@ Implements the following features:
 * Browser Actors 
 * Message routing by subscriptions
 
+# Additional Features 
+
+### Transports 
+
+* Serial Port Transport 
+
+### Connectors 
+
+* CouchDB
+* SocketIO (Server + Client)
+* TCP (Server + Client)
+* Omron
+  * Hostlink 
+  * FINS 
+* Siemens 
+  * S7 Comm
+* Raspberry 
+  * Digital Input 
+  * Digital Output 
+  
+# Examples 
+
+Examples can be found [here](https://github.com/aktos-io/dcs-nodejs-examples)
+
 # Contact 
 
 info@aktos.io
