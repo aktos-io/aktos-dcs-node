@@ -1,17 +1,10 @@
 # aktos-dcs-node
 
-
-Node.js port of `aktos-dcs` library, written from scratch by [aktos.io](https://aktos.io) in Livescript. 
-
-Implements the following features: 
-
-* Node.js client 
-* Node.js server (broker)
-* Browser Realtime Layer (via socket.io)
-* Browser Actors 
-* Message routing by subscriptions
+Node.js port of [`aktos-dcs`](https://github.com/aktos-io/aktos-dcs) library (v2).
 
 # Additional Features 
+
+`aktos-dcs-node` provides following transport and connectors:
 
 ### Transports 
 
