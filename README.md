@@ -6,11 +6,11 @@ Node.js port of [`aktos-dcs`](https://github.com/aktos-io/aktos-dcs) library (v2
 
 `aktos-dcs-node` provides following transport and connectors:
 
-### Transports 
+### [Transports](./transports/README.md)
 
 * Serial Port Transport 
 
-### Connectors 
+### [Connectors](./connectors/README.md)
 
 * CouchDB
 * SocketIO (Server + Client)
