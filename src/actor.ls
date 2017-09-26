@@ -128,9 +128,13 @@ export class Actor extends EventEmitter
             @log.err "problem in handler: ", e
 
     on-topic: (topic, handler) ->
+        return unless topic
+
+        @subscribe topic unless topic in @subscriptions
+
         @on \data, (msg) ~>
             if msg.topic `topic-match` topic
-                handler msg 
+                handler msg
 
     send-enveloped: (msg) ->
         msg.sender = @id
