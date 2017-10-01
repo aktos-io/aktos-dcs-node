@@ -46,7 +46,7 @@ Callbacks will be called with `error, response` parameters.
 
 # Additional Functionalities
 
-## Create documents with `AUTOINCREMENT`ed ID's
+## 1. Create documents with `AUTOINCREMENT`ed ID's
 
 Suppose you will save documents by autoincrementing the ID field. Follow the steps:
 
@@ -113,6 +113,10 @@ To verify that your view returns the correct ID, use the following filter to get
 ```
 http://example.com/yourdb/_design/autoincrement/_view/short?descending=true&startkey=["FOO",{}]&endkey=["FOO"]
 ```
+
+## 2. Setting Server Side Attributes
+
+`.timestamp` and `.owner` attributes are set by the server automatically. Custom server side attribute definition will be supported soon.
 
 # Roadmap
 
