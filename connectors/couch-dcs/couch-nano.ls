@@ -3,6 +3,7 @@ require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
 require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
 require! 'cloudant-follow': follow
+require! '../../src/signal': {Signal}
 
 export class CouchNano extends EventEmitter
     """
@@ -21,6 +22,14 @@ export class CouchNano extends EventEmitter
         @password = @cfg.user.password
         @db-name = @cfg.database
         @db = nano url: @cfg.url
+        @connection = new Signal!
+
+        @on \connected, ~>
+            @connection.go!
+            @connected = yes
+
+        @on \disconnected, ~>
+            @connected = no 
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -194,7 +203,8 @@ export class CouchNano extends EventEmitter
             callback = opts
             opts = {}
 
-        <~ @on \connected
+        @connection.go! if @connected
+        <~ @connection.wait
 
         default-opts =
             db: "#{@cfg.url}/#{@db-name}"
