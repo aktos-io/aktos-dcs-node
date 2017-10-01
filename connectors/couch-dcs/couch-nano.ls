@@ -1,7 +1,9 @@
 require! 'prelude-ls': {flatten, join, split}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
-require! '../../lib': {Logger, sleep, pack, EventEmitter}
+require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
+require! 'cloudant-follow': follow
+require! '../../src/signal': {Signal}
 
 export class CouchNano extends EventEmitter
     """
@@ -20,6 +22,14 @@ export class CouchNano extends EventEmitter
         @password = @cfg.user.password
         @db-name = @cfg.database
         @db = nano url: @cfg.url
+        @connection = new Signal!
+
+        @on \connected, ~>
+            @connection.go!
+            @connected = yes
+
+        @on \disconnected, ~>
+            @connected = no 
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -184,3 +194,56 @@ export class CouchNano extends EventEmitter
             encoding: null
             dontParse: true
             , callback
+
+
+    follow: (opts, callback) ->
+        # follow changes
+        # https://www.npmjs.com/package/cloudant-follow
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
+
+        @connection.go! if @connected
+        <~ @connection.wait
+
+        default-opts =
+            db: "#{@cfg.url}/#{@db-name}"
+            headers:
+                'X-CouchDB-WWW-Authenticate': 'Cookie'
+                cookie: @cookie
+            feed: 'continuous'
+            since: 'now'
+
+        options = default-opts `merge` opts
+
+        feed = new follow.Feed options
+
+
+        # "include_rows" workaround
+        <~ :lo(op) ~>
+            if options.view and options.include_rows
+                @log.log "including row"
+                feed.include_docs = yes
+                [ddoc-name, view-name] = options.view.split '/'
+                err, res <~ @get "_design/#{ddoc-name}"
+                console.log res.javascript
+                options.view-function = (doc) ->
+                    emit = (key, value) ->
+                        {id: doc._id, key, value}
+                    view = eval res.javascript .views[view-name]['map']
+                    return view doc
+                return op!
+            else
+                return op!
+
+        feed
+            ..on \change, (changes) ~>
+                if options.view-function
+                    changes.row = that changes.doc
+                    delete changes.doc unless opts.include_docs
+                callback changes
+
+            ..on \error, (error) ~>
+                @log.log "error is: ", error
+
+            ..follow!

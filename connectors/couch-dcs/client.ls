@@ -67,3 +67,10 @@ export class CouchDcsClient extends Actor
                 opts: opts
 
         callback (err or msg?.payload.err), msg?.payload.res
+
+    follow: (opts={}, callback) ->
+        timeout = opts.timeout or 5000ms
+        topic = "#{@topic}.follow"
+        @log.log "topic is: ", topic 
+        err, msg <~ @send-request {topic, timeout}, {follow: opts}
+        callback (err or msg?.payload.err), msg?.payload.res

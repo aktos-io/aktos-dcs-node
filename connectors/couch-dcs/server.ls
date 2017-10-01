@@ -32,8 +32,19 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
+            ## include_rows example
+            #..follow {view: 'orders/getOrders', +include_rows}, (change) ~>
+            #    @log.log "+++++++++ orders (include rows)", change.row
+
+            ..follow (change) ~>
+                @log.log "*********** any change:", change
+                for let topic in @subscriptions
+                    @send "#{topic}.changes.all", change
+
+
+
         @on \data, (msg) ~>
-            @log.log "received data: ", keys(msg.payload), "from ctx:", msg.ctx
+            @log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
             if \put of msg.payload
                 doc = msg.payload.put
@@ -103,6 +114,27 @@ export class CouchDcsServer extends Actor
                 q = msg.payload.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
                 @send-and-echo msg, {err: err, res: res or null}
+
+            else if \cmd of msg.payload
+                cmd = msg.payload.cmd
+                @log.warn "got a cmd:", cmd
+
+            else if \follow of msg.payload
+                @log.log "got follow message:", msg.payload
+                opts = msg.payload.follow
+                c = if opts.view
+                    "view.#{opts.view}"
+                else if opts.filter
+                    "filter.#{opts.filter}"
+
+                @db.follow opts, (change) ~>
+                    @log.log "sending change for #{c}"
+                    for let topic in @subscriptions
+                        publish-topic = "#{topic}.changes.#{c}"
+                        @log.log "sending change for #{publish-topic}"
+                        @send publish-topic, change
+
+                @send-and-echo msg, {err: null, res: {+ok}}
 
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"
