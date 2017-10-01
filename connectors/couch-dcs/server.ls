@@ -32,14 +32,14 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
-            ..follow {filter: 'orders/getOrders'}, (change) ~>
-                @log.log ".................order change: id: ", change.id, "changes: ", change.changes
+            ## include_rows example
+            #..follow {view: 'orders/getOrders', +include_rows}, (change) ~>
+            #    @log.log "+++++++++ orders (include rows)", change.row
 
-            #..follow {filter: 'products/getPanels'}, (change) ~>
-            #    @log.log "panel change: id: ", change.id, "changes: ", change.changes
-            #
-            #..follow (change) ~>
-            #    @log.log "any change: id: ", change.id, "changes: ", change.changes
+            ..follow (change) ~>
+                @log.log "*********** any change:", change
+                for let topic in @subscriptions
+                    @send "#{topic}.changes.all", change
 
 
 
