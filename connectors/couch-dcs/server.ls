@@ -44,7 +44,7 @@ export class CouchDcsServer extends Actor
 
 
         @on \data, (msg) ~>
-            @log.log "received data: ", keys(msg.payload), "from ctx:", msg.ctx
+            @log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
             if \put of msg.payload
                 doc = msg.payload.put
@@ -118,6 +118,23 @@ export class CouchDcsServer extends Actor
             else if \cmd of msg.payload
                 cmd = msg.payload.cmd
                 @log.warn "got a cmd:", cmd
+
+            else if \follow of msg.payload
+                @log.log "got follow message:", msg.payload
+                opts = msg.payload.follow
+                c = if opts.view
+                    "view.#{opts.view}"
+                else if opts.filter
+                    "filter.#{opts.filter}"
+
+                @db.follow opts, (change) ~>
+                    @log.log "sending change for #{c}"
+                    for let topic in @subscriptions
+                        publish-topic = "#{topic}.changes.#{c}"
+                        @log.log "sending change for #{publish-topic}"
+                        @send publish-topic, change
+
+                @send-and-echo msg, {err: null, res: {+ok}}
 
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"
