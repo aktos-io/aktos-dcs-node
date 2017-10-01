@@ -1,7 +1,7 @@
 require! 'prelude-ls': {flatten, join, split}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
-require! '../../lib': {Logger, sleep, pack, EventEmitter, merge}
+require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
 require! 'cloudant-follow': follow
 
 export class CouchNano extends EventEmitter
@@ -204,29 +204,33 @@ export class CouchNano extends EventEmitter
             feed: 'continuous'
             since: 'now'
 
-        x = default-opts `merge` opts
+        options = default-opts `merge` opts
 
-        @log.log "merged opts: ", x
+        feed = new follow.Feed options
 
-        feed = new follow.Feed x
 
-        if x.filter
-            console.log "getting filter"
-            [ddoc-name, view-name] = that.split '/'
-            err, res <~ @get "_design/#{ddoc-name}"
-            console.log res.javascript
-            feed-filter = (doc) ->
-                emit = -> true
-                view = eval res.javascript .views[view-name]['map']
-                return view doc
-            x =
-                type: 'order'
-
-            console.log JSON.stringify feed-filter(x)
-            feed.filter =  feed-filter
+        # "include_rows" workaround
+        <~ :lo(op) ~>
+            if options.view and options.include_rows
+                @log.log "including row"
+                feed.include_docs = yes
+                [ddoc-name, view-name] = options.view.split '/'
+                err, res <~ @get "_design/#{ddoc-name}"
+                console.log res.javascript
+                options.view-function = (doc) ->
+                    emit = (key, value) ->
+                        {id: doc._id, key, value}
+                    view = eval res.javascript .views[view-name]['map']
+                    return view doc
+                return op!
+            else
+                return op!
 
         feed
             ..on \change, (changes) ~>
+                if options.view-function
+                    changes.row = that changes.doc
+                    delete changes.doc unless opts.include_docs
                 callback changes
 
             ..on \error, (error) ~>
