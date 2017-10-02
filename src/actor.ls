@@ -48,12 +48,8 @@ export class Actor extends EventEmitter
         @subscriptions.splice (@subscriptions.index-of topic), 1
 
     send: (topic, payload) ~>
-        if typeof! payload isnt \Object
-            # swap the parameters
-            [payload, topic] = [topic, payload]
-
         if typeof! topic isnt \String
-            @log.warn "Topic is not string? topic: #{topic}"
+            throw "Topic is not string? topic: #{topic}"
 
         debugger if @debug
         enveloped = @msg-template! <<< do
