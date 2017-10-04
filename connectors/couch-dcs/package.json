@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cloudant-follow": "^0.13.0",
+    "cloudant-follow": "^0.14.0",
     "nano": "^6.4.0"
   }
 }
