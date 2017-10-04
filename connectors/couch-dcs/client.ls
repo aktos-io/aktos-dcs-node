@@ -73,4 +73,5 @@ export class CouchDcsClient extends Actor
         topic = "#{@topic}.follow"
         @log.log "topic is: ", topic
         err, msg <~ @send-request {topic, timeout}, {follow: opts}
-        callback (err or msg?.payload.err), msg?.payload.res
+        if typeof! callback is \Function
+            callback (err or msg?.payload.err), msg?.payload.res
