@@ -71,7 +71,7 @@ export class CouchDcsClient extends Actor
     follow: (opts={}, callback) ->
         timeout = opts.timeout or 5000ms
         topic = "#{@topic}.follow"
-        @log.log "topic is: ", topic
+        #@log.log "topic is: ", topic
         err, msg <~ @send-request {topic, timeout}, {follow: opts}
         if typeof! callback is \Function
             callback (err or msg?.payload.err), msg?.payload.res
