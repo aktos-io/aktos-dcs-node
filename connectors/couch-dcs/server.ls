@@ -32,8 +32,30 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
+        <~ @db.once \connected
+
+        @db
+            ..follow (change) ~>
+                @log.log "** publishing change on database:", change.id
+                for let topic in @subscriptions
+                    @send "#{topic}.changes.all", change
+
+            ..all {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
+                for res
+                    name = ..id.split '/' .1
+                    continue if name is \autoincrement
+                    #@log.log "all design documents: ", ..doc
+                    for let view-name of eval ..doc.javascript .views
+                        view = "#{name}/#{view-name}"
+                        @log.log "following view: #{view}"
+                        @db.follow {view}, (change) ~>
+                            @log.log "..publishing view change on #{view}", change.id
+                            for let topic in @subscriptions
+                                @send "#{topic}.changes.view.#{view}", change
+
+        @log.log "Accepting messages from DCS network."
         @on \data, (msg) ~>
-            @log.log "received data: ", keys(msg.payload), "from ctx:", msg.ctx
+            @log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
             if \put of msg.payload
                 doc = msg.payload.put
@@ -103,6 +125,14 @@ export class CouchDcsServer extends Actor
                 q = msg.payload.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
                 @send-and-echo msg, {err: err, res: res or null}
+
+            else if \cmd of msg.payload
+                cmd = msg.payload.cmd
+                @log.warn "got a cmd:", cmd
+
+            else if \follow of msg.payload
+                @log.warn "DEPRECATED: follow message:", msg.payload
+                return
 
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"

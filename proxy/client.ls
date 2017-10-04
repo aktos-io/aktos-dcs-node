@@ -16,6 +16,7 @@ export class ProxyClient extends Actor
         @role = \client
         @connected = no
         @data-binder = new MessageBinder!
+        @proxy = yes 
 
         @auth = new AuthRequest!
             ..on \to-server, (msg) ~>

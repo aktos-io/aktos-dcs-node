@@ -23,6 +23,14 @@ get-prefix = (_source, color) ->
     padded = align-left 15, "#{_source}"
     (color "[#{get-timestamp!}]") + " #{padded} :"
 
+IS_NODE = do ->
+    isNode = no
+    if typeof process is \object
+        if typeof process.versions is \object
+            if typeof process.versions.node isnt \undefined
+                isNode = yes
+    return isNode
+
 class LogManager extends EventEmitter
     @@instance = null
     ->
@@ -45,7 +53,25 @@ export class Logger extends EventEmitter
         get-prefix @source-name, color
 
     log: (...args) ~>
-        console.log.apply console, [@get-prefix!] ++ args
+        prefix = get-prefix @source-name
+        if IS_NODE
+            log = Function.prototype.bind.call(console.log, console)
+            log.call console, prefix, ...args
+        else
+            _args = []
+            my = "%c"
+            for arg in [prefix] ++ args
+                _args.push arg
+                my += " " + if typeof! arg is \String
+                    "%s"
+                else if typeof! arg is \Number
+                    "%d"
+                else
+                    "%O"
+
+            console.group-collapsed my, "font-weight: normal;" ..._args
+            console.trace prefix
+            console.group-end!
 
     log-green: ~>
         @log green ...

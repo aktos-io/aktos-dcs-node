@@ -7,7 +7,7 @@ export class CouchDcsClient extends Actor
         if opts.topic
             @topic = that
         else
-            throw 'No default topic is given.'
+            throw 'CouchDcsClient: No default topic is given.'
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
@@ -58,10 +58,20 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        err, msg <~ @send-request {topic: "#{@topic}.getAtt", timeout: 5000ms}, do
+        timeout = opts.timeout or 5000ms
+
+        err, msg <~ @send-request {topic: "#{@topic}.getAtt", timeout}, do
             getAtt:
                 doc-id: doc-id
                 att-name: att-name
                 opts: opts
 
         callback (err or msg?.payload.err), msg?.payload.res
+
+    follow: (opts={}, callback) ->
+        timeout = opts.timeout or 5000ms
+        topic = "#{@topic}.follow"
+        #@log.log "topic is: ", topic
+        err, msg <~ @send-request {topic, timeout}, {follow: opts}
+        if typeof! callback is \Function
+            callback (err or msg?.payload.err), msg?.payload.res

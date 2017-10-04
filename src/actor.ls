@@ -48,12 +48,8 @@ export class Actor extends EventEmitter
         @subscriptions.splice (@subscriptions.index-of topic), 1
 
     send: (topic, payload) ~>
-        if typeof! payload isnt \Object
-            # swap the parameters
-            [payload, topic] = [topic, payload]
-
         if typeof! topic isnt \String
-            @log.warn "Topic is not string? topic: #{topic}"
+            throw "Topic is not string? topic: #{topic}"
 
         debugger if @debug
         enveloped = @msg-template! <<< do
@@ -116,6 +112,7 @@ export class Actor extends EventEmitter
                         @request-queue[msg.res.seq].go msg
                         delete @request-queue[msg.res.seq]
                         return
+                return unless @proxy
 
             if \update of msg
                 @trigger \update, msg
@@ -128,9 +125,21 @@ export class Actor extends EventEmitter
             @log.err "problem in handler: ", e
 
     on-topic: (topic, handler) ->
+        return unless topic
+
+        @subscribe topic unless topic in @subscriptions
+
         @on \data, (msg) ~>
             if msg.topic `topic-match` topic
-                handler msg 
+                handler msg
+
+    once-topic: (topic, handler) ->
+        @subscribe topic unless topic in @subscriptions
+
+        @once \data, (msg) ~>
+            if msg.topic `topic-match` topic
+                handler msg
+                @unsubscribe topic
 
     send-enveloped: (msg) ->
         msg.sender = @id
