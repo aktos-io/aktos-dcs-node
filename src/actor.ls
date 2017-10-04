@@ -133,6 +133,14 @@ export class Actor extends EventEmitter
             if msg.topic `topic-match` topic
                 handler msg
 
+    once-topic: (topic, handler) ->
+        @subscribe topic unless topic in @subscriptions
+
+        @once \data, (msg) ~>
+            if msg.topic `topic-match` topic
+                handler msg
+                @unsubscribe topic
+
     send-enveloped: (msg) ->
         msg.sender = @id
         if not msg.topic and not (\auth of msg)
