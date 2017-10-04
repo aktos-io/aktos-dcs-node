@@ -112,6 +112,7 @@ export class Actor extends EventEmitter
                         @request-queue[msg.res.seq].go msg
                         delete @request-queue[msg.res.seq]
                         return
+                return unless @proxy
 
             if \update of msg
                 @trigger \update, msg

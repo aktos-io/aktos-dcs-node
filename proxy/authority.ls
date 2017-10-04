@@ -16,7 +16,8 @@ export class ProxyAuthority extends Actor
         """
         super opts.name
         @subscribe "public.**"
-
+        @proxy = yes
+        
         @role = \authority
 
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
