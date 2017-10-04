@@ -32,18 +32,28 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
-            ## include_rows example
-            #..follow {view: 'orders/getOrders', +include_rows}, (change) ~>
-            #    @log.log "+++++++++ orders (include rows)", change.row
+        <~ @db.once \connected
 
+        @db
             ..follow (change) ~>
-                @log.log "*********** any change:", change
+                @log.log "** publishing change on database:", change.id
                 for let topic in @subscriptions
                     @send "#{topic}.changes.all", change
 
+            ..all {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
+                for res
+                    name = ..id.split '/' .1
+                    continue if name is \autoincrement
+                    #@log.log "all design documents: ", ..doc
+                    for let view-name of eval ..doc.javascript .views
+                        view = "#{name}/#{view-name}"
+                        @log.log "following view: #{view}"
+                        @db.follow {view}, (change) ~>
+                            @log.log "..publishing view change on #{view}", change.id
+                            for let topic in @subscriptions
+                                @send "#{topic}.changes.view.#{view}", change
 
-        following-views = []
-
+        @log.log "Accepting messages from DCS network."
         @on \data, (msg) ~>
             @log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
@@ -121,7 +131,9 @@ export class CouchDcsServer extends Actor
                 @log.warn "got a cmd:", cmd
 
             else if \follow of msg.payload
-                @log.log "got follow message:", msg.payload
+                @log.warn "DEPRECATED: follow message:", msg.payload
+                return
+
                 opts = msg.payload.follow
                 c = if opts.view
                     "view.#{opts.view}"
