@@ -134,24 +134,6 @@ export class CouchDcsServer extends Actor
                 @log.warn "DEPRECATED: follow message:", msg.payload
                 return
 
-                opts = msg.payload.follow
-                c = if opts.view
-                    "view.#{opts.view}"
-                else if opts.filter
-                    "filter.#{opts.filter}"
-
-                if c not in following-views
-                    following-views.push c
-
-                    @db.follow opts, (change) ~>
-                        @log.log "sending change for #{c}"
-                        for let topic in @subscriptions
-                            publish-topic = "#{topic}.changes.#{c}"
-                            @log.log "sending change for #{publish-topic}"
-                            @send publish-topic, change
-
-                @send-and-echo msg, {err: null, res: {+ok}}
-
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"
                 @send-and-echo msg, {err: err, res: null}
