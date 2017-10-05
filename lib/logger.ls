@@ -4,6 +4,9 @@ require! moment
 require! 'prelude-ls': {map}
 require! './event-emitter': {EventEmitter}
 
+
+NEED_STACK_TRACE = no
+
 fmt = 'HH:mm:ss.SSS'
 
 start-time = new moment
@@ -55,8 +58,7 @@ export class Logger extends EventEmitter
     log: (...args) ~>
         prefix = get-prefix @source-name
         if IS_NODE
-            log = Function.prototype.bind.call(console.log, console)
-            log.call console, prefix, ...args
+            console.log.call console, prefix, ...args
         else
             _args = []
             my = "%c"
@@ -69,9 +71,13 @@ export class Logger extends EventEmitter
                 else
                     "%O"
 
-            console.group-collapsed my, "font-weight: normal;" ..._args
-            console.trace prefix
-            console.group-end!
+            if NEED_STACK_TRACE
+                console.group-collapsed my, "font-weight: normal;" ..._args
+                console.trace prefix
+                console.group-end!
+            else
+                log = Function.prototype.bind.call(console.log, console)
+                log.call console, my, "font-weight: normal;" ..._args
 
     log-green: ~>
         @log green ...
