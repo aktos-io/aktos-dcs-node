@@ -115,7 +115,14 @@ export class CouchDcsServer extends Actor
                     @send-and-echo msg, {err: err, res: res or null}
                 else
                     err, res <~ @db.bulk-docs docs
-                    @send-and-echo msg, {err: err, res: res or null}                    
+
+                    if typeof! res is \Array and not err
+                        for res
+                            if ..error
+                                err = {error: 'couchdb error'}
+                                break
+
+                    @send-and-echo msg, {err: err, res: res or null}
 
             # `get` message
             else if \get of msg.payload
