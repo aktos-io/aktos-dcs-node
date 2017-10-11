@@ -29,7 +29,7 @@ export class CouchNano extends EventEmitter
             @connected = yes
 
         @on \disconnected, ~>
-            @connected = no 
+            @connected = no
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -84,6 +84,17 @@ export class CouchNano extends EventEmitter
             db: @db-name
             body: doc
             method: \post
+            , callback
+
+    bulk-docs: (docs, opts, callback) ->
+        [callback, opts] = [opts, {}] if typeof! opts is \Function
+
+        @request do
+            db: @db-name
+            path: '_bulk_docs'
+            body: {docs}
+            method: \POST
+            qs: opts
             , callback
 
     get: (doc-id, opts, callback) ->

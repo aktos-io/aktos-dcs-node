@@ -4,7 +4,7 @@ require! 'colors': {
     green, yellow, blue
 }
 require! '../../lib':{sleep, pack}
-require! 'prelude-ls': {keys}
+require! 'prelude-ls': {keys, flatten}
 require! './couch-nano': {CouchNano}
 
 
@@ -53,53 +53,69 @@ export class CouchDcsServer extends Actor
                             for let topic in @subscriptions
                                 @send "#{topic}.changes.view.#{view}", change
 
+
+        get-next-id = (doc, callback) ~>
+            return callback err=no, doc unless doc._id
+            # handle autoincrement values here.
+            autoinc = doc._id.split /#+/
+            if autoinc.length > 1
+                prefix = autoinc.0
+                @log.log "prefix is: ", prefix
+                view-prefix = prefix.split /[^a-zA-Z]+/ .0.to-upper-case!
+                err, res <~ @db.view "autoincrement/short", do
+                    descending: yes
+                    limit: 1
+                    startkey: [view-prefix, {}]
+                    endkey: [view-prefix]
+
+                if err
+                    return callback err
+
+                next-id = try
+                    res.rows.0.key .1 + 1
+                catch
+                    1
+
+                doc._id = "#{prefix}#{next-id}"
+                @log.log bg-blue "+++ new doc id: ", doc._id
+                return callback err=no, doc
+            else
+                return callback err=no, doc
+
         @log.log "Accepting messages from DCS network."
         @on \data, (msg) ~>
-            @log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
+            #@log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
             if \put of msg.payload
-                doc = msg.payload.put
-                <~ :lo(op) ~>
-                    return op! unless doc._id
-                    # handle autoincrement values here.
-                    autoinc = doc._id.split /#+/
-                    if autoinc.length > 1
-                        prefix = autoinc.0
-                        @log.log "prefix is: ", prefix
-                        view-prefix = prefix.split /[^a-zA-Z]+/ .0.to-upper-case!
-                        err, res <~ @db.view "autoincrement/short", do
-                            descending: yes
-                            limit: 1
-                            startkey: [view-prefix, {}]
-                            endkey: [view-prefix]
-
-                        if err
-                            return @send-and-echo msg, {err: err, res: null}
-
-                        next-id = try
-                            res.rows.0.key .1 + 1
-                        catch
-                            1
-
-                        doc._id = "#{prefix}#{next-id}"
-                        @log.log bg-blue "+++ new doc id: ", doc._id
-                        return op!
-                    else
-                        return op!
+                docs = flatten [msg.payload.put]
 
                 # add server side properties
                 # ---------------------------
-                # FIXME: "Set unless null" strategy can be hacked in the client
-                # (client may set it to any value) but the original value is kept
-                # in the first revision . Fetch the first version on request.
-                unless doc.timestamp
-                    doc.timestamp = Date.now!
+                i = 0; _limit = docs.length - 1
+                <~ :lo(op) ~>
+                    err, doc <~ get-next-id docs[i]
+                    if err
+                        return @send-and-echo msg, {err: err, res: null}
 
-                unless doc.owner
-                    doc.owner = if msg.ctx => that.user else \_process
+                    # FIXME: "Set unless null" strategy can be hacked in the client
+                    # (client may set it to any value) but the original value is kept
+                    # in the first revision . Fetch the first version on request.
+                    unless doc.timestamp
+                        doc.timestamp = Date.now!
 
-                err, res <~ @db.put doc
-                @send-and-echo msg, {err: err, res: res or null}
+                    unless doc.owner
+                        doc.owner = if msg.ctx => that.user else \_process
+
+                    docs[i] = doc
+                    return op! if ++i > _limit
+                    lo(op)
+
+                if docs.length is 1
+                    err, res <~ @db.put docs.0
+                    @send-and-echo msg, {err: err, res: res or null}
+                else
+                    err, res <~ @db.bulk-docs docs
+                    @send-and-echo msg, {err: err, res: res or null}                    
 
             # `get` message
             else if \get of msg.payload

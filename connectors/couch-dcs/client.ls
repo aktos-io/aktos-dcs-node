@@ -1,13 +1,28 @@
 require! '../../src/actor': {Actor}
 
+'''
+usage:
+
+db = new CouchDcsClient prefix: 'myprefix'
+
+err, res <~ db.get \my-doc
+# sending message with topic: "myprefix.get"
+unless err
+    console.log "My document is: ", res
+
+'''
 
 export class CouchDcsClient extends Actor
     (opts) ->
         super "CouchDcs #{opts.name or 'Client'}"
         if opts.topic
             @topic = that
+        else if opts.prefix
+            @topic = that
         else
             throw 'CouchDcsClient: No default topic is given.'
+
+
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
