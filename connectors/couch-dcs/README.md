@@ -123,3 +123,11 @@ http://example.com/yourdb/_design/autoincrement/_view/short?descending=true&star
 - [ ] Add document deduplication support
 - [ ] Provide a way to resume interrupted downloads/uploads
 - [ ] Stream videos directly from database
+
+## 3. `get` recursively
+
+`db.get your_document_id, {recurse: 'some.keypath'}` will fetch the
+document with `your_document_id` and the documents with ids that match with
+`recurse` keypath.
+
+Checkout [the tests](./merge-deps.ls) for examples.

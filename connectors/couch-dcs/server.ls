@@ -4,7 +4,7 @@ require! 'colors': {
     green, yellow, blue
 }
 require! '../../lib':{sleep, pack}
-require! 'prelude-ls': {keys, flatten}
+require! 'prelude-ls': {keys, flatten, empty, difference}
 require! './couch-nano': {CouchNano}
 
 
@@ -40,7 +40,7 @@ export class CouchDcsServer extends Actor
                 for let topic in @subscriptions
                     @send "#{topic}.changes.all", change
 
-            ..all {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
+            ..all-docs {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
                 for res
                     name = ..id.split '/' .1
                     continue if name is \autoincrement
@@ -129,11 +129,46 @@ export class CouchDcsServer extends Actor
                 doc-id = msg.payload.get
                 opts = msg.payload.opts or {}
                 err, res <~ @db.get doc-id, opts
+                <~ :lo(op) ~>
+                    if not err and res
+                        # check for the recursion
+                        if opts.recurse
+                            @log.log bg-yellow "Recursion required: #{that}"
+
+                            required-doc-ids = keys res[that]
+                            dep-docs = {}
+                            <~ :lo2(op2) ~>
+                                if empty required-doc-ids
+                                    return op2!
+                                @log.log "...getting dependencies: ", required-doc-ids
+                                err2, res2 <~ @db.all-docs {keys: required-doc-ids, +include_docs}
+                                err := err or err2
+                                for res2
+                                    dep-docs[..doc._id] = ..doc
+
+                                required-doc-ids := do
+                                    [keys doc.[opts.recurse] for dep, doc of dep-docs]
+                                    |> flatten
+                                    |> (-> difference it, keys dep-docs)
+
+                                lo2(op2)
+                            @log.log "all dependencies are fetched. total: ", (keys dep-docs .length)
+                            res :=
+                                doc: res
+                                recurse: dep-docs
+                            return op!
+                        else
+                            return op!
+                    else
+                        return op!
+
+                @log.log "sending response: "
+                @log.log res
                 @send-and-echo msg, {err: err, res: res or null}
 
             # `all` message
             else if \all of msg.payload
-                err, res <~ @db.all msg.payload.all
+                err, res <~ @db.all-docs msg.payload.all
                 @send-and-echo msg, {err: err, res: res or null}
 
             # `view` message

@@ -106,7 +106,7 @@ export class CouchNano extends EventEmitter
             qs: opts
             , callback
 
-    all: (opts, callback) ->
+    all-docs: (opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 
         err, res, headers <~ @request do

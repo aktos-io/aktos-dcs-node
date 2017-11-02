@@ -1,4 +1,5 @@
 require! '../../src/actor': {Actor}
+require! './merge-deps': {merge-deps}
 
 '''
 usage:
@@ -11,6 +12,7 @@ unless err
     console.log "My document is: ", res
 
 '''
+
 
 export class CouchDcsClient extends Actor
     (opts) ->
@@ -32,7 +34,12 @@ export class CouchDcsClient extends Actor
         # end of normalization
 
         err, msg <~ @send-request "#{@topic}.get", {get: doc-id, opts: opts}
-        callback (err or msg?.payload.err), msg?.payload.res
+        res = msg?.payload.res
+        if opts.recurse
+            merged-doc = res.doc
+            console.log "merged doc: ", merged-doc
+
+        callback (err or msg?.payload.err), (merged-doc or res)
 
     all: (opts, callback) ->
         # normalize parameters
@@ -91,3 +98,7 @@ export class CouchDcsClient extends Actor
         err, msg <~ @send-request {topic, timeout}, {follow: opts}
         if typeof! callback is \Function
             callback (err or msg?.payload.err), msg?.payload.res
+
+    observe: (topic, callback) ->
+        @on-topic topic, callback
+        callback!
