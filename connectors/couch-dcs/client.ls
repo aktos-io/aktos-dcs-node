@@ -36,7 +36,7 @@ export class CouchDcsClient extends Actor
         err, msg <~ @send-request "#{@topic}.get", {get: doc-id, opts: opts}
         res = msg?.payload.res
         if opts.recurse
-            merged-doc = res.doc
+            merged-doc = merge-deps res.doc, that, res.recurse
             console.log "merged doc: ", merged-doc
 
         callback (err or msg?.payload.err), (merged-doc or res)
