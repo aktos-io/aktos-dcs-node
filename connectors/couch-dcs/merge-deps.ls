@@ -26,17 +26,15 @@ tests =
                     _id: 'foo'
                     hello: 'there'
 
-        result = merge-deps test.doc, \deps, test.recurse
-
-        expected =
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                foo:
-                    _id: 'foo'
-                    hello: 'there'
-
-        return {expected, result}
+        return do
+            result: merge-deps test.doc, \deps, test.recurse
+            expected:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    foo:
+                        _id: 'foo'
+                        hello: 'there'
 
     'one dependency used in multiple locations': ->
         test =
@@ -61,27 +59,26 @@ tests =
                     _id: 'qux'
                     hello: 'world'
 
-        result = merge-deps test.doc, \deps, test.recurse
+        return do
+            result: merge-deps test.doc, \deps, test.recurse
+            expected:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    foo:
+                        _id: 'foo'
+                        hello: 'there'
+                        deps:
+                            baz:
+                                _id: 'baz'
+                                deps:
+                                    qux:
+                                        _id: 'qux'
+                                        hello: 'world'
+                            qux:
+                                _id: 'qux'
+                                hello: 'world'
 
-        expected =
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                foo:
-                    _id: 'foo'
-                    hello: 'there'
-                    deps:
-                        baz:
-                            _id: 'baz'
-                            deps:
-                                qux:
-                                    _id: 'qux'
-                                    hello: 'world'
-                        qux:
-                            _id: 'qux'
-                            hello: 'world'
-
-        return {expected, result}
 
     'dependencies with overwritten values': ->
         test =
@@ -107,27 +104,26 @@ tests =
                     _id: 'qux'
                     hello: 'world'
 
-        result = merge-deps test.doc, \deps, test.recurse
+        return do
+            result: merge-deps test.doc, \deps, test.recurse
+            expected:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    foo:
+                        _id: 'foo'
+                        hello: 'world'
+                        deps:
+                            baz:
+                                _id: 'baz'
+                                deps:
+                                    qux:
+                                        _id: 'qux'
+                                        hello: 'world'
+                            qux:
+                                _id: 'qux'
+                                hello: 'world'
 
-        expected =
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                foo:
-                    _id: 'foo'
-                    hello: 'world'
-                    deps:
-                        baz:
-                            _id: 'baz'
-                            deps:
-                                qux:
-                                    _id: 'qux'
-                                    hello: 'world'
-                        qux:
-                            _id: 'qux'
-                            hello: 'world'
-
-        return {expected, result}
 
 
 for name, test of tests
