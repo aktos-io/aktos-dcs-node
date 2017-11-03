@@ -133,9 +133,12 @@ export class CouchDcsServer extends Actor
                     if not err and res
                         # check for the recursion
                         if opts.recurse
-                            @log.log bg-yellow "Recursion required: #{that}"
+                            @log.log bg-yellow "Recursion required: #{opts.recurse}"
 
-                            required-doc-ids = keys res[that]
+                            required-doc-ids = if typeof! res[opts.recurse] is \Object
+                                keys res[opts.recurse]
+                            else
+                                []
                             dep-docs = {}
                             <~ :lo2(op2) ~>
                                 if empty required-doc-ids
@@ -143,6 +146,9 @@ export class CouchDcsServer extends Actor
                                 @log.log "...getting dependencies: ", required-doc-ids
                                 err2, res2 <~ @db.all-docs {keys: required-doc-ids, +include_docs}
                                 err := err or err2
+                                if err
+                                    return op2!
+
                                 for res2
                                     dep-docs[..doc._id] = ..doc
 
