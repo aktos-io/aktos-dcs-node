@@ -1,40 +1,80 @@
-require! '../../lib': {merge}
+require! '../../lib': {merge, clone}
+require! '../../lib/test-utils': {make-tests}
+require! './get-with-keypath': {get-with-keypath}
+require! 'prelude-ls': {empty, flatten, Obj}
 
-export merge-deps = (obj, dep-keypath, dep-list) ->
-    if typeof! obj[dep-keypath] is \Object
-        for let dep-key of obj[dep-keypath]
-            dep = dep-list[dep-key]
-            if typeof! dep is \Object
+export get-deps = (docs, keypath, curr-cache=[]) ->
+    [arr-path, search-path] = keypath.split '.*.'
+    dep-requirements = []
+    docs = flatten [docs]
+    for doc in docs
+        #console.log "for doc: #{doc._id}, components:", doc.components
+
+        const dep-arr = doc `get-with-keypath` arr-path
+        if dep-arr and not empty dep-arr
+            for index of dep-arr
+                dep-name = dep-arr[index] `get-with-keypath` search-path
+                dep-requirements.push dep-name unless dep-name in curr-cache
+                #console.log "reported dependencies: ", dep-requirements
+
+    return dep-requirements
+
+
+export merge-deps = (doc, keypath, dep-sources) ->
+    if typeof! dep-sources isnt \Object
+        console.warn "merge-deps: Dependency sources must be an Object, found:", dep-sources
+        return doc
+
+    if Obj.empty dep-sources
+        return doc
+
+    [arr-path, search-path] = keypath.split '.*.'
+    const dep-arr = doc `get-with-keypath` arr-path
+
+    if dep-arr and not empty dep-arr
+        for index of dep-arr
+            dep-name = dep-arr[index] `get-with-keypath` search-path
+            if typeof! dep-sources[dep-name] is \Object
+                dep-source = clone dep-sources[dep-name]
+            else
+                console.error "merge-deps: Required dependency is not found: ", dep-name
+                return doc
+
+
+            if typeof! (dep-source `get-with-keypath` arr-path) is \Array
                 # merge recursively
-                dep = merge-deps dep, dep-keypath, dep-list
-            obj[dep-keypath][dep-key] = dep `merge` obj[dep-keypath][dep-key]
-    return obj
+                dep-source = merge-deps dep-source, keypath, dep-sources
+
+            dep-arr[parse-int index] = dep-source `merge` dep-arr[index]
+
+    return doc
 
 
 # ----------------------- TESTS ------------------------------------------
-tests =
+make-tests \merge-deps, do
     'simple': ->
-        test =
-            doc:
-                _id: 'bar'
-                nice: 'day'
-                deps:
-                    foo: {}
+        doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                * key: \foo
+                ...
 
-            recurse:
-                foo:
-                    _id: 'foo'
-                    hello: 'there'
+        dependencies =
+            foo:
+                _id: 'foo'
+                hello: 'there'
 
         return do
-            result: merge-deps test.doc, \deps, test.recurse
-            expected:
+            result: merge-deps doc, \deps.*.key, dependencies
+            expect:
                 _id: 'bar'
                 nice: 'day'
                 deps:
-                    foo:
-                        _id: 'foo'
-                        hello: 'there'
+                    * key: \foo
+                      _id: 'foo'
+                      hello: 'there'
+                    ...
 
     'one dependency used in multiple locations': ->
         test =
@@ -42,43 +82,46 @@ tests =
                 _id: 'bar'
                 nice: 'day'
                 deps:
-                    foo: {}
+                    * key: 'foo'
+                    ...
 
             recurse:
                 foo:
                     _id: 'foo'
                     hello: 'there'
                     deps:
-                        baz: {}
-                        qux: {}
+                        * key: \baz
+                        * key: \qux
                 baz:
                     _id: 'baz'
                     deps:
-                        qux: {}
+                        * key: \qux
+                        ...
                 qux:
                     _id: 'qux'
                     hello: 'world'
 
         return do
-            result: merge-deps test.doc, \deps, test.recurse
-            expected:
+            result: merge-deps test.doc, \deps.*.key , test.recurse
+            expect:
                 _id: 'bar'
                 nice: 'day'
                 deps:
-                    foo:
-                        _id: 'foo'
-                        hello: 'there'
+                  * key: \foo
+                    _id: 'foo'
+                    hello: 'there'
+                    deps:
+                      * key: \baz
+                        _id: 'baz'
                         deps:
-                            baz:
-                                _id: 'baz'
-                                deps:
-                                    qux:
-                                        _id: 'qux'
-                                        hello: 'world'
-                            qux:
-                                _id: 'qux'
-                                hello: 'world'
-
+                          * key: \qux
+                            _id: 'qux'
+                            hello: 'world'
+                          ...
+                      * key: \qux
+                        _id: 'qux'
+                        hello: 'world'
+                    ...
 
     'dependencies with overwritten values': ->
         test =
@@ -86,60 +129,44 @@ tests =
                 _id: 'bar'
                 nice: 'day'
                 deps:
-                    foo:
-                        hello: 'world'
+                    * key: 'foo'
+                      hello: \overwritten
+                    ...
 
             recurse:
                 foo:
                     _id: 'foo'
                     hello: 'there'
                     deps:
-                        baz: {}
-                        qux: {}
+                        * key: \baz
+                        * key: \qux
                 baz:
                     _id: 'baz'
                     deps:
-                        qux: {}
+                        * key: \qux
+                        ...
                 qux:
                     _id: 'qux'
                     hello: 'world'
 
         return do
-            result: merge-deps test.doc, \deps, test.recurse
-            expected:
+            result: merge-deps test.doc, \deps.*.key , test.recurse
+            expect:
                 _id: 'bar'
                 nice: 'day'
                 deps:
-                    foo:
-                        _id: 'foo'
-                        hello: 'world'
+                  * key: \foo
+                    _id: 'foo'
+                    hello: 'overwritten'
+                    deps:
+                      * key: \baz
+                        _id: 'baz'
                         deps:
-                            baz:
-                                _id: 'baz'
-                                deps:
-                                    qux:
-                                        _id: 'qux'
-                                        hello: 'world'
-                            qux:
-                                _id: 'qux'
-                                hello: 'world'
-
-
-
-for name, test of tests
-    res = test!
-    unless res
-        console.log "Test [#{name}] is skipped..."
-        continue
-
-    try
-        expected = JSON.stringify(res.expected)
-        result = JSON.stringify(res.result)
-        if result isnt expected
-            console.error "merge-deps failed on test: #{name}"
-            console.log "merged  \t: ", result
-            console.log "expected\t: ", expected
-        else
-            console.log "merge-deps passed from test: #{name}."
-    catch
-        debugger
+                          * key: \qux
+                            _id: 'qux'
+                            hello: 'world'
+                          ...
+                      * key: \qux
+                        _id: 'qux'
+                        hello: 'world'
+                    ...

@@ -4,8 +4,9 @@ require! 'colors': {
     green, yellow, blue
 }
 require! '../../lib':{sleep, pack}
-require! 'prelude-ls': {keys, flatten, empty, difference}
+require! 'prelude-ls': {keys, values, flatten, empty}
 require! './couch-nano': {CouchNano}
+require! './merge-deps': {get-deps}
 
 
 export class CouchDcsServer extends Actor
@@ -135,13 +136,12 @@ export class CouchDcsServer extends Actor
                         if opts.recurse
                             @log.log bg-yellow "Recursion required: #{opts.recurse}"
 
-                            required-doc-ids = if typeof! res[opts.recurse] is \Object
-                                keys res[opts.recurse]
-                            else
-                                []
                             dep-docs = {}
+                            required-doc-ids = get-deps res, opts.recurse, (keys dep-docs)
                             <~ :lo2(op2) ~>
                                 if empty required-doc-ids
+                                    @log.log "...no more dependencies left."
+
                                     return op2!
                                 @log.log "...getting dependencies: ", required-doc-ids
                                 err2, res2 <~ @db.all-docs {keys: required-doc-ids, +include_docs}
@@ -152,10 +152,7 @@ export class CouchDcsServer extends Actor
                                 for res2
                                     dep-docs[..doc._id] = ..doc
 
-                                required-doc-ids := do
-                                    [keys doc.[opts.recurse] for dep, doc of dep-docs]
-                                    |> flatten
-                                    |> (-> difference it, keys dep-docs)
+                                required-doc-ids := get-deps (values dep-docs), opts.recurse, (keys dep-docs)
 
                                 lo2(op2)
                             @log.log "all dependencies are fetched. total: ", (keys dep-docs .length)
