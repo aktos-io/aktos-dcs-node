@@ -45,7 +45,7 @@ export merge-deps = (doc, keypath, dep-sources) ->
                 # merge recursively
                 dep-source = merge-deps dep-source, keypath, dep-sources
 
-            dep-arr[parse-int index] = dep-source `merge` dep-arr[index]
+            dep-arr[parse-int index] = dep-source <<< dep-arr[index]
 
     return doc
 
