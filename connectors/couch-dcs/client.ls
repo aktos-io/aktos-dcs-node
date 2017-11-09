@@ -1,5 +1,5 @@
 require! '../../src/actor': {Actor}
-require! './merge-deps': {merge-deps}
+require! '../../lib/merge-deps': {merge-deps}
 
 '''
 usage:
@@ -35,8 +35,8 @@ export class CouchDcsClient extends Actor
 
         err, msg <~ @send-request "#{@topic}.get", {get: doc-id, opts: opts}
         res = msg?.payload.res
-        if opts.recurse
-            merged-doc = merge-deps res.doc, that, res.recurse
+        if opts.recurse and opts.merge
+            merged-doc = merge-deps res.doc, opts.recurse, res.deps
             console.log "merged doc: ", merged-doc
 
         callback (err or msg?.payload.err), (merged-doc or res)

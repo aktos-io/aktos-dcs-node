@@ -1,4 +1,4 @@
-require! '../../lib/test-utils': {make-tests}
+require! './test-utils': {make-tests}
 
 export get-with-keypath = (obj, keypath) ->
     res = obj

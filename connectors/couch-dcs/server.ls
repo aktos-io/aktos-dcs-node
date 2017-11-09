@@ -4,9 +4,11 @@ require! 'colors': {
     green, yellow, blue
 }
 require! '../../lib':{sleep, pack}
+require! '../../lib/get-deps':{get-deps}
+require! '../../lib/merge-deps':{bundle-deps}
+
 require! 'prelude-ls': {keys, values, flatten, empty}
 require! './couch-nano': {CouchNano}
-require! './merge-deps': {get-deps}
 
 
 export class CouchDcsServer extends Actor
@@ -156,9 +158,7 @@ export class CouchDcsServer extends Actor
 
                                 lo2(op2)
                             @log.log "all dependencies are fetched. total: ", (keys dep-docs .length)
-                            res :=
-                                doc: res
-                                recurse: dep-docs
+                            res := bundle-deps res, dep-docs
                             return op!
                         else
                             return op!

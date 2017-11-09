@@ -1,24 +1,8 @@
-require! '../../lib': {merge, clone}
-require! '../../lib/test-utils': {make-tests}
+require! './merge': {merge}
+require! './packing': {clone}
+require! './test-utils': {make-tests}
 require! './get-with-keypath': {get-with-keypath}
-require! 'prelude-ls': {empty, flatten, Obj}
-
-export get-deps = (docs, keypath, curr-cache=[]) ->
-    [arr-path, search-path] = keypath.split '.*.'
-    dep-requirements = []
-    docs = flatten [docs]
-    for doc in docs
-        #console.log "for doc: #{doc._id}, components:", doc.components
-
-        const dep-arr = doc `get-with-keypath` arr-path
-        if dep-arr and not empty dep-arr
-            for index of dep-arr
-                dep-name = dep-arr[index] `get-with-keypath` search-path
-                dep-requirements.push dep-name unless dep-name in curr-cache
-                #console.log "reported dependencies: ", dep-requirements
-
-    return dep-requirements
-
+require! 'prelude-ls': {empty, Obj}
 
 export merge-deps = (doc, keypath, dep-sources) ->
     if typeof! dep-sources isnt \Object
@@ -48,6 +32,9 @@ export merge-deps = (doc, keypath, dep-sources) ->
             dep-arr[parse-int index] = dep-source <<< dep-arr[index]
 
     return doc
+
+export bundle-deps = (doc, deps) ->
+    return {doc, deps}
 
 
 # ----------------------- TESTS ------------------------------------------
