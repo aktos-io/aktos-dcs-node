@@ -70,7 +70,7 @@ export apply-changes = (dep-keypath, changes-keypath, doc) ->
                                 change = that
                                 tmp = JSON.parse JSON.stringify dep
                                 tmp[changes-keypath] = change
-                                console.log "merge recursive because ckey: #{ckey}", "tmp doc: ", tmp
+                                #console.log "merge recursive because ckey: #{ckey}", "tmp doc: ", tmp
                                 x = apply-changes dep-keypath, changes-keypath, tmp
                                 delete x[changes-keypath]
                                 doc[arr-path][index] = x
