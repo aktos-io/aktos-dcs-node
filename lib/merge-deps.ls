@@ -2,7 +2,7 @@ require! './merge': {merge}
 require! './packing': {clone}
 require! './test-utils': {make-tests}
 require! './get-with-keypath': {get-with-keypath}
-require! 'prelude-ls': {empty, Obj, unique, keys, find}
+require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
 
 export merge-deps = (doc, keypath, dep-sources={}) ->
     [arr-path, search-path] = keypath.split '.*.'
@@ -32,7 +32,7 @@ export diff-deps = (keypath, orig, curr) ->
     const dep-arr = orig `get-with-keypath` arr-path
 
     change = {}
-    for key in unique (keys(orig) ++ keys(curr))
+    for key in union keys(orig), keys(curr)
         orig-val = orig[key]
         curr-val = curr[key]
         if JSON.stringify(orig-val) isnt JSON.stringify(curr-val)
@@ -57,7 +57,7 @@ export apply-changes = (dep-keypath, changes-keypath, doc) ->
     if doc
         if doc[changes-keypath]
             changes = that
-            for ckey of doc
+            for ckey in union (keys doc), (keys changes)
                 if ckey of changes
                     # if there is a change for this
                     if ckey is arr-path
