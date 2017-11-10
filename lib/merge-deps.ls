@@ -2,7 +2,7 @@ require! './merge': {merge}
 require! './packing': {clone}
 require! './test-utils': {make-tests}
 require! './get-with-keypath': {get-with-keypath}
-require! 'prelude-ls': {empty, Obj, unique, keys}
+require! 'prelude-ls': {empty, Obj, unique, keys, find}
 
 export merge-deps = (doc, keypath, dep-sources={}) ->
     [arr-path, search-path] = keypath.split '.*.'
@@ -33,7 +33,6 @@ export diff-deps = (keypath, orig, curr) ->
 
     change = {}
     for key in unique (keys(orig) ++ keys(curr))
-        console.log "looking for #{key}: #{orig[key]}"
         orig-val = orig[key]
         curr-val = curr[key]
         if JSON.stringify(orig-val) isnt JSON.stringify(curr-val)
@@ -52,6 +51,32 @@ export diff-deps = (keypath, orig, curr) ->
         change[search-path] = orig[search-path]
 
     return change
+
+export apply-changes = (dep-keypath, changes-keypath, doc) ->
+    [arr-path, search-path] = dep-keypath.split '.*.'
+    if doc
+        if doc[changes-keypath]
+            changes = that
+            for ckey of doc
+                if ckey of changes
+                    # if there is a change for this
+                    if ckey is arr-path
+                        dep-arr = doc[arr-path]
+                        throw 'This should be an array' if typeof! dep-arr isnt \Array
+                        # merge recursively by "search-path"
+                        for index of dep-arr
+                            dep = dep-arr[index]
+                            if find (.[search-path] is dep[search-path]), changes[arr-path]
+                                change = that
+                                tmp = JSON.parse JSON.stringify dep
+                                tmp[changes-keypath] = change
+                                console.log "merge recursive because ckey: #{ckey}", "tmp doc: ", tmp
+                                x = apply-changes dep-keypath, changes-keypath, tmp
+                                delete x[changes-keypath]
+                                doc[arr-path][index] = x
+                    else
+                        doc[ckey] = changes[ckey]
+    doc
 
 
 # ----------------------- TESTS ------------------------------------------
