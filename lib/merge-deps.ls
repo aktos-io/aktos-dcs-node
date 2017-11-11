@@ -4,79 +4,177 @@ require! './test-utils': {make-tests}
 require! './get-with-keypath': {get-with-keypath}
 require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
 
-export merge-deps = (doc, keypath, dep-sources={}) ->
+export apply-changes = (doc, changes) ->
+    changes = changes or doc.changes
+    for change-path, change of changes
+        if typeof! change is \Object
+            if change.deleted
+                delete doc[change-path]
+            else
+                deep-change = apply-changes doc[change-path], change
+                doc[change-path] = deep-change
+        else
+            doc[change-path] = change
+    doc
+
+make-tests \apply-changes, do
+    'simple': ->
+        doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: \foo
+            changes:
+                deps:
+                    my:
+                        value: 5
+
+        return do
+            result: apply-changes doc
+            expect:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my:
+                        key: \foo
+                        value: 5
+                changes:
+                    deps:
+                        my:
+                            value: 5
+
+    'simple2': ->
+        doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: \foo
+                    deps:
+                        x:
+                            hello: \world
+            changes:
+                deps:
+                    my:
+                        value: 5
+                        deps:
+                            x:
+                                hello: \there
+
+        return do
+            result: apply-changes doc
+            expect:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my:
+                        key: \foo
+                        value: 5
+                        deps:
+                            x:
+                                hello: \there
+                changes:
+                    deps:
+                        my:
+                            value: 5
+                            deps:
+                                x:
+                                    hello: \there
+
+
+    'delete example': ->
+        doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: \foo
+                    deps:
+                        x:
+                            hello: \world
+            changes:
+                deps:
+                    my:
+                        value: 5
+                        deps:
+                            x:
+                                hello: {deleted: yes}
+
+        return do
+            result: apply-changes doc
+            expect:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my:
+                        key: \foo
+                        value: 5
+                        deps:
+                            x: {}
+                changes:
+                    deps:
+                        my:
+                            value: 5
+                            deps:
+                                x:
+                                    hello: {deleted: yes}
+
+class DependencyError extends Error
+    (@message, @dependency) ->
+        super ...
+        Error.captureStackTrace(this, DependencyError)
+
+
+
+
+export merge-deps = (doc, keypath, dep-sources={}, opts={}) ->
     [arr-path, search-path] = keypath.split '.*.'
     const dep-arr = doc `get-with-keypath` arr-path
 
-    if dep-arr and not empty dep-arr
+    unless Obj.empty dep-arr
         for index of dep-arr
             dep-name = dep-arr[index] `get-with-keypath` search-path
+            continue unless dep-name
             if typeof! dep-sources[dep-name] is \Object
                 dep-source = clone dep-sources[dep-name]
             else
-                throw "merge-deps: Required dependency is not found: #{dep-name}"
+                throw new DependencyError("merge-deps: Required dependency is not found:", dep-name)
 
-            if typeof! (dep-source `get-with-keypath` arr-path) is \Array
+            if typeof! (dep-source `get-with-keypath` arr-path) is \Object
                 # merge recursively
-                dep-source = merge-deps dep-source, keypath, dep-sources
+                dep-source = merge-deps dep-source, keypath, dep-sources, {+calc-changes}
 
-            dep-arr[parse-int index] = dep-source <<< dep-arr[index]
+            dep-arr[index] = dep-source <<< dep-arr[index]
 
-    return doc
+    if opts.calc-changes
+        return apply-changes doc
+    else
+        return doc
 
 export bundle-deps = (doc, deps) ->
     return {doc, deps}
 
 export diff-deps = (keypath, orig, curr) ->
     [arr-path, search-path] = keypath.split '.*.'
-    const dep-arr = orig `get-with-keypath` arr-path
 
     change = {}
     for key in union keys(orig), keys(curr)
         orig-val = orig[key]
         curr-val = curr[key]
         if JSON.stringify(orig-val) isnt JSON.stringify(curr-val)
-            if typeof! orig-val is \Array
+            if typeof! orig-val is \Object
                 # make a recursive diff
-                change[key] = []
+                change[key] = {}
                 for item of orig-val
                     diff = diff-deps keypath, orig-val[item], curr-val[item]
-                    change[key].push diff
-            else if typeof! orig-val is \Object
+                    change[key][item] = diff
+            else if typeof! orig-val is \Array
                 debugger
             else
                 change[key] = (curr-val or null)
 
-    unless Obj.empty change
-        change[search-path] = orig[search-path]
-
     return change
-
-export apply-changes = (dep-keypath, changes-keypath, doc) ->
-    [arr-path, search-path] = dep-keypath.split '.*.'
-    if doc
-        if doc[changes-keypath]
-            changes = that
-            for ckey in union (keys doc), (keys changes)
-                if ckey of changes
-                    # if there is a change for this
-                    if ckey is arr-path
-                        dep-arr = doc[arr-path]
-                        throw 'This should be an array' if typeof! dep-arr isnt \Array
-                        # merge recursively by "search-path"
-                        for index of dep-arr
-                            dep = dep-arr[index]
-                            if find (.[search-path] is dep[search-path]), changes[arr-path]
-                                change = that
-                                tmp = JSON.parse JSON.stringify dep
-                                tmp[changes-keypath] = change
-                                #console.log "merge recursive because ckey: #{ckey}", "tmp doc: ", tmp
-                                x = apply-changes dep-keypath, changes-keypath, tmp
-                                delete x[changes-keypath]
-                                doc[arr-path][index] = x
-                    else
-                        doc[ckey] = changes[ckey]
-    doc
 
 
 # ----------------------- TESTS ------------------------------------------
@@ -86,8 +184,8 @@ make-tests \merge-deps, do
             _id: 'bar'
             nice: 'day'
             deps:
-                * key: \foo
-                ...
+                my:
+                    key: \foo
 
         dependencies =
             foo:
@@ -100,102 +198,58 @@ make-tests \merge-deps, do
                 _id: 'bar'
                 nice: 'day'
                 deps:
-                    * key: \foo
-                      _id: 'foo'
-                      hello: 'there'
-                    ...
+                    my:
+                        _id: 'foo'
+                        hello: 'there'
+                        key: \foo
 
     'one dependency used in multiple locations': ->
-        test =
-            doc:
-                _id: 'bar'
-                nice: 'day'
-                deps:
-                    * key: 'foo'
-                    ...
+        doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my1:
+                    key: 'foo'
 
-            recurse:
-                foo:
-                    _id: 'foo'
-                    hello: 'there'
-                    deps:
-                        * key: \baz
-                        * key: \qux
-                baz:
-                    _id: 'baz'
-                    deps:
-                        * key: \qux
-                        ...
-                qux:
-                    _id: 'qux'
-                    hello: 'world'
+        deps =
+            foo:
+                _id: 'foo'
+                hello: 'there'
+                deps:
+                    hey:
+                        key: \baz
+                    hey2:
+                        key: \qux
+            baz:
+                _id: 'baz'
+                deps:
+                    hey3:
+                        key: \qux
+            qux:
+                _id: 'qux'
+                hello: 'world'
 
         return do
-            result: merge-deps test.doc, \deps.*.key , test.recurse
+            result: merge-deps doc, \deps.*.key , deps
             expect:
                 _id: 'bar'
                 nice: 'day'
                 deps:
-                  * key: \foo
-                    _id: 'foo'
-                    hello: 'there'
-                    deps:
-                      * key: \baz
-                        _id: 'baz'
+                    my1:
+                        key: \foo
+                        _id: 'foo'
+                        hello: 'there'
                         deps:
-                          * key: \qux
-                            _id: 'qux'
-                            hello: 'world'
-                          ...
-                      * key: \qux
-                        _id: 'qux'
-                        hello: 'world'
-                    ...
+                            hey:
+                                key: \baz
+                                _id: 'baz'
+                                deps:
+                                    hey3:
+                                        key: \qux
+                                        _id: 'qux'
+                                        hello: 'world'
 
-    'dependencies with overwritten values': ->
-        test =
-            doc:
-                _id: 'bar'
-                nice: 'day'
-                deps:
-                    * key: 'foo'
-                      hello: \overwritten
-                    ...
-
-            recurse:
-                foo:
-                    _id: 'foo'
-                    hello: 'there'
-                    deps:
-                        * key: \baz
-                        * key: \qux
-                baz:
-                    _id: 'baz'
-                    deps:
-                        * key: \qux
-                        ...
-                qux:
-                    _id: 'qux'
-                    hello: 'world'
-
-        return do
-            result: merge-deps test.doc, \deps.*.key , test.recurse
-            expect:
-                _id: 'bar'
-                nice: 'day'
-                deps:
-                  * key: \foo
-                    _id: 'foo'
-                    hello: 'overwritten'
-                    deps:
-                      * key: \baz
-                        _id: 'baz'
-                        deps:
-                          * key: \qux
-                            _id: 'qux'
-                            hello: 'world'
-                          ...
-                      * key: \qux
-                        _id: 'qux'
-                        hello: 'world'
-                    ...
+                            hey2:
+                                key: \qux
+                                _id: 'qux'
+                                hello: 'world'
