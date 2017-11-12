@@ -7,11 +7,15 @@ require! './apply-changes': {apply-changes}
 
 export apply-changes
 
-class DependencyError extends Error
+export class DependencyError extends Error
     (@message, @dependency) ->
         super ...
         Error.captureStackTrace(this, DependencyError)
 
+export class CircularDependencyError extends Error
+    (@message, @dependency) ->
+        super ...
+        Error.captureStackTrace(this, CircularDependencyError)
 
 
 
@@ -186,3 +190,5 @@ make-tests \merge-deps, do
                                 key: \qux
                                 _id: 'qux'
                                 hello: 'world'
+    'circular dependency': ->
+        return false
