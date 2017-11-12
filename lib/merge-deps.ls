@@ -5,16 +5,17 @@ require! './get-with-keypath': {get-with-keypath}
 require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
 
 export apply-changes = (doc, changes) ->
-    changes = changes or doc.changes
-    for change-path, change of changes
-        if typeof! change is \Object
-            if change.deleted
-                delete doc[change-path]
+    if typeof! doc is \Object
+        changes = changes or doc.changes
+        for change-path, change of changes
+            if typeof! change is \Object
+                if change.deleted
+                    delete doc[change-path]
+                else
+                    deep-change = apply-changes doc[change-path], change
+                    doc[change-path] = deep-change
             else
-                deep-change = apply-changes doc[change-path], change
-                doc[change-path] = deep-change
-        else
-            doc[change-path] = change
+                doc[change-path] = change
     doc
 
 make-tests \apply-changes, do
@@ -43,6 +44,36 @@ make-tests \apply-changes, do
                     deps:
                         my:
                             value: 5
+
+    'with extra changes': ->
+        doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: \foo
+            changes:
+                deps:
+                    my:
+                        value: 5
+                    your:
+                        key: \there
+
+        return do
+            result: apply-changes doc
+            expect:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my:
+                        key: \foo
+                        value: 5
+                changes:
+                    deps:
+                        my:
+                            value: 5
+                        your:
+                            key: \there
 
     'simple2': ->
         doc =
@@ -136,15 +167,27 @@ export merge-deps = (doc, keypath, dep-sources={}, opts={}) ->
         for index of dep-arr
             dep-name = dep-arr[index] `get-with-keypath` search-path
             continue unless dep-name
+
+            # this key-value pair has further dependencies
             if typeof! dep-sources[dep-name] is \Object
-                dep-source = clone dep-sources[dep-name]
+                dep-source = if dep-sources[dep-name]
+                    clone that
+                else
+                    {}
             else
                 throw new DependencyError("merge-deps: Required dependency is not found:", dep-name)
 
             if typeof! (dep-source `get-with-keypath` arr-path) is \Object
+                # if dependency-source has further dependencies,
                 # merge recursively
                 dep-source = merge-deps dep-source, keypath, dep-sources, {+calc-changes}
 
+            # we have fully populated dependency-source here.
+
+
+            for k of dep-arr[index]
+                if k of dep-source
+                    dep-arr[index]
             dep-arr[index] = dep-source <<< dep-arr[index]
 
     if opts.calc-changes
