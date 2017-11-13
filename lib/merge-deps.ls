@@ -63,8 +63,12 @@ export diff-deps = (keypath, orig, curr) ->
 
     change = {}
     for key in union keys(orig), keys(curr)
-        orig-val = orig[key]
-        curr-val = curr[key]
+        try
+            orig-val = orig[key]
+            curr-val = curr[key]
+        catch
+            # orig might be null. add this to tests
+            continue
         if JSON.stringify(orig-val) isnt JSON.stringify(curr-val)
             if typeof! orig-val is \Object
                 # make a recursive diff
@@ -76,7 +80,6 @@ export diff-deps = (keypath, orig, curr) ->
                 debugger
             else
                 change[key] = (curr-val or null)
-
     return change
 
 
