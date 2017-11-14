@@ -1,4 +1,5 @@
 jsondiffpatch = require 'jsondiffpatch'
+require! \expect
 
 export make-tests = (lib-name, tests) ->
     if typeof! lib-name is \Object
@@ -7,8 +8,13 @@ export make-tests = (lib-name, tests) ->
 
     console.log "++++++++++ Start of tests: #{lib-name}"
     for let name, test of tests
+        @expect = expect
         res = test.call this
-        unless res
+
+        if typeof! res is \Undefined
+            console.log "...passed from external test: #{name}."
+
+        else if not res
             console.warn "Test [#{name}] is skipped..."
         else
             try

@@ -174,3 +174,62 @@ make-tests \merge-deps, do
                                 hello: 'world'
     'circular dependency': ->
         return false
+
+    'missing dependency': ->
+        doc =
+            deps:
+                my:
+                    key: \foo
+
+        dependencies =
+            bar:
+                _id: 'bar'
+                hello: 'there'
+
+        expect (-> merge-deps doc, \deps.*.key, dependencies)
+            .to-throw "merge-deps: Required dependency is not found:"
+
+
+
+    'changed remote document': ->
+        doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: \foo
+            changes:
+                deps:
+                    hey:
+                        there: \hello
+
+        dependencies =
+            foo:
+                _id: 'foo'
+                hello: 'there'
+
+        merged = merge-deps doc, \deps.*.key, dependencies
+
+        merged.deps.my.key = "baz"
+        merged.changes.deps.my = {key: 'baz'}
+
+        dependencies.baz =
+            _id: 'baz'
+            its: 'working'
+
+        expect merge-deps merged, \deps.*.key, dependencies
+        .to-equal do
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: 'baz'
+                    _id: 'baz'
+                    its: 'working'
+
+            changes:
+                deps:
+                    hey:
+                        there: \hello
+                    my:
+                        key: 'bar'
