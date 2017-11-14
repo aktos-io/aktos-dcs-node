@@ -4,8 +4,11 @@ require! './test-utils': {make-tests}
 require! './get-with-keypath': {get-with-keypath}
 require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
 require! './apply-changes': {apply-changes}
+require! './diff-deps': {diff-deps}
 
+# re-export
 export apply-changes
+export diff-deps
 
 export class DependencyError extends Error
     (@message, @dependency) ->
@@ -57,30 +60,6 @@ export merge-deps = (doc, keypath, dep-sources={}, opts={}) ->
 
 export bundle-deps = (doc, deps) ->
     return {doc, deps}
-
-export diff-deps = (keypath, orig, curr) ->
-    [arr-path, search-path] = keypath.split '.*.'
-
-    change = {}
-    for key in union keys(orig), keys(curr)
-        try
-            orig-val = orig[key]
-            curr-val = curr[key]
-        catch
-            # orig might be null. add this to tests
-            continue
-        if JSON.stringify(orig-val) isnt JSON.stringify(curr-val)
-            if typeof! orig-val is \Object
-                # make a recursive diff
-                change[key] = {}
-                for item of orig-val
-                    diff = diff-deps keypath, orig-val[item], curr-val[item]
-                    change[key][item] = diff
-            else if typeof! orig-val is \Array
-                debugger
-            else
-                change[key] = (curr-val or null)
-    return change
 
 
 # ----------------------- TESTS ------------------------------------------
