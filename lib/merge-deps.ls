@@ -24,7 +24,11 @@ export class CircularDependencyError extends Error
 
 export merge-deps = (doc, keypath, dep-sources={}, opts={}) ->
     [arr-path, search-path] = keypath.split '.*.'
+
+    doc = apply-changes doc
+
     const dep-arr = doc `get-with-keypath` arr-path
+
 
     unless Obj.empty dep-arr
         for index of dep-arr
@@ -53,10 +57,7 @@ export merge-deps = (doc, keypath, dep-sources={}, opts={}) ->
                     dep-arr[index]
             dep-arr[index] = dep-source <<< dep-arr[index]
 
-    if opts.calc-changes
-        return apply-changes doc
-    else
-        return doc
+    return doc
 
 export bundle-deps = (doc, deps) ->
     return {doc, deps}

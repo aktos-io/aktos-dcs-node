@@ -31,19 +31,18 @@ make-tests \apply-changes, do
                     my:
                         value: 5
 
-        return do
-            result: apply-changes doc
-            expect:
-                _id: 'bar'
-                nice: 'day'
+        expect apply-changes doc
+        .to-equal doc=
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: \foo
+                    value: 5
+            changes:
                 deps:
                     my:
-                        key: \foo
                         value: 5
-                changes:
-                    deps:
-                        my:
-                            value: 5
 
     'with extra changes': ->
         doc =
@@ -59,21 +58,20 @@ make-tests \apply-changes, do
                     your:
                         key: \there
 
-        return do
-            result: apply-changes doc
-            expect:
-                _id: 'bar'
-                nice: 'day'
+        expect apply-changes doc
+        .to-equal doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: \foo
+                    value: 5
+            changes:
                 deps:
                     my:
-                        key: \foo
                         value: 5
-                changes:
-                    deps:
-                        my:
-                            value: 5
-                        your:
-                            key: \there
+                    your:
+                        key: \there
 
     'with no original dependencies': ->
         doc =
@@ -87,19 +85,17 @@ make-tests \apply-changes, do
                     your:
                         key: \there
 
-        return do
-            result: apply-changes doc
-            expect:
-                _id: 'bar'
-                nice: 'day'
-                deps: {}
-                changes:
-                    deps:
-                        my:
-                            value: 5
-                        your:
-                            key: \there
-
+        expect apply-changes doc
+        .to-equal doc =
+            _id: 'bar'
+            nice: 'day'
+            deps: {}
+            changes:
+                deps:
+                    my:
+                        value: 5
+                    your:
+                        key: \there
 
     'simple2': ->
         doc =
@@ -119,25 +115,24 @@ make-tests \apply-changes, do
                             x:
                                 hello: \there
 
-        return do
-            result: apply-changes doc
-            expect:
-                _id: 'bar'
-                nice: 'day'
+        expect apply-changes doc
+        .to-equal doc =
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    key: \foo
+                    value: 5
+                    deps:
+                        x:
+                            hello: \there
+            changes:
                 deps:
                     my:
-                        key: \foo
                         value: 5
                         deps:
                             x:
                                 hello: \there
-                changes:
-                    deps:
-                        my:
-                            value: 5
-                            deps:
-                                x:
-                                    hello: \there
 
 
     'delete example': ->

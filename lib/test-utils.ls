@@ -7,9 +7,14 @@ export make-tests = (lib-name, tests) ->
         lib-name = \Tests
 
     console.log "++++++++++ Start of tests: #{lib-name}"
-    for let name, test of tests
+    for name, test of tests
         @expect = expect
-        res = test.call this
+        try
+            res = test.call this
+        catch
+            console.error   "- FAILED on test: #{name}"
+            throw e
+
 
         if typeof! res is \Undefined
             console.log "...passed from external test: #{name}."

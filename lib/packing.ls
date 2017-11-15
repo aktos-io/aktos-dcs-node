@@ -8,9 +8,14 @@ export function pack x
 export function unpack x
     JSON.parse x
 
+export class CloneError extends Error
+    (@message, @argument) ->
+        super ...
+        Error.captureStackTrace(this, CloneError)
+
 
 export clone = (x) ->
     if typeof! x in <[ Object Array ]>
         unpack pack x
     else
-        throw "argument must be object or array, supplied: #{pack x}"
+        throw new CloneError "argument must be object or array, supplied: #{pack x}", x 
