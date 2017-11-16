@@ -13,7 +13,13 @@ export make-tests = (lib-name, tests) ->
             res = test.call this
         catch
             console.error   "- FAILED on test: #{name}"
-            throw e
+            console.log     "- result  \t: ", JSON.stringify(e.matcherResult.actual)
+            console.log     "- expected\t: ", JSON.stringify(e.matcherResult.expected)
+
+            d = jsondiffpatch.diff e.matcherResult.actual, e.matcherResult.expected
+            console.error "diff: "
+            console.error (JSON.stringify d, null, 2)
+            throw  "- FAILED on test: #{name}"
 
 
         if typeof! res is \Undefined

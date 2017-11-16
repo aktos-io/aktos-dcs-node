@@ -297,9 +297,6 @@ make-tests \merge-deps, do
               "components": {
                 "Arka Kapak": {
                   "key": "Civatalı Kapak"
-                },
-                "Yan Kapak": {
-                  "key": "Kaynaklı Kapak"
                 }
               },
               "changes": {
@@ -405,48 +402,6 @@ make-tests \merge-deps, do
                     }
                   },
                   "key": "Kaynaklı Kapak"
-                },
-                "Yan Kapak": {
-                  "components": {
-                    "SAC (2MM)": {
-                      "key": "SAC (2MM)"
-                    },
-                    "Gazaltı Kaynağı": {
-                      "components": {
-                        "Kaynak Gazı": {
-                          "components": {},
-                          "key": "Co2",
-                          "amount": 0.00001
-                        },
-                        "Gazaltı Teli": {
-                          "components": {},
-                          "key": "Gazaltı Teli",
-                          "amount": 3
-                        }
-                      },
-                      "changes": {
-                        "components": {
-                          "Kaynak Gazı": {
-                            "amount": 0.00001
-                          },
-                          "Gazaltı Teli": {
-                            "amount": 3
-                          }
-                        }
-                      },
-                      "key": "Gazaltı Kaynağı",
-                      "amount": 30
-                    }
-                  },
-                  "changes": {
-                    "components": {
-                      "SAC (2MM)": {},
-                      "Gazaltı Kaynağı": {
-                        "amount": 30
-                      }
-                    }
-                  },
-                  "key": "Kaynaklı Kapak"
                 }
               },
               "changes": {
@@ -472,48 +427,6 @@ make-tests \merge-deps, do
             {
               "components": {
                 "Arka Kapak": {
-                  "components": {
-                    "SAC (2MM)": {
-                      "key": "SAC (2MM)"
-                    },
-                    "Gazaltı Kaynağı": {
-                      "components": {
-                        "Kaynak Gazı": {
-                          "components": {},
-                          "key": "Co2",
-                          "amount": 0.00001
-                        },
-                        "Gazaltı Teli": {
-                          "components": {},
-                          "key": "Gazaltı Teli",
-                          "amount": 3
-                        }
-                      },
-                      "changes": {
-                        "components": {
-                          "Kaynak Gazı": {
-                            "amount": 0.00001
-                          },
-                          "Gazaltı Teli": {
-                            "amount": 3
-                          }
-                        }
-                      },
-                      "key": "Gazaltı Kaynağı",
-                      "amount": 30
-                    }
-                  },
-                  "changes": {
-                    "components": {
-                      "SAC (2MM)": {},
-                      "Gazaltı Kaynağı": {
-                        "amount": 30
-                      }
-                    }
-                  },
-                  "key": "Kaynaklı Kapak"
-                },
-                "Yan Kapak": {
                   "components": {
                     "SAC (2MM)": {
                       "key": "SAC (2MM)"
