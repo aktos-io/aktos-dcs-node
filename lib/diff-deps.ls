@@ -9,6 +9,7 @@ export diff-deps = (keypath, orig, curr) ->
         return curr
     unless curr
         return {+deleted}
+
     for key in union keys(orig), keys(curr)
         orig-val = if orig => that[key] else {}
         curr-val = if curr => that[key] else {}
@@ -16,7 +17,13 @@ export diff-deps = (keypath, orig, curr) ->
             if typeof! orig-val is \Object
                 # make a recursive diff
                 change[key] = {}
+
                 for item of orig-val
+
+                    # TODO: this is a random workaround, untested!
+                    if curr-val and item not of curr-val
+                        continue
+
                     diff = diff-deps keypath, orig-val[item], curr-val[item]
                     change[key][item] = diff
             else if typeof! orig-val is \Array

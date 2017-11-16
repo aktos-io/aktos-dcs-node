@@ -7,15 +7,19 @@ require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
 export apply-changes = (doc, changes) ->
     if typeof! doc is \Object
         changes = changes or doc.changes
-        for change-path, change of changes
-            if typeof! change is \Object
-                if change.deleted
-                    delete doc[change-path]
+
+        if \key in keys changes
+            doc = changes 
+        else
+            for change-path, change of changes
+                if typeof! change is \Object
+                    if change.deleted
+                        delete doc[change-path]
+                    else
+                        deep-change = apply-changes doc[change-path], change
+                        doc[change-path] = deep-change
                 else
-                    deep-change = apply-changes doc[change-path], change
-                    doc[change-path] = deep-change
-            else
-                doc[change-path] = change
+                    doc[change-path] = change
     doc
 
 make-tests \apply-changes, do
