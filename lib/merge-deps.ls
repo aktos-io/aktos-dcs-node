@@ -52,11 +52,7 @@ export merge-deps = (doc, keypath, dep-sources={}, opts={}) ->
             # ------------------------------------------------------------
             # we have fully populated dependency-source at this point
             # ------------------------------------------------------------
-
-            for k of dep-arr[index]
-                if k of dep-source
-                    dep-arr[index]
-            dep-arr[index] = dep-source <<< dep-arr[index]
+            dep-arr[index] = (apply-changes dep-source) <<< dep-arr[index]
 
     return doc
 
@@ -293,196 +289,107 @@ make-tests \merge-deps, do
 
     'changed remote document (2)': ->
         input =
-            {
-              "components": {
-                "Arka Kapak": {
-                  "key": "Civatalı Kapak"
-                }
-              },
-              "changes": {
-                "components": {
-                  "Arka Kapak": {
-                    "key": "Kaynaklı Kapak",
-                    "components": {
-                      "SAC (2MM)": {
-                        "key": "SAC (2MM)"
-                      },
-                      "Gazaltı Kaynağı": {
-                        "value": null
-                      }
-                    }
-                  },
-                  "Yan Kapak": {}
-                }
-              }
-            }
+            components:
+                foo:
+                    key: \bar444
+            changes:
+                components:
+                    foo:
+                        key: \bar111
+                        components:
+                            bar333:
+                                value: null
+
+        expect apply-changes input
+        .to-equal do
+            components:
+                foo:
+                    key: \bar111
+                    components:
+                        bar333:
+                            value: null
+            changes:
+                components:
+                    foo:
+                        key: \bar111
+                        components:
+                            bar333:
+                                value: null
 
         deps =
-            {
-              "Civatalı Kapak": {
-                "components": {
-                  "CIVATA (M5)": {
-                    "key": "CIVATA (M5)"
-                  },
-                  "SAC (2MM)": {
-                    "key": "SAC (2MM)"
-                  }
-                },
-                "changes": {},
-              },
-              "Kaynaklı Kapak": {
-                "components": {
-                  "SAC (2MM)": {
-                    "key": "SAC (2MM)"
-                  },
-                  "Gazaltı Kaynağı": {
-                    "key": "Gazaltı Kaynağı"
-                  }
-                },
-                "changes": {
-                  "components": {
-                    "SAC (2MM)": {},
-                    "Gazaltı Kaynağı": {
-                      "amount": 30
-                    }
-                  }
-                }
-              },
-              "CIVATA (M5)": {
-                "components": {}
-              },
-              "SAC (2MM)": {
-              },
-              "Gazaltı Kaynağı": {
-                "components": {
-                  "Kaynak Gazı": {
-                    "key": "Co2"
-                  },
-                  "Gazaltı Teli": {
-                    "key": "Gazaltı Teli"
-                  }
-                },
-                "changes": {
-                  "components": {
-                    "Kaynak Gazı": {
-                      "amount": 0.00001
-                    },
-                    "Gazaltı Teli": {
-                      "amount": 3
-                    }
-                  }
-                }
-              },
-              "Co2": {
-                "components": {}
-              },
-              "Gazaltı Teli": {
-                "components": {}
-              }
-            }
+            bar111:
+                components:
+                    bar333:
+                        key: \bar333
+                changes:
+                    components:
+                        bar333:
+                            amount: 30
+            bar333:
+                components:
+                    bar555:
+                        key: \Co2
+                    bar666:
+                        key: \bar666
+                changes:
+                    components:
+                        bar555:
+                            amount: 0.00001
+                        bar666:
+                            amount: 3
+            Co2:
+                components: {}
+            bar666:
+                components: {}
 
-        output =
-            {
-              "components": {
-                "Arka Kapak": {
-                  "components": {
-                    "SAC (2MM)": {
-                      "key": "SAC (2MM)"
-                    },
-                    "Gazaltı Kaynağı": {
-                      "value": null
-                    }
-                  },
-                  "changes": {
-                    "components": {
-                      "SAC (2MM)": {},
-                      "Gazaltı Kaynağı": {
-                        "amount": 30
-                      }
-                    }
-                  },
-                  "key": "Kaynaklı Kapak"
-                }
-              },
-              "changes": {
-                "components": {
-                  "Arka Kapak": {
-                    "key": "Kaynaklı Kapak",
-                    "components": {
-                      "SAC (2MM)": {
-                        "key": "SAC (2MM)"
-                      },
-                      "Gazaltı Kaynağı": {
-                        "value": null
-                      }
-                    }
-                  },
-                  "Yan Kapak": {}
-                }
-              }
-            }
+        expect apply-changes deps['bar111']
+        .to-equal do
+            components:
+                bar333:
+                    key: \bar333
+                    amount: 30
+            changes:
+                components:
+                    bar333:
+                        amount: 30
 
-        expect output
-        .to-equal doc =
-            {
-              "components": {
-                "Arka Kapak": {
-                  "components": {
-                    "SAC (2MM)": {
-                      "key": "SAC (2MM)"
-                    },
-                    "Gazaltı Kaynağı": {
-                      "components": {
-                        "Kaynak Gazı": {
-                          "components": {},
-                          "key": "Co2",
-                          "amount": 0.00001
-                        },
-                        "Gazaltı Teli": {
-                          "components": {},
-                          "key": "Gazaltı Teli",
-                          "amount": 3
-                        }
-                      },
-                      "changes": {
-                        "components": {
-                          "Kaynak Gazı": {
-                            "amount": 0.00001
-                          },
-                          "Gazaltı Teli": {
-                            "amount": 3
-                          }
-                        }
-                      },
-                      "key": "Gazaltı Kaynağı",
-                      "amount": 30
-                    }
-                  },
-                  "changes": {
-                    "components": {
-                      "SAC (2MM)": {},
-                      "Gazaltı Kaynağı": {
-                        "amount": 30
-                      }
-                    }
-                  },
-                  "key": "Kaynaklı Kapak"
-                }
-              },
-              "changes": {
-                "components": {
-                  "Arka Kapak": {
-                    "key": "Kaynaklı Kapak",
-                    "components": {
-                      "SAC (2MM)": {
-                        "key": "SAC (2MM)"
-                      },
-                      "Gazaltı Kaynağı": {
-                        "value": null
-                      }
-                    }
-                  },
-                  "Yan Kapak": {}
-                }
-              }
-            }
+
+        expect merge-deps input, \deps.*.key, deps
+        .to-equal do
+            components:
+                foo:
+                    key: \bar111
+                    components:
+                        bar333:
+                            key: \bar333
+                            amount: 30
+                            value: null
+
+                            components:
+                                bar555:
+                                    key: \Co2
+                                    components: {}
+                                    amount: 0.00001
+
+                                bar666:
+                                    key: \bar666
+                                    components: {}
+                                    amount: 3
+
+                            changes:
+                                components:
+                                    bar555:
+                                        amount: 0.00001
+                                    bar666:
+                                        amount: 3
+                    changes:
+                        components:
+                            bar333:
+                                amount: 30
+            changes:
+                components:
+                    foo:
+                        key: \bar111
+                        components:
+                            bar333:
+                                value: null

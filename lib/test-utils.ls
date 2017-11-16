@@ -13,12 +13,20 @@ export make-tests = (lib-name, tests) ->
             res = test.call this
         catch
             console.error   "- FAILED on test: #{name}"
-            console.log     "- result  \t: ", JSON.stringify(e.matcherResult.actual)
-            console.log     "- expected\t: ", JSON.stringify(e.matcherResult.expected)
+            actual = JSON.stringify(e.matcherResult.actual)
+            expected = JSON.stringify(e.matcherResult.expected)
+            console.log     "- result  \t: ", actual
+            console.log     "- expected\t: ", expected
 
             d = jsondiffpatch.diff e.matcherResult.actual, e.matcherResult.expected
             console.error "diff: "
             console.error (JSON.stringify d, null, 2)
+
+            console.log "Visual Diff:"
+            left = encodeURIComponent expected
+            right = encodeURIComponent actual
+            console.log "http://benjamine.github.io/jsondiffpatch/demo/index.html?desc=Expected..Actual&left=#{left}&right=#{right}"
+
             throw  "- FAILED on test: #{name}"
 
 

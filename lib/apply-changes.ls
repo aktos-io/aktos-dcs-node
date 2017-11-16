@@ -9,7 +9,10 @@ export apply-changes = (doc, changes) ->
         changes = changes or doc.changes
 
         if \key in keys changes
-            doc = changes 
+            # if remote document is changed, remove the
+            # further dependency changes
+            debugger 
+            doc = changes
         else
             for change-path, change of changes
                 if typeof! change is \Object
