@@ -294,10 +294,6 @@ make-tests \merge-deps, do
     'changed remote document (2)': ->
         input =
             {
-              "_id": "Harici Pano 2",
-              "_rev": "6-7b6a02337344c8c00cc36f0830fe21f2",
-              "type": "component",
-              "class": null,
               "components": {
                 "Arka Kapak": {
                   "key": "Civatalı Kapak"
@@ -306,12 +302,6 @@ make-tests \merge-deps, do
                   "key": "Kaynaklı Kapak"
                 }
               },
-              "description": "",
-              "netsis": "",
-              "labels": "",
-              "countable": true,
-              "timestamp": 1510656568123,
-              "owner": "mustafa",
               "changes": {
                 "components": {
                   "Arka Kapak": {
@@ -333,10 +323,6 @@ make-tests \merge-deps, do
         deps =
             {
               "Civatalı Kapak": {
-                "_id": "Civatalı Kapak",
-                "_rev": "1-66245aeba4354d3ca414d300a0a4a937",
-                "type": "component",
-                "class": null,
                 "components": {
                   "CIVATA (M5)": {
                     "key": "CIVATA (M5)"
@@ -345,19 +331,9 @@ make-tests \merge-deps, do
                     "key": "SAC (2MM)"
                   }
                 },
-                "description": "",
-                "netsis": "",
-                "labels": "",
-                "countable": true,
                 "changes": {},
-                "timestamp": 1510656523323,
-                "owner": "mustafa"
               },
               "Kaynaklı Kapak": {
-                "_id": "Kaynaklı Kapak",
-                "_rev": "3-b98cd73aaf850cdcc49a08d0e7c98fa4",
-                "type": "component",
-                "class": null,
                 "components": {
                   "SAC (2MM)": {
                     "key": "SAC (2MM)"
@@ -366,10 +342,6 @@ make-tests \merge-deps, do
                     "key": "Gazaltı Kaynağı"
                   }
                 },
-                "description": "",
-                "netsis": "",
-                "labels": "",
-                "countable": true,
                 "changes": {
                   "components": {
                     "SAC (2MM)": {},
@@ -377,42 +349,14 @@ make-tests \merge-deps, do
                       "amount": 30
                     }
                   }
-                },
-                "timestamp": 1510656671542,
-                "owner": "mustafa"
+                }
               },
               "CIVATA (M5)": {
-                "_id": "CIVATA (M5)",
-                "_rev": "6-e4ead009bb314aa5081c206ebb33118b",
-                "type": "component",
-                "class": "bolt",
-                "properties": {},
-                "timestamp": 1508594085355,
-                "owner": "cca",
-                "components": {},
-                "description": "",
-                "netsis": "",
-                "labels": "",
-                "countable": true
+                "components": {}
               },
               "SAC (2MM)": {
-                "_id": "SAC (2MM)",
-                "_rev": "3-fc19a52e507928a20d3cd7c114caecc0",
-                "type": "component",
-                "class": "plate",
-                "properties": {},
-                "timestamp": 1508594044448,
-                "owner": "cca",
-                "description": "",
-                "netsis": "",
-                "labels": "",
-                "countable": true
               },
               "Gazaltı Kaynağı": {
-                "_id": "Gazaltı Kaynağı",
-                "_rev": "2-595d52647827827415902ae13da29568",
-                "type": "component",
-                "class": null,
                 "components": {
                   "Kaynak Gazı": {
                     "key": "Co2"
@@ -421,10 +365,6 @@ make-tests \merge-deps, do
                     "key": "Gazaltı Teli"
                   }
                 },
-                "description": "1/cm*mm",
-                "netsis": "",
-                "labels": "",
-                "countable": true,
                 "changes": {
                   "components": {
                     "Kaynak Gazı": {
@@ -434,50 +374,20 @@ make-tests \merge-deps, do
                       "amount": 3
                     }
                   }
-                },
-                "timestamp": 1510656826072,
-                "owner": "mustafa"
+                }
               },
               "Co2": {
-                "_id": "Co2",
-                "_rev": "1-73733fde5cbc07625bc805908e74b2ed",
-                "type": "component",
-                "class": null,
-                "components": {},
-                "description": "",
-                "netsis": "",
-                "labels": "",
-                "countable": true,
-                "timestamp": 1510656687156,
-                "owner": "mustafa"
+                "components": {}
               },
               "Gazaltı Teli": {
-                "_id": "Gazaltı Teli",
-                "_rev": "1-8456407dfeb21a2ee5e9d2e6f5af52c2",
-                "type": "component",
-                "class": null,
-                "components": {},
-                "description": "",
-                "netsis": "",
-                "labels": "",
-                "countable": true,
-                "timestamp": 1510656714784,
-                "owner": "mustafa"
+                "components": {}
               }
             }
 
         output =
             {
-              "_id": "Harici Pano 2",
-              "_rev": "6-7b6a02337344c8c00cc36f0830fe21f2",
-              "type": "component",
-              "class": null,
               "components": {
                 "Arka Kapak": {
-                  "_id": "Kaynaklı Kapak",
-                  "_rev": "3-b98cd73aaf850cdcc49a08d0e7c98fa4",
-                  "type": "component",
-                  "class": null,
                   "components": {
                     "SAC (2MM)": {
                       "key": "SAC (2MM)"
@@ -486,10 +396,6 @@ make-tests \merge-deps, do
                       "value": null
                     }
                   },
-                  "description": "",
-                  "netsis": "",
-                  "labels": "",
-                  "countable": true,
                   "changes": {
                     "components": {
                       "SAC (2MM)": {},
@@ -498,71 +404,26 @@ make-tests \merge-deps, do
                       }
                     }
                   },
-                  "timestamp": 1510656671542,
-                  "owner": "mustafa",
                   "key": "Kaynaklı Kapak"
                 },
                 "Yan Kapak": {
-                  "_id": "Kaynaklı Kapak",
-                  "_rev": "3-b98cd73aaf850cdcc49a08d0e7c98fa4",
-                  "type": "component",
-                  "class": null,
                   "components": {
                     "SAC (2MM)": {
-                      "_id": "SAC (2MM)",
-                      "_rev": "3-fc19a52e507928a20d3cd7c114caecc0",
-                      "type": "component",
-                      "class": "plate",
-                      "properties": {},
-                      "timestamp": 1508594044448,
-                      "owner": "cca",
-                      "description": "",
-                      "netsis": "",
-                      "labels": "",
-                      "countable": true,
                       "key": "SAC (2MM)"
                     },
                     "Gazaltı Kaynağı": {
-                      "_id": "Gazaltı Kaynağı",
-                      "_rev": "2-595d52647827827415902ae13da29568",
-                      "type": "component",
-                      "class": null,
                       "components": {
                         "Kaynak Gazı": {
-                          "_id": "Co2",
-                          "_rev": "1-73733fde5cbc07625bc805908e74b2ed",
-                          "type": "component",
-                          "class": null,
                           "components": {},
-                          "description": "",
-                          "netsis": "",
-                          "labels": "",
-                          "countable": true,
-                          "timestamp": 1510656687156,
-                          "owner": "mustafa",
                           "key": "Co2",
                           "amount": 0.00001
                         },
                         "Gazaltı Teli": {
-                          "_id": "Gazaltı Teli",
-                          "_rev": "1-8456407dfeb21a2ee5e9d2e6f5af52c2",
-                          "type": "component",
-                          "class": null,
                           "components": {},
-                          "description": "",
-                          "netsis": "",
-                          "labels": "",
-                          "countable": true,
-                          "timestamp": 1510656714784,
-                          "owner": "mustafa",
                           "key": "Gazaltı Teli",
                           "amount": 3
                         }
                       },
-                      "description": "1/cm*mm",
-                      "netsis": "",
-                      "labels": "",
-                      "countable": true,
                       "changes": {
                         "components": {
                           "Kaynak Gazı": {
@@ -573,16 +434,10 @@ make-tests \merge-deps, do
                           }
                         }
                       },
-                      "timestamp": 1510656826072,
-                      "owner": "mustafa",
                       "key": "Gazaltı Kaynağı",
                       "amount": 30
                     }
                   },
-                  "description": "",
-                  "netsis": "",
-                  "labels": "",
-                  "countable": true,
                   "changes": {
                     "components": {
                       "SAC (2MM)": {},
@@ -591,17 +446,9 @@ make-tests \merge-deps, do
                       }
                     }
                   },
-                  "timestamp": 1510656671542,
-                  "owner": "mustafa",
                   "key": "Kaynaklı Kapak"
                 }
               },
-              "description": "",
-              "netsis": "",
-              "labels": "",
-              "countable": true,
-              "timestamp": 1510656568123,
-              "owner": "mustafa",
               "changes": {
                 "components": {
                   "Arka Kapak": {
@@ -623,73 +470,25 @@ make-tests \merge-deps, do
         expect output
         .to-equal doc =
             {
-              "_id": "Harici Pano 2",
-              "_rev": "6-7b6a02337344c8c00cc36f0830fe21f2",
-              "type": "component",
-              "class": null,
               "components": {
                 "Arka Kapak": {
-                  "_id": "Kaynaklı Kapak",
-                  "_rev": "3-b98cd73aaf850cdcc49a08d0e7c98fa4",
-                  "type": "component",
-                  "class": null,
-
                   "components": {
                     "SAC (2MM)": {
-                      "_id": "SAC (2MM)",
-                      "_rev": "3-fc19a52e507928a20d3cd7c114caecc0",
-                      "type": "component",
-                      "class": "plate",
-                      "properties": {},
-                      "timestamp": 1508594044448,
-                      "owner": "cca",
-                      "description": "",
-                      "netsis": "",
-                      "labels": "",
-                      "countable": true,
                       "key": "SAC (2MM)"
                     },
                     "Gazaltı Kaynağı": {
-                      "_id": "Gazaltı Kaynağı",
-                      "_rev": "2-595d52647827827415902ae13da29568",
-                      "type": "component",
-                      "class": null,
                       "components": {
                         "Kaynak Gazı": {
-                          "_id": "Co2",
-                          "_rev": "1-73733fde5cbc07625bc805908e74b2ed",
-                          "type": "component",
-                          "class": null,
                           "components": {},
-                          "description": "",
-                          "netsis": "",
-                          "labels": "",
-                          "countable": true,
-                          "timestamp": 1510656687156,
-                          "owner": "mustafa",
                           "key": "Co2",
                           "amount": 0.00001
                         },
                         "Gazaltı Teli": {
-                          "_id": "Gazaltı Teli",
-                          "_rev": "1-8456407dfeb21a2ee5e9d2e6f5af52c2",
-                          "type": "component",
-                          "class": null,
                           "components": {},
-                          "description": "",
-                          "netsis": "",
-                          "labels": "",
-                          "countable": true,
-                          "timestamp": 1510656714784,
-                          "owner": "mustafa",
                           "key": "Gazaltı Teli",
                           "amount": 3
                         }
                       },
-                      "description": "1/cm*mm",
-                      "netsis": "",
-                      "labels": "",
-                      "countable": true,
                       "changes": {
                         "components": {
                           "Kaynak Gazı": {
@@ -700,17 +499,10 @@ make-tests \merge-deps, do
                           }
                         }
                       },
-                      "timestamp": 1510656826072,
-                      "owner": "mustafa",
                       "key": "Gazaltı Kaynağı",
                       "amount": 30
                     }
                   },
-
-                  "description": "",
-                  "netsis": "",
-                  "labels": "",
-                  "countable": true,
                   "changes": {
                     "components": {
                       "SAC (2MM)": {},
@@ -719,71 +511,26 @@ make-tests \merge-deps, do
                       }
                     }
                   },
-                  "timestamp": 1510656671542,
-                  "owner": "mustafa",
                   "key": "Kaynaklı Kapak"
                 },
                 "Yan Kapak": {
-                  "_id": "Kaynaklı Kapak",
-                  "_rev": "3-b98cd73aaf850cdcc49a08d0e7c98fa4",
-                  "type": "component",
-                  "class": null,
                   "components": {
                     "SAC (2MM)": {
-                      "_id": "SAC (2MM)",
-                      "_rev": "3-fc19a52e507928a20d3cd7c114caecc0",
-                      "type": "component",
-                      "class": "plate",
-                      "properties": {},
-                      "timestamp": 1508594044448,
-                      "owner": "cca",
-                      "description": "",
-                      "netsis": "",
-                      "labels": "",
-                      "countable": true,
                       "key": "SAC (2MM)"
                     },
                     "Gazaltı Kaynağı": {
-                      "_id": "Gazaltı Kaynağı",
-                      "_rev": "2-595d52647827827415902ae13da29568",
-                      "type": "component",
-                      "class": null,
                       "components": {
                         "Kaynak Gazı": {
-                          "_id": "Co2",
-                          "_rev": "1-73733fde5cbc07625bc805908e74b2ed",
-                          "type": "component",
-                          "class": null,
                           "components": {},
-                          "description": "",
-                          "netsis": "",
-                          "labels": "",
-                          "countable": true,
-                          "timestamp": 1510656687156,
-                          "owner": "mustafa",
                           "key": "Co2",
                           "amount": 0.00001
                         },
                         "Gazaltı Teli": {
-                          "_id": "Gazaltı Teli",
-                          "_rev": "1-8456407dfeb21a2ee5e9d2e6f5af52c2",
-                          "type": "component",
-                          "class": null,
                           "components": {},
-                          "description": "",
-                          "netsis": "",
-                          "labels": "",
-                          "countable": true,
-                          "timestamp": 1510656714784,
-                          "owner": "mustafa",
                           "key": "Gazaltı Teli",
                           "amount": 3
                         }
                       },
-                      "description": "1/cm*mm",
-                      "netsis": "",
-                      "labels": "",
-                      "countable": true,
                       "changes": {
                         "components": {
                           "Kaynak Gazı": {
@@ -794,16 +541,10 @@ make-tests \merge-deps, do
                           }
                         }
                       },
-                      "timestamp": 1510656826072,
-                      "owner": "mustafa",
                       "key": "Gazaltı Kaynağı",
                       "amount": 30
                     }
                   },
-                  "description": "",
-                  "netsis": "",
-                  "labels": "",
-                  "countable": true,
                   "changes": {
                     "components": {
                       "SAC (2MM)": {},
@@ -812,17 +553,9 @@ make-tests \merge-deps, do
                       }
                     }
                   },
-                  "timestamp": 1510656671542,
-                  "owner": "mustafa",
                   "key": "Kaynaklı Kapak"
                 }
               },
-              "description": "",
-              "netsis": "",
-              "labels": "",
-              "countable": true,
-              "timestamp": 1510656568123,
-              "owner": "mustafa",
               "changes": {
                 "components": {
                   "Arka Kapak": {
