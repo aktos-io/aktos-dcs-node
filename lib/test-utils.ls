@@ -13,6 +13,7 @@ export make-tests = (lib-name, tests) ->
             res = test.call this
         catch
             console.error   "- FAILED on test: #{name}"
+            throw e unless e.matcherResult
             actual = JSON.stringify(e.matcherResult.actual)
             expected = JSON.stringify(e.matcherResult.expected)
             console.log     "- result  \t: ", actual
@@ -22,10 +23,10 @@ export make-tests = (lib-name, tests) ->
             console.error "diff: "
             console.error (JSON.stringify d, null, 2)
 
-            console.log "Visual Diff:"
+            # Visual diff
             left = encodeURIComponent expected
             right = encodeURIComponent actual
-            console.log "http://benjamine.github.io/jsondiffpatch/demo/index.html?desc=Expected..Actual&left=#{left}&right=#{right}"
+            console.log "Visual Diff: http://benjamine.github.io/jsondiffpatch/demo/index.html?desc=Expected..Actual&left=#{left}&right=#{right}"
 
             throw  "- FAILED on test: #{name}"
 
@@ -36,16 +37,16 @@ export make-tests = (lib-name, tests) ->
         else if not res
             console.warn "Test [#{name}] is skipped..."
         else
-            try
-                expected = JSON.stringify(res.expect)
-                result = JSON.stringify(res.result)
-                if jsondiffpatch.diff res.result, res.expect
-                    console.error   "- FAILED on test: #{name}"
-                    console.log     "- diff    \t: ", that
-                    console.log     "- result  \t: ", result
-                    console.log     "- expected\t: ", expected
-                else
-                    console.log "...passed from test: #{name}."
-            catch
-                debugger
+            expected = JSON.stringify(res.expect)
+            result = JSON.stringify(res.result)
+            if jsondiffpatch.diff res.result, res.expect
+                console.error   "- FAILED on test: #{name}"
+                console.log     "- diff    \t: ", that
+                console.log     "- result  \t: ", result
+                console.log     "- expected\t: ", expected
+                console.warn "DEPRECATED: ----------- convert to 'expect' method --------------"
+                throw   "- FAILED on test: #{name}"
+
+            else
+                console.log "...passed from test: #{name}."
     console.log "End of tests."

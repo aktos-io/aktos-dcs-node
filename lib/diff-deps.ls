@@ -19,11 +19,6 @@ export diff-deps = (keypath, orig, curr) ->
                 change[key] = {}
 
                 for item of orig-val
-
-                    # TODO: this is a random workaround, untested!
-                    if curr-val and item not of curr-val
-                        continue
-
                     diff = diff-deps keypath, orig-val[item], curr-val[item]
                     change[key][item] = diff
             else if typeof! orig-val is \Array

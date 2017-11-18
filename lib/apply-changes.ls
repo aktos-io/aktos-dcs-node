@@ -2,27 +2,62 @@ require! './merge': {merge}
 require! './packing': {clone}
 require! './test-utils': {make-tests}
 require! './get-with-keypath': {get-with-keypath}
-require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
+require! 'prelude-ls': {empty, Obj, unique, keys, find, union, first}
+
+"""
+apply-changes function MUST be recursive, because root changes may contain
+any level of deep changes
+
+"""
+
+export apply-changes2 = (doc, ) ->
+    if typeof! doc isnt \Object
+        throw new Error('Document should be an object')
+
+    reapply = no
+    unless role-keypath
+        role-keypath = doc.changes |> keys |> first
+
+    changes = clone <| changes or doc.changes or {}
+    # If `key` will be changed, then remote document will be changed.
+    # Change the key only, stop applying changes here, return the current
+    # object, mark as "needs continue (reapplying)".
+
+
+
+    for change-path, change of changes
+        # change might be:
+        # * a simple value
+        # * a delete command (`{delete: true}`)
+        # * an invalid value to be discarded (a role that doesn't exist in the role-keypath now)
+        if typeof! change is \Object
+            if change-path is role-keypath
+                # discard invalid roles' changes
+                for i of change
+                    delete change[i] unless i of doc[role-keypath]
+
+            if change.deleted
+                delete doc[change-path]
+            else
+                [deep-change, reapply2] = apply-changes2 doc[change-path], change, role-keypath
+                reapply = reapply or reapply2
+                doc[change-path] = deep-change
+        else
+            if doc[change-path] isnt change
+                console.log "change is directly assigned: #{change}"
+                if change-path is \key
+                    reapply = yes
+                doc[change-path] = change
+
+    [doc, reapply]
+
 
 export apply-changes = (doc, changes) ->
-    if typeof! doc is \Object
-        changes = changes or doc.changes
-
-        if \key in keys changes
-            # if remote document is changed, remove the
-            # further dependency changes
-            debugger 
-            doc = changes
-        else
-            for change-path, change of changes
-                if typeof! change is \Object
-                    if change.deleted
-                        delete doc[change-path]
-                    else
-                        deep-change = apply-changes doc[change-path], change
-                        doc[change-path] = deep-change
-                else
-                    doc[change-path] = change
+    while true
+        [doc, reapply] = apply-changes2 doc, changes
+        break unless reapply
+        debugger
+        console.log "..............reapplying..."
     doc
 
 make-tests \apply-changes, do
