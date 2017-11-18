@@ -13,7 +13,9 @@ export make-tests = (lib-name, tests) ->
             res = test.call this
         catch
             console.error   "- FAILED on test: #{name}"
-            throw e unless e.matcherResult
+            if (typeof! e.matcherResult isnt \Object) or not e.matcherResult.actual
+                throw e
+
             actual = JSON.stringify(e.matcherResult.actual)
             expected = JSON.stringify(e.matcherResult.expected)
             console.log     "- result  \t: ", actual

@@ -33,7 +33,7 @@ Problem:
 
 """
 
-export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
+export merge-deps = (doc, dep-path, dep-sources={}, changes={}, branch=[]) ->
     # search-path is "remote document id path" (fixed as `key`)
     # dep-path is the path where all dependencies are listed by their roles
     search-path = \key
@@ -57,9 +57,16 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
 
             dep-changes = eff-changes?[dep-path]?[role]
 
+            # detect any circular references
+            branch.push dep.key
+            #console.log "branch: ", branch
+            if branch.length isnt unique(branch).length
+                throw new CircularDependencyError "merge-deps: Circular dependency is not allowed"
+
+            b = branch.length
             # if dependency-source has further dependencies, merge them first
             try
-                dep-source = merge-deps (clone dep-sources[dep.key]), dep-path, dep-sources, dep-changes
+                dep-source = merge-deps (clone dep-sources[dep.key]), dep-path, dep-sources, dep-changes, branch
             catch
                 if e.dependency
                     # bubble up the missing dependencies of dependencies
@@ -67,6 +74,10 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
                     continue
                 else
                     throw e
+
+            if branch.length is b
+                #console.log "this seems branch end: ", branch
+                branch.splice(0, branch.length)
 
             doc[dep-path][role] = dep-source `merge` dep
 
@@ -299,7 +310,19 @@ make-tests \merge-deps, do
             changes: clone doc.changes
 
     'circular dependency': ->
-        return false
+        doc =
+            deps:
+                my:
+                    key: 'foo'
+
+        deps =
+            foo:
+                deps:
+                    hey:
+                        key: \foo
+
+        expect (-> merge-deps doc, \deps.*.key, deps)
+        .to-throw "merge-deps: Circular dependency is not allowed"
 
     'missing dependency': ->
         doc =
