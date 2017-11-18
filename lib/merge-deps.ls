@@ -38,23 +38,14 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
     # search-path is "remote document id path" (fixed as `key`)
     dep-path = dep-path.split '.*.' .0
 
-    """
-    if \bar666 of dep-sources
-        debugger
-    """
-
-    try
-        eff-changes = (clone <| doc.changes or {}) `merge` changes
-    catch
-        debugger
+    eff-changes = (clone <| doc.changes or {}) `merge` changes
 
     # any changes that involves remote documents MUST be applied before doing anything
     for role, change of eff-changes?[dep-path]
         if role of doc[dep-path]
             # discard roles that are found in the changes but not in the
             # original document
-            for x of change when x isnt \changes
-                doc[dep-path][role][x] = change[x]
+            doc[dep-path][role] <<<< change
 
     if typeof! doc[dep-path] is \Object
         for role, dep of doc[dep-path] when dep.key?
@@ -68,10 +59,7 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
             # if dependency-source has further dependencies, merge them first
             dep-source = merge-deps dep-sources[dep.key], dep-path, dep-sources, dep-changes
 
-            try
-                doc[dep-path][role] = dep-source `merge` dep
-            catch
-                debugger
+            doc[dep-path][role] = dep-source `merge` dep
 
     return doc
 
