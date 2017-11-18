@@ -34,8 +34,9 @@ Problem:
 """
 
 export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
-    # dep-path is the path where all dependencies are listed by their roles
     # search-path is "remote document id path" (fixed as `key`)
+    # dep-path is the path where all dependencies are listed by their roles
+    search-path = \key
     dep-path = dep-path.split '.*.' .0
 
     eff-changes = (clone <| doc.changes or {}) `merge` changes
@@ -47,19 +48,29 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
             # original document
             doc[dep-path][role] <<<< change
 
+    missing-deps = []
     if typeof! doc[dep-path] is \Object
         for role, dep of doc[dep-path] when dep.key?
             # Report missing dependencies
             # TODO: optimize this to report all missing dependencies at once
             unless dep.key of dep-sources
-                throw new DependencyError("merge-deps: Required dependency is not found:", dep.key)
+                missing-deps.push dep.key
+                continue
 
             dep-changes = eff-changes?[dep-path]?[role]
 
             # if dependency-source has further dependencies, merge them first
-            dep-source = merge-deps dep-sources[dep.key], dep-path, dep-sources, dep-changes
+            try
+                dep-source = merge-deps dep-sources[dep.key], dep-path, dep-sources, dep-changes
+            catch
+                if e.dependency
+                    missing-deps = union missing-deps, that
+                continue
 
             doc[dep-path][role] = dep-source `merge` dep
+
+    unless empty missing-deps
+        throw new DependencyError("merge-deps: Required dependency is not found:", missing-deps)
 
     return doc
 
@@ -74,6 +85,11 @@ export patch-changes = (diff, changes) ->
         if typeof! v is \Object
             v = patch-changes v, changes[k]
         changes[k] = v
+    if \key of diff
+        debugger 
+        changes.components = {}
+    console.log "patch-changes: changes: ", changes
+    changes
 
 # ----------------------- TESTS ------------------------------------------
 make-tests \merge-deps, do
