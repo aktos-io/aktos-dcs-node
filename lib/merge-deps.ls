@@ -75,7 +75,7 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
     unless empty missing-deps
         throw new DependencyError("merge-deps: Required dependency is not found:", missing-deps)
 
-    return doc
+    return clone doc
 
 
 export bundle-deps = (doc, deps) ->
