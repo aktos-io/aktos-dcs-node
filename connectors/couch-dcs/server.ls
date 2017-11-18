@@ -3,9 +3,8 @@ require! 'colors': {
     bg-green, bg-red, bg-yellow, bg-blue
     green, yellow, blue
 }
-require! '../../lib':{sleep, pack}
-require! '../../lib/get-deps':{get-deps}
-require! '../../lib/merge-deps':{bundle-deps}
+require! '../../lib':{sleep, pack, clone}
+require! '../../lib/merge-deps':{bundle-deps, merge-deps}
 
 require! 'prelude-ls': {keys, values, flatten, empty}
 require! './couch-nano': {CouchNano}
@@ -136,37 +135,37 @@ export class CouchDcsServer extends Actor
                     if not err and res
                         # check for the recursion
                         if opts.recurse
+                            doc = res
+                            dep-path = opts.recurse
                             @log.log bg-yellow "Recursion required: #{opts.recurse}"
-
                             dep-docs = {}
-                            required-doc-ids = get-deps res, opts.recurse, (keys dep-docs)
                             <~ :lo2(op2) ~>
-                                if empty required-doc-ids
+                                try
+                                    d = merge-deps (clone doc), dep-path, dep-docs
                                     @log.log "...no more dependencies left."
-
                                     return op2!
-                                @log.log "...getting dependencies: ", required-doc-ids
-                                err2, res2 <~ @db.all-docs {keys: required-doc-ids, +include_docs}
-                                err := err or err2
-                                if err
-                                    return op2!
+                                catch
+                                    missings = e.dependency
+                                    @log.log "...Required dependencies:", missings
+                                    err2, res2 <~ @db.all-docs {keys: missings, +include_docs}
+                                    err := err or err2
+                                    if err
+                                        return op2!
 
-                                for res2
-                                    dep-docs[..doc._id] = ..doc
+                                    # append the dependencies to the list
+                                    for res2
+                                        dep-docs[..doc._id] = ..doc
 
-                                required-doc-ids := get-deps (values dep-docs), opts.recurse, (keys dep-docs)
-
-                                lo2(op2)
+                                    lo2(op2)
                             @log.log "all dependencies are fetched. total: ", (keys dep-docs .length)
+                            @log.log "...deps in total: #{keys dep-docs .join ', '}"
                             res := bundle-deps res, dep-docs
                             return op!
                         else
                             return op!
                     else
                         return op!
-
-                @log.log "sending response: "
-                @log.log res
+                        
                 @send-and-echo msg, {err: err, res: res or null}
 
             # `all` message
