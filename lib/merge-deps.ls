@@ -38,11 +38,13 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
     # search-path is "remote document id path" (fixed as `key`)
     dep-path = dep-path.split '.*.' .0
 
+    """
     if \bar666 of dep-sources
         debugger
+    """
 
     try
-        eff-changes = (doc.changes or {}) `merge` changes
+        eff-changes = (clone <| doc.changes or {}) `merge` changes
     catch
         debugger
 
@@ -51,10 +53,8 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
         if role of doc[dep-path]
             # discard roles that are found in the changes but not in the
             # original document
-            try
-                doc[dep-path][role] <<<< change
-            catch
-                debugger
+            for x of change when x isnt \changes
+                doc[dep-path][role][x] = change[x]
 
     if typeof! doc[dep-path] is \Object
         for role, dep of doc[dep-path] when dep.key?
