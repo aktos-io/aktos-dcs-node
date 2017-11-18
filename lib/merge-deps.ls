@@ -45,7 +45,7 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
     for role, change of eff-changes?[dep-path]
         unless typeof! doc[dep-path][role] is \Object
             doc[dep-path][role] = {}
-        doc[dep-path][role] <<<< change
+        doc[dep-path][role] `merge` change
 
     missing-deps = []
     if typeof! doc[dep-path] is \Object
@@ -59,7 +59,7 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
 
             # if dependency-source has further dependencies, merge them first
             try
-                dep-source = merge-deps (clone dep-sources[dep.key]), dep-path, dep-sources
+                dep-source = merge-deps (clone dep-sources[dep.key]), dep-path, dep-sources, dep-changes
             catch
                 if e.dependency
                     # bubble up the missing dependencies of dependencies
@@ -68,15 +68,13 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
                 else
                     throw e
 
-            dep-source `merge` dep-changes
-
             doc[dep-path][role] = dep-source `merge` dep
 
     unless empty missing-deps
         throw new DependencyError("merge-deps: Required dependency is not found:", missing-deps)
 
     # TODO: below clone is mandatory for preventing messing up the original dep-sources
-    # Prepare a test case for this. 
+    # Prepare a test case for this.
     return clone doc
 
 
@@ -165,6 +163,53 @@ make-tests \merge-deps, do
                                 key: \hey
                                 amount: 5
 
+            changes: clone doc.changes
+
+
+    'simple with modified deeper remote change': ->
+        doc =
+            nice: 'day'
+            deps:
+                my:
+                    key: \bar
+            changes:
+                deps:
+                    my:
+                        key: \foo
+                        deps:
+                            x:
+                                key: \nice
+
+        dependencies =
+            foo:
+                hello: 'there'
+                deps:
+                    x:
+                        key: \how
+                changes:
+                    deps:
+                        x:
+                            key: \hey
+                            amount: 5
+            hey:
+                thisis: \hey
+
+            nice:
+                very: \well
+
+        expect merge-deps doc, \deps.*.key, dependencies
+        .to-equal do
+            nice: 'day'
+            deps:
+                my:
+                    hello: 'there'
+                    key: \foo
+                    deps:
+                        x:
+                            key: \nice
+                            very: \well
+                            amount: 5
+                    changes: clone dependencies.foo.changes
             changes: clone doc.changes
 
 
