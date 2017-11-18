@@ -43,16 +43,14 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
 
     # any changes that involves remote documents MUST be applied before doing anything
     for role, change of eff-changes?[dep-path]
-        if role of doc[dep-path]
-            # discard roles that are found in the changes but not in the
-            # original document
-            doc[dep-path][role] <<<< change
+        unless typeof! doc[dep-path][role] is \Object
+            doc[dep-path][role] = {}
+        doc[dep-path][role] <<<< change
 
     missing-deps = []
     if typeof! doc[dep-path] is \Object
         for role, dep of doc[dep-path] when dep.key?
             # Report missing dependencies
-            # TODO: optimize this to report all missing dependencies at once
             unless dep.key of dep-sources
                 missing-deps.push dep.key
                 continue
@@ -61,11 +59,16 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}) ->
 
             # if dependency-source has further dependencies, merge them first
             try
-                dep-source = merge-deps dep-sources[dep.key], dep-path, dep-sources, dep-changes
+                dep-source = merge-deps (clone dep-sources[dep.key]), dep-path, dep-sources
             catch
                 if e.dependency
+                    # bubble up the missing dependencies of dependencies
                     missing-deps = union missing-deps, that
-                continue
+                    continue
+                else
+                    throw e
+
+            dep-source `merge` dep-changes
 
             doc[dep-path][role] = dep-source `merge` dep
 
@@ -81,14 +84,15 @@ export bundle-deps = (doc, deps) ->
 export patch-changes = (diff, changes) ->
     return diff unless changes
 
+    if \key of diff
+        changes.components = {}
+        console.log "key changed, removed changes.components: #{JSON.stringify changes}"
+
     for k, v of diff
         if typeof! v is \Object
             v = patch-changes v, changes[k]
         changes[k] = v
-    if \key of diff
-        debugger 
-        changes.components = {}
-    console.log "patch-changes: changes: ", changes
+
     changes
 
 # ----------------------- TESTS ------------------------------------------
@@ -116,6 +120,52 @@ make-tests \merge-deps, do
                     hello: 'there'
                     key: \foo
 
+    'simple with modified deep change': ->
+        doc =
+            nice: 'day'
+            deps:
+                my:
+                    key: \bar
+            changes:
+                deps:
+                    my:
+                        key: \foo
+
+        dependencies =
+            foo:
+                hello: 'there'
+                deps:
+                    x:
+                        key: \how
+                changes:
+                    deps:
+                        x:
+                            key: \hey
+                            amount: 5
+            hey:
+                thisis: \hey
+
+        expect merge-deps doc, \deps.*.key, dependencies
+        .to-equal do
+            nice: 'day'
+            deps:
+                my:
+                    hello: 'there'
+                    key: \foo
+                    deps:
+                        x:
+                            key: \hey
+                            thisis: \hey
+                            amount: 5
+                    changes:
+                        deps:
+                            x:
+                                key: \hey
+                                amount: 5
+
+            changes: clone doc.changes
+
+
     'simple with extra changes': ->
         doc =
             _id: 'bar'
@@ -142,19 +192,22 @@ make-tests \merge-deps, do
                     _id: 'foo'
                     hello: 'there'
                     key: \foo
-            changes:
-                deps:
-                    hey:
-                        there: \hello
+                hey:
+                    there: \hello
+
+            changes: clone doc.changes
 
 
-    'one dependency used in multiple locations': ->
+    'one dependency used in multiple locations plus empty changes': ->
         doc =
             _id: 'bar'
             nice: 'day'
             deps:
-                my1:
+                my123:
                     key: 'foo'
+            changes:
+                deps:
+                    my123: {}
 
         deps =
             foo:
@@ -179,7 +232,7 @@ make-tests \merge-deps, do
             _id: 'bar'
             nice: 'day'
             deps:
-                my1:
+                my123:
                     key: \foo
                     _id: 'foo'
                     hello: 'there'
@@ -196,6 +249,7 @@ make-tests \merge-deps, do
                             key: \qux
                             _id: 'qux'
                             hello: 'world'
+            changes: clone doc.changes
 
     'circular dependency': ->
         return false

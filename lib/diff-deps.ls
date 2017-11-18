@@ -1,5 +1,5 @@
 require! './test-utils': {make-tests}
-require! 'prelude-ls': {keys, union}
+require! 'prelude-ls': {keys, union, Obj}
 
 export diff-deps = (keypath, orig, curr) ->
     [arr-path, search-path] = keypath.split '.*.'
@@ -21,6 +21,7 @@ export diff-deps = (keypath, orig, curr) ->
                 for item of orig-val
                     diff = diff-deps keypath, orig-val[item], curr-val[item]
                     change[key][item] = diff
+
             else if typeof! orig-val is \Array
                 debugger
             else
