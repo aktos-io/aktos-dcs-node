@@ -10,7 +10,6 @@ clean-obj = (obj) ->
             obj[key] = clean-obj obj[key]
             if Obj.empty obj[key]
                 delete obj[key]
-
     return obj
 
 export class DiffError extends Error

@@ -1,24 +1,22 @@
 require! './test-utils': {make-tests}
 require! './packing': {clone}
+require! 'prelude-ls': {Obj}
 
-export patch-changes = (orig, changes, opts={}) ->
-    return orig unless changes
-
+export patch-changes = (orig, changes) ->
     if typeof! changes is \Object
         orig = {} unless orig
 
         if \key of changes
             #console.log "key changed, mark orig.components as deleted/invalid"
-            unless opts.onlyKeys
-                try delete orig.components
+            orig = changes
+        else
+            for k, change of changes
+                orig[k] = {} unless orig[k]
 
-        for k, change of changes
-            orig[k] = {} unless orig[k]
-
-            if typeof! change is \Object
-                if not change.deleted or opts.onlyKeys
-                    change = patch-changes orig[k], change
-            orig[k] = change
+                if typeof! change is \Object
+                    if not change.deleted
+                        change = patch-changes orig[k], change
+                orig[k] = change
     else
         debugger
 
