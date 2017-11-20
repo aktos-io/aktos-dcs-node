@@ -5,12 +5,11 @@ require! './get-with-keypath': {get-with-keypath}
 require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
 #require! './apply-changes': {apply-changes, apply-changes2}
 require! './diff-deps': {diff-deps}
+require! './patch-changes': {patch-changes}
 
 # re-export
-export apply-changes = ->
-    debugger
-
 export diff-deps
+export patch-changes
 
 export class DependencyError extends Error
     (@message, @dependency) ->
@@ -18,12 +17,12 @@ export class DependencyError extends Error
         Error.captureStackTrace(this, DependencyError)
 
 export class CircularDependencyError extends Error
-    (@message, @dependency) ->
+    (@message, @branch) ->
         super ...
         Error.captureStackTrace(this, CircularDependencyError)
 
 """
-Problem:
+Design problems for changes algorithm:
     1. Changes should be applied AFTER merging the original document with its
     dependencies in order to overwrite the changes appropriately.
 
@@ -42,6 +41,7 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}, branch=[]) ->
     eff-changes = (clone <| doc.changes or {}) `merge` changes
 
     # any changes that involves remote documents MUST be applied before doing anything
+    # for addressing Design problem #1
     for role, change of eff-changes?[dep-path]
         unless typeof! doc[dep-path][role] is \Object
             doc[dep-path][role] = {}
@@ -61,7 +61,7 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}, branch=[]) ->
             branch.push dep.key
             #console.log "branch: ", branch
             if branch.length isnt unique(branch).length
-                throw new CircularDependencyError "merge-deps: Circular dependency is not allowed"
+                throw new CircularDependencyError "merge-deps: Circular dependency is not allowed", branch
 
             b = branch.length
             # if dependency-source has further dependencies, merge them first
@@ -82,7 +82,7 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}, branch=[]) ->
             doc[dep-path][role] = dep-source `merge` dep
 
     unless empty missing-deps
-        throw new DependencyError("merge-deps: Required dependency is not found:", missing-deps)
+        throw new DependencyError("merge-deps: Required dependency is not found", missing-deps)
 
     # TODO: below clone is mandatory for preventing messing up the original dep-sources
     # Prepare a test case for this.
@@ -175,6 +175,56 @@ make-tests \merge-deps, do
                                 amount: 5
 
             changes: clone doc.changes
+
+    'deleted master change': ->
+        return false
+        doc =
+            nice: 'day'
+            deps:
+                my:
+                    key: \bar
+            changes:
+                deps:
+                    my:
+                        key: \foo
+                        deps: {+deleted}
+
+        dependencies =
+            foo:
+                hello: 'there'
+                deps:
+                    x:
+                        key: \how
+                changes:
+                    deps:
+                        x:
+                            key: \hey
+                            amount: 5
+            hey:
+                thisis: \hey
+
+            nice:
+                very: \well
+
+        expect merge-deps doc, \deps.*.key, dependencies
+        .to-equal do
+            nice: 'day'
+            deps:
+                my:
+                    hello: 'there'
+                    key: \foo
+                    changes:
+                        key: \foo
+                        deps:
+                            deleted: true
+                            x:
+                                key: \hey
+                                amount: 5
+                    deps:
+                        deleted: true
+
+            changes: clone doc.changes
+
 
 
     'simple with modified deeper remote change': ->
@@ -336,7 +386,7 @@ make-tests \merge-deps, do
                 hello: 'there'
 
         expect (-> merge-deps doc, \deps.*.key, dependencies)
-            .to-throw "merge-deps: Required dependency is not found:"
+        .to-throw "merge-deps: Required dependency is not found"
 
 
     'changed remote document': ->
