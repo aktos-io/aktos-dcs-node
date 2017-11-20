@@ -1,56 +1,101 @@
 require! './test-utils': {make-tests}
 require! 'prelude-ls': {keys, union, Obj}
 
+clean-obj = (obj) ->
+    for key of obj
+        unless obj[key]
+            delete obj[key]
+
+        if typeof! obj[key] is \Object
+            obj[key] = clean-obj obj[key]
+            if Obj.empty obj[key]
+                delete obj[key]
+
+    return obj
+
+export class DiffError extends Error
+    (@message) ->
+        super ...
+        Error.captureStackTrace(this, DiffError)
+
+
 export diff-deps = (keypath, orig, curr) ->
     [arr-path, search-path] = keypath.split '.*.'
 
     change = {}
     unless orig
-        return curr
+        return clean-obj curr
     unless curr
         return {+deleted}
 
+    if orig is curr
+        return null
+
+    if (typeof! orig isnt \Object) or (typeof! curr isnt \Object)
+        console.error "orig: ", orig, "curr: ", curr
+        throw new DiffError "Parties must be Object type"
+
     for key in union keys(orig), keys(curr)
+        if key is \zalgo
+            debugger
         orig-val = if orig => that[key] else {}
         curr-val = if curr => that[key] else {}
-        if JSON.stringify(orig-val) isnt JSON.stringify(curr-val)
-            if typeof! orig-val is \Object
-                # make a recursive diff
-                change[key] = {}
+        if typeof! orig-val is \Object
+            # make a recursive diff
+            change[key] = {}
 
-                for item of orig-val
-                    diff = diff-deps keypath, orig-val[item], curr-val[item]
-                    change[key][item] = diff
+            for item of orig-val
+                diff = diff-deps keypath, orig-val[item], curr-val[item]
+                change[key][item] = diff
 
-            else if typeof! orig-val is \Array
-                debugger
-            else
+        else if typeof! orig-val is \Array
+            #console.log "...we were not expecting an array here:", orig-val
+            #debugger
+            null
+        else
+            if curr-val isnt orig-val
                 change[key] = (curr-val or null)
-    return change
+
+    o = clean-obj change
+    if JSON.stringify o .match /zalgo/
+        debugger
+    return o
 
 make-tests 'diff-deps', do
-    'simple': ->
+    'simple value change': ->
         orig =
-          "components": {
-            my1: {
-                key: 'hello'
-            }
-          }
+            components:
+                my1:
+                    key: \hello
 
         _new =
-          "components": {
-            my1: {
-                key: 'hello'
-                val: 5
-            }
-          }
+            components:
+                my1:
+                    key: \hello
+                    val: 5
 
-
-        result: diff-deps 'components.*.key', orig, _new
-        expect:
+        expect diff-deps 'components.*.key', orig, _new
+        .to-equal do
             components:
                 my1:
                     val: 5
+
+    'simple key change': ->
+        orig =
+            components:
+                my1:
+                    key: \hello
+
+        _new =
+            components:
+                my1:
+                    key: \hey
+
+        expect diff-deps 'components.*.key', orig, _new
+        .to-equal do
+            components:
+                my1:
+                    key: \hey
 
     'diff when orig is null': ->
         orig =
@@ -62,8 +107,8 @@ make-tests 'diff-deps', do
             my1:
                 val: 5
 
-        result: diff-deps 'components.*.key', orig, _new
-        expect:
+        expect diff-deps 'components.*.key', orig, _new
+        .to-equal do
             components:
                 my1:
                     val: 5
@@ -79,8 +124,8 @@ make-tests 'diff-deps', do
             my1:
                 val: 5
 
-        result: diff-deps 'components.*.key', orig, _new
-        expect: {}
+        expect diff-deps 'components.*.key', orig, _new
+        .to-equal {}
 
     'deleted property': ->
         orig =
@@ -92,7 +137,7 @@ make-tests 'diff-deps', do
           "components":
             my1: null
 
-        result: diff-deps 'components.*.key', orig, _new
-        expect:
+        expect diff-deps 'components.*.key', orig, _new
+        .to-equal do
             components:
                 my1: {"deleted":true}
