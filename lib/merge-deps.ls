@@ -38,14 +38,21 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}, branch=[]) ->
     search-path = \key
     dep-path = dep-path.split '.*.' .0
 
-    eff-changes = (clone <| doc.changes or {}) `merge` changes
+    own-changes = doc.changes or {}
+    eff-changes = (clone own-changes) `merge` changes
 
     # any changes that involves remote documents MUST be applied before doing anything
     # for addressing Design problem #1
-    for role, change of eff-changes?[dep-path]
-        unless typeof! doc[dep-path][role] is \Object
-            doc[dep-path][role] = {}
-        doc[dep-path][role] `merge` change
+    for role, change of eff-changes[dep-path]
+        if \key of change
+            # original document's attributes are invalid
+            doc[dep-path][role] = change
+        else
+            if typeof! doc[dep-path][role] is \Object
+                doc[dep-path][role] `merge` change
+            else
+                doc[dep-path][role] = change 
+
 
     missing-deps = []
     if typeof! doc[dep-path] is \Object
@@ -80,6 +87,7 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}, branch=[]) ->
                 branch.splice(0, branch.length)
 
             doc[dep-path][role] = dep-source `merge` dep
+            #doc[dep-path][role] = patch-changes dep-source, dep
 
     unless empty missing-deps
         throw new DependencyError("merge-deps: Required dependency is not found", missing-deps)
@@ -92,19 +100,6 @@ export merge-deps = (doc, dep-path, dep-sources={}, changes={}, branch=[]) ->
 export bundle-deps = (doc, deps) ->
     return {doc, deps}
 
-export patch-changes = (diff, changes) ->
-    return diff unless changes
-
-    if \key of diff
-        changes.components = {}
-        console.log "key changed, removed changes.components: #{JSON.stringify changes}"
-
-    for k, v of diff
-        if typeof! v is \Object
-            v = patch-changes v, changes[k]
-        changes[k] = v
-
-    changes
 
 # ----------------------- TESTS ------------------------------------------
 make-tests \merge-deps, do
@@ -247,6 +242,7 @@ make-tests \merge-deps, do
                 deps:
                     x:
                         key: \how
+                        some: \thing
                 changes:
                     deps:
                         x:
