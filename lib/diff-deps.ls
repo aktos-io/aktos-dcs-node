@@ -35,8 +35,6 @@ export diff-deps = (keypath, orig, curr) ->
         throw new DiffError "Parties must be Object type"
 
     for key in union keys(orig), keys(curr)
-        if key is \zalgo
-            debugger
         orig-val = if orig => that[key] else {}
         curr-val = if curr => that[key] else {}
         if typeof! orig-val is \Object
@@ -55,10 +53,7 @@ export diff-deps = (keypath, orig, curr) ->
             if curr-val isnt orig-val
                 change[key] = (curr-val or null)
 
-    o = clean-obj change
-    if JSON.stringify o .match /zalgo/
-        debugger
-    return o
+    return clean-obj change
 
 make-tests 'diff-deps', do
     'simple value change': ->
