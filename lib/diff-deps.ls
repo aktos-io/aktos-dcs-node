@@ -135,3 +135,34 @@ make-tests 'diff-deps', do
         .to-equal do
             components:
                 my1: {"deleted":true}
+
+
+    'modified deeper key': ->
+        orig =
+            components:
+                my:
+                    key: \foo
+                    components:
+                        my1:
+                            key: \bar
+                        my2:
+                            hey: \there
+
+        _new =
+            components:
+                my:
+                    key: \taz
+                    components:
+                        my1:
+                            key: \baz
+                        my2:
+                            hey: \there
+
+        expect diff-deps 'components.*.key', orig, _new
+        .to-equal do
+            components:
+                my:
+                    key: \taz
+                    components:
+                        my1:
+                            key: \baz

@@ -9,7 +9,6 @@ export patch-changes = (orig, changes) ->
 
         if changes.key and (changes.key isnt orig.key)
             # original document's attributes are invalid
-            debugger
             orig = changes
         else
             for role, change of changes
@@ -17,8 +16,6 @@ export patch-changes = (orig, changes) ->
                     orig[role] = patch-changes orig[role], change
                 else
                     orig[role] = change
-    else
-        debugger
     orig
 
 make-tests \patch-changes, do
@@ -94,3 +91,21 @@ make-tests \patch-changes, do
                         key: \baz
                     e: key: \foo
                 key: \bar
+
+    'deeper change patch 2': ->
+        # no need for this
+        orig =
+            a: B: a: c:
+                a:
+                    d:
+                        a: su: key: \KAY
+                        key: \Pasta
+                    e: key: \foo
+                key: \bar
+
+        changes =
+            a: B: key: \baz
+
+        expect patch-changes orig, changes
+        .to-equal do
+            a: B: key: \baz

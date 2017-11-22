@@ -7,6 +7,8 @@ require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
 require! './diff-deps': {diff-deps}
 require! './patch-changes': {patch-changes}
 
+require! \jsondiffpatch
+
 # re-export
 export diff-deps
 export patch-changes
@@ -32,65 +34,77 @@ Design problems for changes algorithm:
 
 """
 
-export merge-deps = (doc, dep-path, dep-sources={}, changes={}, branch=[]) ->
+export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
     # search-path is "remote document id path" (fixed as `key`)
     # dep-path is the path where all dependencies are listed by their roles
     search-path = \key
     dep-path = dep-path.split '.*.' .0
-
-    own-changes = doc.changes or {}
-    eff-changes = (clone own-changes) `merge` changes
-
-    # any changes that involves remote documents MUST be applied before doing anything
-    # for addressing Design problem #1
-    for role, change of eff-changes[dep-path]
-        if \key of change
-            # original document's attributes are invalid
-            doc[dep-path][role] = change
-        else
-            if typeof! doc[dep-path][role] is \Object
-                doc[dep-path][role] `merge` change
-            else
-                doc[dep-path][role] = change 
-
-
     missing-deps = []
-    if typeof! doc[dep-path] is \Object
-        for role, dep of doc[dep-path] when dep.key?
-            # Report missing dependencies
-            unless dep.key of dep-sources
-                missing-deps.push dep.key
-                continue
 
-            dep-changes = eff-changes?[dep-path]?[role]
+    if typeof! doc-id is \String
+        if dep-sources[doc-id]
+            doc-id = that
 
-            # detect any circular references
-            branch.push dep.key
-            #console.log "branch: ", branch
-            if branch.length isnt unique(branch).length
-                throw new CircularDependencyError "merge-deps: Circular dependency is not allowed", branch
+    if typeof! doc-id is \Object
+        doc = doc-id
+        own-changes = doc.changes or {}
+        eff-changes = (clone own-changes) `merge` changes
+        #eff-changes = patch-changes (clone own-changes), changes
 
-            b = branch.length
-            # if dependency-source has further dependencies, merge them first
-            try
-                dep-source = merge-deps (clone dep-sources[dep.key]), dep-path, dep-sources, dep-changes, branch
-            catch
-                if e.dependency
-                    # bubble up the missing dependencies of dependencies
-                    missing-deps = union missing-deps, that
-                    continue
+        # Any changes that involves remote documents MUST be applied before doing anything
+        # for addressing Design problem #1
+        for role, change of eff-changes[dep-path]
+            if \key of change
+                # original document's attributes are invalid
+                doc[dep-path][role] = change
+            else
+                if typeof! doc[dep-path][role] is \Object
+                    #doc[dep-path][role] `merge` change
+                    doc[dep-path][role] = patch-changes doc[dep-path][role], change
                 else
-                    throw e
+                    doc[dep-path][role] = change
 
-            if branch.length is b
-                #console.log "this seems branch end: ", branch
-                branch.splice(0, branch.length)
 
-            doc[dep-path][role] = dep-source `merge` dep
-            #doc[dep-path][role] = patch-changes dep-source, dep
+        if typeof! doc?[dep-path] is \Object
+            for role, dep of doc[dep-path] when dep.key?
+                # Report missing dependencies
+                unless dep.key of dep-sources
+                    missing-deps.push dep.key
+                    continue
+
+                dep-changes = eff-changes?[dep-path]?[role]
+
+                # detect any circular references
+                branch.push dep.key
+                #console.log "branch: ", branch
+                if branch.length isnt unique(branch).length
+                    if empty missing-deps
+                        throw new CircularDependencyError "merge-deps: Circular dependency is not allowed", branch
+
+                b = branch.length
+                # if dependency-source has further dependencies, merge them first
+                try
+                    dep-source = merge-deps dep.key, dep-path, dep-sources, dep-changes, branch
+                catch
+                    if e.dependency
+                        # bubble up the missing dependencies of dependencies
+                        missing-deps = union missing-deps, that
+                        continue
+                    else
+                        throw e
+
+                if branch.length is b
+                    #console.log "this seems branch end: ", JSON.stringify(branch)
+                    branch.splice(0, branch.length)
+
+                doc[dep-path][role] = dep-source `merge` dep
+                #doc[dep-path][role] = patch-changes dep-source, dep
+    else
+        missing-deps.push doc-id
 
     unless empty missing-deps
-        throw new DependencyError("merge-deps: Required dependency is not found", missing-deps)
+        str = missing-deps.join ', '
+        throw new DependencyError("merge-deps: Required dependencies are not found: #{str}", unique(missing-deps))
 
     # TODO: below clone is mandatory for preventing messing up the original dep-sources
     # Prepare a test case for this.
@@ -104,19 +118,18 @@ export bundle-deps = (doc, deps) ->
 # ----------------------- TESTS ------------------------------------------
 make-tests \merge-deps, do
     'simple': ->
-        doc =
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                my:
-                    key: \foo
-
-        dependencies =
+        docs =
+            bar:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my:
+                        key: \foo
             foo:
                 _id: 'foo'
                 hello: 'there'
 
-        expect merge-deps doc, \deps.*.key, dependencies
+        expect merge-deps \bar, \deps.*.key, docs
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -127,17 +140,17 @@ make-tests \merge-deps, do
                     key: \foo
 
     'simple with modified deep change': ->
-        doc =
-            nice: 'day'
-            deps:
-                my:
-                    key: \bar
-            changes:
+        docs =
+            doc:
+                nice: 'day'
                 deps:
                     my:
-                        key: \foo
+                        key: \bar
+                changes:
+                    deps:
+                        my:
+                            key: \foo
 
-        dependencies =
             foo:
                 hello: 'there'
                 deps:
@@ -151,7 +164,7 @@ make-tests \merge-deps, do
             hey:
                 thisis: \hey
 
-        expect merge-deps doc, \deps.*.key, dependencies
+        expect merge-deps \doc, \deps.*.key, docs
         .to-equal do
             nice: 'day'
             deps:
@@ -169,22 +182,21 @@ make-tests \merge-deps, do
                                 key: \hey
                                 amount: 5
 
-            changes: clone doc.changes
+            changes: clone docs.doc.changes
 
     'deleted master change': ->
         return false
-        doc =
-            nice: 'day'
-            deps:
-                my:
-                    key: \bar
-            changes:
+        docs:
+            doc:
+                nice: 'day'
                 deps:
                     my:
-                        key: \foo
-                        deps: {+deleted}
-
-        dependencies =
+                        key: \bar
+                changes:
+                    deps:
+                        my:
+                            key: \foo
+                            deps: {+deleted}
             foo:
                 hello: 'there'
                 deps:
@@ -201,7 +213,7 @@ make-tests \merge-deps, do
             nice:
                 very: \well
 
-        expect merge-deps doc, \deps.*.key, dependencies
+        expect merge-deps \doc, \deps.*.key, docs
         .to-equal do
             nice: 'day'
             deps:
@@ -218,25 +230,23 @@ make-tests \merge-deps, do
                     deps:
                         deleted: true
 
-            changes: clone doc.changes
-
+            changes: clone docs.doc.changes
 
 
     'simple with modified deeper remote change': ->
-        doc =
-            nice: 'day'
-            deps:
-                my:
-                    key: \bar
-            changes:
+        docs =
+            doc:
+                nice: 'day'
                 deps:
                     my:
-                        key: \foo
-                        deps:
-                            x:
-                                key: \nice
-
-        dependencies =
+                        key: \bar
+                changes:
+                    deps:
+                        my:
+                            key: \foo
+                            deps:
+                                x:
+                                    key: \nice
             foo:
                 hello: 'there'
                 deps:
@@ -254,7 +264,7 @@ make-tests \merge-deps, do
             nice:
                 very: \well
 
-        expect merge-deps doc, \deps.*.key, dependencies
+        expect merge-deps \doc, \deps.*.key, docs
         .to-equal do
             nice: 'day'
             deps:
@@ -266,28 +276,27 @@ make-tests \merge-deps, do
                             key: \nice
                             very: \well
                             amount: 5
-                    changes: clone dependencies.foo.changes
-            changes: clone doc.changes
+                    changes: clone docs.foo.changes
+            changes: clone docs.doc.changes
 
 
     'simple with extra changes': ->
-        doc =
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                my:
-                    key: \foo
-            changes:
+        docs =
+            doc:
+                _id: 'bar'
+                nice: 'day'
                 deps:
-                    hey:
-                        there: \hello
-
-        dependencies =
+                    my:
+                        key: \foo
+                changes:
+                    deps:
+                        hey:
+                            there: \hello
             foo:
                 _id: 'foo'
                 hello: 'there'
 
-        expect merge-deps (clone doc), \deps.*.key, dependencies
+        expect merge-deps \doc, \deps.*.key, docs
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -299,21 +308,20 @@ make-tests \merge-deps, do
                 hey:
                     there: \hello
 
-            changes: clone doc.changes
+            changes: clone docs.doc.changes
 
 
     'one dependency used in multiple locations plus empty changes': ->
-        doc =
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                my123:
-                    key: 'foo'
-            changes:
+        docs =
+            bar:
+                _id: 'bar'
+                nice: 'day'
                 deps:
-                    my123: {}
-
-        deps =
+                    my123:
+                        key: 'foo'
+                changes:
+                    deps:
+                        my123: {}
             foo:
                 _id: 'foo'
                 hello: 'there'
@@ -331,7 +339,7 @@ make-tests \merge-deps, do
                 _id: 'qux'
                 hello: 'world'
 
-        expect merge-deps doc, \deps.*.key , deps
+        expect merge-deps \bar, \deps.*.key , docs
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -353,51 +361,76 @@ make-tests \merge-deps, do
                             key: \qux
                             _id: 'qux'
                             hello: 'world'
-            changes: clone doc.changes
+            changes: clone docs.bar.changes
+
 
     'circular dependency': ->
-        doc =
-            deps:
-                my:
-                    key: 'foo'
-
-        deps =
+        docs =
+            bar:
+                deps:
+                    my:
+                        key: 'foo'
             foo:
                 deps:
                     hey:
                         key: \foo
 
-        expect (-> merge-deps doc, \deps.*.key, deps)
+        expect (-> merge-deps \bar, \deps.*.key, docs)
         .to-throw "merge-deps: Circular dependency is not allowed"
 
-    'missing dependency': ->
-        doc =
-            deps:
-                my:
-                    key: \foo
+    'non circular dependency': ->
+        docs =
+            a:
+                components:
+                    x:
+                        key: \x
+                    k:
+                        key: \x
+                    y:
+                        key: \y
+            x:
+                components:
+                    e:
+                        key: \missing-dependency
 
-        dependencies =
+
+        expect (-> merge-deps 'a', \components.*.key, docs)
+        .to-throw "merge-deps: Required dependencies are not found: missing-dependency, y"
+
+
+    'missing dependency': ->
+        docs =
+            doc:
+                deps:
+                    my:
+                        key: \foo
             bar:
                 _id: 'bar'
                 hello: 'there'
 
-        expect (-> merge-deps doc, \deps.*.key, dependencies)
-        .to-throw "merge-deps: Required dependency is not found"
+        expect (-> merge-deps \doc, \deps.*.key, docs)
+        .to-throw "merge-deps: Required dependencies are not found: foo"
+
+    'missing dependency 2': ->
+        docs = {}
+
+        expect (-> merge-deps \doc, \deps.*.key, docs)
+        .to-throw "merge-deps: Required dependencies are not found: doc"
+
 
 
     'changed remote document': ->
-        doc =
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                my:
-                    key: \foo
-            changes:
+        docs =
+            doc:
+                _id: 'bar'
+                nice: 'day'
                 deps:
                     my:
-                        hi: \world
-
-        dependencies =
+                        key: \foo
+                changes:
+                    deps:
+                        my:
+                            hi: \world
             foo:
                 _id: 'foo'
                 hello: 'there'
@@ -408,7 +441,7 @@ make-tests \merge-deps, do
                 _id: 'foo-dep'
                 eating: 'seed'
 
-        expect merge-deps (clone doc), \deps.*.key, dependencies
+        expect merge-deps \doc, \deps.*.key, docs
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -430,10 +463,10 @@ make-tests \merge-deps, do
 
 
         # change a remote dependency in the tree
-        doc.changes.deps.my.key = 'roadrunner'
+        docs.doc.changes.deps.my.key = 'roadrunner'
 
         # add this dependency to the dependency sources
-        dependencies.roadrunner =
+        docs.roadrunner =
             _id: 'roadrunner'
             its: 'working'
             deps:
@@ -441,17 +474,17 @@ make-tests \merge-deps, do
                     key: 'coyote'
                     value: 3
 
-        dependencies.coyote =
+        docs.coyote =
             _id: 'coyote'
             name: 'coyote who runs behind roadrunner'
 
         # just to be sure that changes are correct
-        expect doc.changes.deps.my
+        expect docs.doc.changes.deps.my
         .to-equal do
             hi: \world
             key: \roadrunner
 
-        expect merge-deps doc, \deps.*.key, dependencies
+        expect merge-deps \doc, \deps.*.key, docs
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -473,20 +506,20 @@ make-tests \merge-deps, do
                         key: 'roadrunner'
                         hi: \world
 
+
     'changed remote document (2)': ->
-        input =
-            components:
-                foo:
-                    key: \bar444
-            changes:
+        docs =
+            doc:
                 components:
                     foo:
-                        key: \bar111
-                        components:
-                            bar333:
-                                value: null
-
-        deps =
+                        key: \bar444
+                changes:
+                    components:
+                        foo:
+                            key: \bar111
+                            components:
+                                bar333:
+                                    value: null
             bar111:
                 components:
                     bar333:
@@ -513,7 +546,7 @@ make-tests \merge-deps, do
                 components: {}
 
 
-        expect merge-deps input, \components.*.key, deps
+        expect merge-deps \doc, \components.*.key, docs
         .to-equal do
             components:
                 foo:
@@ -523,18 +556,15 @@ make-tests \merge-deps, do
                             key: \bar333
                             amount: 30
                             value: null
-
                             components:
                                 bar555:
                                     key: \Co2
                                     components: {}
                                     amount: 0.00001
-
                                 bar666:
                                     key: \bar666
                                     components: {}
                                     amount: 3
-
                             changes:
                                 components:
                                     bar555:

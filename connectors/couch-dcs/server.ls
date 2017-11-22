@@ -3,12 +3,17 @@ require! 'colors': {
     bg-green, bg-red, bg-yellow, bg-blue
     green, yellow, blue
 }
-require! '../../lib':{sleep, pack, clone}
-require! '../../lib/merge-deps':{bundle-deps, merge-deps}
+require! '../../lib': {sleep, pack, clone}
+require! '../../lib/merge-deps': {
+    bundle-deps, merge-deps
+    DependencyError, CircularDependencyError
+}
 
-require! 'prelude-ls': {keys, values, flatten, empty}
+require! 'prelude-ls': {keys, values, flatten, empty, unique, Obj}
 require! './couch-nano': {CouchNano}
 
+show = (name, doc) ->
+    console.log "#{name} :", JSON.stringify(doc, null, 2)
 
 export class CouchDcsServer extends Actor
     (@params) ->
@@ -128,45 +133,86 @@ export class CouchDcsServer extends Actor
 
             # `get` message
             else if \get of msg.payload
-                doc-id = msg.payload.get
+                multiple = if typeof! msg.payload.get is \Array => yes else no
+                doc-id = unique flatten [msg.payload.get]
                 opts = msg.payload.opts or {}
-                err, res <~ @db.get doc-id, opts
-                <~ :lo(op) ~>
-                    if not err and res
-                        # check for the recursion
-                        if opts.recurse
-                            doc = res
-                            dep-path = opts.recurse
-                            @log.log bg-yellow "Recursion required: #{opts.recurse}"
-                            dep-docs = {}
+                err = null
+                res = null
+                bundle = {}
+
+                if multiple
+                    @log.log "Requested multiple documents:", JSON.stringify(doc-id)
+                else
+                    @log.log "Requested single document:", doc-id.0
+
+                opts.keys = doc-id
+                opts.include_docs = yes
+                err, res <~ @db.all-docs opts
+                res := res
+                err := err
+                <~ :asyncif(endif) ~>
+                    # check for the recursion
+                    if opts.recurse and not empty res and not err
+                        dep-path = opts.recurse
+                        @log.log bg-yellow "Recursion required: #{opts.recurse}"
+                        for res
+                            unless ..error
+                                bundle[..doc._id] = ..doc
+                            else
+                                err := ..error
+                                return endif!
+
+                        i = 0
+                        <~ :lo(op) ~>
+                            doc = res[i].doc
+
+                            @log.log "Resolving dependencies for #{doc._id}"
                             <~ :lo2(op2) ~>
                                 try
-                                    d = merge-deps (clone doc), dep-path, dep-docs
-                                    @log.log "...no more dependencies left."
+                                    merge-deps doc._id, dep-path, bundle
                                     return op2!
                                 catch
-                                    missings = e.dependency
-                                    @log.log "...Required dependencies:", missings
-                                    err2, res2 <~ @db.all-docs {keys: missings, +include_docs}
-                                    err := err or err2
-                                    if err
-                                        return op2!
+                                    if e instanceof DependencyError
+                                        missings = e.dependency
+                                        if not missings or empty missings
+                                            err := "Can not determine missing dependencies for #{doc._id}"
+                                            return op!
+                                        @log.log "...Required dependencies:", missings
+                                        err2, res2 <~ @db.all-docs {keys: missings, +include_docs}
+                                        err := err or err2
+                                        if err
+                                            return op2!
+                                        # append the dependencies to the list
+                                        for res2
+                                            bundle[..doc._id] = ..doc
+                                        lo2(op2)
+                                    else if e instanceof CircularDependencyError
+                                        err := "Circular Dependency Error for #{doc._id}
+                                            (#{e.branch.join '->'})"
+                                        return op!
+                                    else
+                                        @log.log "An unknown error occurred: ", e
+                                        return op!
 
-                                    # append the dependencies to the list
-                                    for res2
-                                        dep-docs[..doc._id] = ..doc
+                            return op! if ++i is res.length
+                            lo(op)
 
-                                    lo2(op2)
-                            @log.log "all dependencies are fetched. total: ", (keys dep-docs .length)
-                            @log.log "...deps in total: #{keys dep-docs .join ', '}"
-                            res := bundle-deps res, dep-docs
-                            return op!
-                        else
-                            return op!
+                        #show "bundle is", bundle
+                        @log.log "all dependencies + docs are fetched. total: ", (keys bundle .length)
+                        @log.log "...deps+doc(s) in total: #{keys bundle .join ', '}"
+                        return endif!
                     else
-                        return op!
-                        
-                @send-and-echo msg, {err: err, res: res or null}
+                        return endif!
+
+                unless err or multiple or opts.recurse
+                    console.log "...this was a successful plain single document request."
+                    if res and not empty res
+                        res = res.0
+
+                unless Obj.empty bundle
+                    res := bundle
+
+                @send-and-echo msg, {err, res}
 
             # `all` message
             else if \all of msg.payload
