@@ -34,6 +34,13 @@ Design problems for changes algorithm:
 
 """
 
+debug = no
+dump = (desc, obj) ->
+    if typeof! desc is \Object
+        obj = desc
+        desc = 'obj :'
+    console.log desc, JSON.stringify(obj) if debug
+
 export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
     # search-path is "remote document id path" (fixed as `key`)
     # dep-path is the path where all dependencies are listed by their roles
@@ -42,46 +49,61 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
     missing-deps = []
 
     if typeof! doc-id is \String
+        console.log "branch: ", branch, ", adding #{doc-id}"
+        # detect any circular references
+        if doc-id in branch
+            throw new CircularDependencyError "merge-deps: Circular dependency is not allowed", doc-id
+        else
+            branch.push doc-id
+
         if dep-sources[doc-id]
             doc-id = that
+        else
+            console.log "branch is : ", branch, "currently missing doc id is: ", doc-id
+            missing-deps.push doc-id
 
     if typeof! doc-id is \Object
         doc = clone doc-id
         own-changes = doc.changes or {}
         eff-changes = (clone own-changes) `merge` changes
-        #eff-changes = patch-changes (clone own-changes), changes
+        dump 'parent changes: ', changes
+        dump 'own changes: ', own-changes
+        dump 'eff-changes: ', eff-changes
+
 
         # Any changes that involves remote documents MUST be applied before doing anything
         # for addressing Design problem #1
         for role, eff-change of eff-changes[dep-path]
-            if \key of eff-change
-                # there is a key change, decide whether we are invalidating rest of the changes
-                parent = (try changes[dep-path][role]) or {}
-                own = (try own-changes[dep-path][role]) or {}
-                if own.key isnt eff-change.key
-                    console.log "--------.invalidating all other attributes"
-                    console.log "own: ", JSON.stringify(own)
-                    console.log "parent: ", JSON.stringify(parent)
+            try
+                if \key of eff-change
+                    # there is a key change, decide whether we are invalidating rest of the changes
+                    parent = (try changes[dep-path][role]) or {}
+                    own = (try own-changes[dep-path][role]) or {}
+                    if own.key isnt eff-change.key
+                        console.log "--------.invalidating all other attributes" if debug
+                        make-like-parent = (eff-change, parent) ->
+                            for k of eff-change when k isnt \key
+                                unless k of parent
+                                    console.log "...deleting {#{k}:#{JSON.stringify(eff-change[k])}}" if debug
+                                    delete eff-change[k]
+                                else if typeof! parent[k] is \Object
+                                    make-like-parent eff-change[k], parent[k]
 
-                    make-like-parent = (eff-change, parent) ->
-                        for k of eff-change when k isnt \key
-                            unless k of parent
-                                console.log "...deleting {#{k}:#{JSON.stringify(eff-change[k])}}"
-                                delete eff-change[k]
-                            else if typeof! parent[k] is \Object
-                                make-like-parent eff-change[k], parent[k]
-
-                    make-like-parent eff-change, parent
-                doc[dep-path][role] = eff-change
-            else
-                if typeof! doc[dep-path][role] is \Object
-                    #doc[dep-path][role] `merge` change
-                    doc[dep-path][role] = patch-changes doc[dep-path][role], eff-change
-                else
+                        make-like-parent eff-change, parent
                     doc[dep-path][role] = eff-change
+                else
+                    if typeof! doc[dep-path][role] is \Object
+                        #doc[dep-path][role] `merge` change
+                        doc[dep-path][role] = patch-changes doc[dep-path][role], eff-change
+                    else
+                        doc[dep-path][role] = eff-change
+            catch
+                debugger
 
 
         if typeof! doc?[dep-path] is \Object
+            console.log "branch so far: ", JSON.stringify(branch)
+            branch-so-far = clone branch
             for role, dep of doc[dep-path] when dep?key?
                 # Report missing dependencies
                 unless dep.key of dep-sources
@@ -90,33 +112,19 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
 
                 dep-changes = eff-changes?[dep-path]?[role]
 
-                # detect any circular references
-                branch.push dep.key
-                #console.log "branch: ", branch
-                if branch.length isnt unique(branch).length
-                    if empty missing-deps
-                        throw new CircularDependencyError "merge-deps: Circular dependency is not allowed", branch
-
-                b = branch.length
                 # if dependency-source has further dependencies, merge them first
+                branch = clone branch-so-far
                 try
                     dep-source = merge-deps dep.key, dep-path, dep-sources, dep-changes, branch
                 catch
-                    if e.dependency
+                    if e instanceof DependencyError
                         # bubble up the missing dependencies of dependencies
-                        missing-deps = union missing-deps, that
+                        missing-deps = union missing-deps, e.dependency
                         continue
                     else
                         throw e
 
-                if branch.length is b
-                    #console.log "this seems branch end: ", JSON.stringify(branch)
-                    branch.splice(0, branch.length)
-
                 doc[dep-path][role] = dep-source `merge` dep
-                #doc[dep-path][role] = patch-changes dep-source, dep
-    else
-        missing-deps.push doc-id
 
     unless empty missing-deps
         str = missing-deps.join ', '
@@ -133,6 +141,77 @@ export bundle-deps = (doc, deps) ->
 
 # ----------------------- TESTS ------------------------------------------
 make-tests \merge-deps, do
+    'one dependency used in multiple locations plus empty changes': ->
+        docs =
+            bar:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my123:
+                        key: 'foo'
+                changes:
+                    deps:
+                        my123: {}
+            foo:
+                _id: 'foo'
+                hello: 'there'
+                deps:
+                    hey:
+                        key: \baz
+                    hey2:
+                        key: \qux
+            baz:
+                _id: 'baz'
+                deps:
+                    hey3:
+                        key: \qux
+            qux:
+                _id: 'qux'
+                hello: 'world'
+
+        expect merge-deps \bar, \deps.*.key , docs
+        .to-equal do
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my123:
+                    key: \foo
+                    _id: 'foo'
+                    hello: 'there'
+                    deps:
+                        hey:
+                            key: \baz
+                            _id: 'baz'
+                            deps:
+                                hey3:
+                                    key: \qux
+                                    _id: 'qux'
+                                    hello: 'world'
+                        hey2:
+                            key: \qux
+                            _id: 'qux'
+                            hello: 'world'
+            changes: clone docs.bar.changes
+
+
+
+    'circular dependency 2': ->
+        docs =
+            bar:
+                deps:
+                    your:
+                        key: \foo
+                    my:
+                        key: 'bar'
+
+            foo:
+                deps:
+                    my:
+                        val: \hi
+
+        expect (-> merge-deps \bar, \deps.*.key, docs)
+        .to-throw "merge-deps: Circular dependency is not allowed"
+
     'simple': ->
         docs =
             bar:
@@ -158,6 +237,44 @@ make-tests \merge-deps, do
                     key: \foo
 
         expect docs.bar .to-equal orig-docs.bar
+
+    'add extra components': ->
+        return false
+        docs =
+            bar:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my:
+                        key: \foo
+                changes:
+                    deps:
+                        my:
+                            deps:
+                                key: \qux
+            foo:
+                _id: 'foo'
+                hello: 'there'
+
+            qux:
+                hi: \qux
+
+
+        expect merge-deps \bar, \deps.*.key, docs
+        .to-equal do
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    _id: 'foo'
+                    hello: 'there'
+                    key: \foo
+                    deps:
+                        my:
+                            key: \qux
+                            hi: \qux
+            changes: clone docs.bar.changes
+
 
     'simple with modified deep change': ->
         docs =
@@ -358,58 +475,6 @@ make-tests \merge-deps, do
             changes: clone docs.doc.changes
 
 
-    'one dependency used in multiple locations plus empty changes': ->
-        docs =
-            bar:
-                _id: 'bar'
-                nice: 'day'
-                deps:
-                    my123:
-                        key: 'foo'
-                changes:
-                    deps:
-                        my123: {}
-            foo:
-                _id: 'foo'
-                hello: 'there'
-                deps:
-                    hey:
-                        key: \baz
-                    hey2:
-                        key: \qux
-            baz:
-                _id: 'baz'
-                deps:
-                    hey3:
-                        key: \qux
-            qux:
-                _id: 'qux'
-                hello: 'world'
-
-        expect merge-deps \bar, \deps.*.key , docs
-        .to-equal do
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                my123:
-                    key: \foo
-                    _id: 'foo'
-                    hello: 'there'
-                    deps:
-                        hey:
-                            key: \baz
-                            _id: 'baz'
-                            deps:
-                                hey3:
-                                    key: \qux
-                                    _id: 'qux'
-                                    hello: 'world'
-                        hey2:
-                            key: \qux
-                            _id: 'qux'
-                            hello: 'world'
-            changes: clone docs.bar.changes
-
 
     'circular dependency': ->
         docs =
@@ -424,6 +489,7 @@ make-tests \merge-deps, do
 
         expect (-> merge-deps \bar, \deps.*.key, docs)
         .to-throw "merge-deps: Circular dependency is not allowed"
+
 
     'non circular dependency': ->
         docs =
