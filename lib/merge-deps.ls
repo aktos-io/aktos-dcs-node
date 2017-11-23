@@ -46,7 +46,7 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
             doc-id = that
 
     if typeof! doc-id is \Object
-        doc = doc-id
+        doc = clone doc-id
         own-changes = doc.changes or {}
         eff-changes = (clone own-changes) `merge` changes
         #eff-changes = patch-changes (clone own-changes), changes
@@ -55,7 +55,18 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
         # for addressing Design problem #1
         for role, change of eff-changes[dep-path]
             if \key of change
-                # original document's attributes are invalid
+                console.log "KEY CHANGED: #{change.key} "
+                    #"doc's: ", JSON.stringify(doc[dep-path]?[role]),
+                    #"own: ", JSON.stringify(own-changes?[dep-path]?[role]),
+                    #"parent: ", JSON.stringify(changes?[dep-path]?[role]),
+                    #"eff: ", JSON.stringify(change)
+                try
+                    # original document's attributes are invalid
+                    throw if own-changes[dep-path][role].key is change.key
+                    console.log "...................invalidating all other attributes"
+                    for i of change when i isnt \key
+                        console.log "...deleting #{JSON.stringify(change[i])}"
+                        delete change[i]
                 doc[dep-path][role] = change
             else
                 if typeof! doc[dep-path][role] is \Object
@@ -66,7 +77,7 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
 
 
         if typeof! doc?[dep-path] is \Object
-            for role, dep of doc[dep-path] when dep.key?
+            for role, dep of doc[dep-path] when dep?key?
                 # Report missing dependencies
                 unless dep.key of dep-sources
                     missing-deps.push dep.key
@@ -129,6 +140,8 @@ make-tests \merge-deps, do
                 _id: 'foo'
                 hello: 'there'
 
+        orig-docs = clone docs
+
         expect merge-deps \bar, \deps.*.key, docs
         .to-equal do
             _id: 'bar'
@@ -138,6 +151,8 @@ make-tests \merge-deps, do
                     _id: 'foo'
                     hello: 'there'
                     key: \foo
+
+        expect docs.bar .to-equal orig-docs.bar
 
     'simple with modified deep change': ->
         docs =
@@ -150,12 +165,15 @@ make-tests \merge-deps, do
                     deps:
                         my:
                             key: \foo
-
             foo:
                 hello: 'there'
                 deps:
                     x:
                         key: \how
+                        xamount: 4
+                    y:
+                        key: \how
+                        xamount: 7
                 changes:
                     deps:
                         x:
@@ -163,6 +181,10 @@ make-tests \merge-deps, do
                             amount: 5
             hey:
                 thisis: \hey
+            how:
+                amount: 5
+                size: \grande
+
 
         expect merge-deps \doc, \deps.*.key, docs
         .to-equal do
@@ -176,12 +198,33 @@ make-tests \merge-deps, do
                             key: \hey
                             thisis: \hey
                             amount: 5
-                    changes:
-                        deps:
-                            x:
-                                key: \hey
-                                amount: 5
+                        y:
+                            key: \how
+                            xamount: 7
+                            amount: 5
+                            size: \grande
+                    changes: clone docs.foo.changes
+            changes: clone docs.doc.changes
 
+        # make a change
+        docs.doc.changes.deps.my.deps = y: key: \well
+        docs.well = seems: \great
+        expect merge-deps \doc, \deps.*.key, docs
+        .to-equal do
+            nice: 'day'
+            deps:
+                my:
+                    hello: 'there'
+                    key: \foo
+                    deps:
+                        x:
+                            key: \hey
+                            thisis: \hey
+                            amount: 5
+                        y:
+                            key: \well
+                            seems: \great
+                    changes: clone docs.foo.changes
             changes: clone docs.doc.changes
 
     'deleted master change': ->
@@ -275,7 +318,6 @@ make-tests \merge-deps, do
                         x:
                             key: \nice
                             very: \well
-                            amount: 5
                     changes: clone docs.foo.changes
             changes: clone docs.doc.changes
 
