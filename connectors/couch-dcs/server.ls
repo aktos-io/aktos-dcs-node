@@ -147,9 +147,10 @@ export class CouchDcsServer extends Actor
 
                 opts.keys = doc-id
                 opts.include_docs = yes
-                err, res <~ @db.all-docs opts
-                res := res
-                err := err
+                #show 'opts: ', opts
+                _err, _res <~ @db.all-docs opts
+                res := _res
+                err := _err
                 <~ :asyncif(endif) ~>
                     # check for the recursion
                     if opts.recurse and not empty res and not err
@@ -207,7 +208,7 @@ export class CouchDcsServer extends Actor
                 unless err or multiple or opts.recurse
                     console.log "...this was a successful plain single document request."
                     if res and not empty res
-                        res = res.0
+                        res := res.0.doc
 
                 unless Obj.empty bundle
                     res := bundle
