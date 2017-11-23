@@ -53,27 +53,32 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
 
         # Any changes that involves remote documents MUST be applied before doing anything
         # for addressing Design problem #1
-        for role, change of eff-changes[dep-path]
-            if \key of change
-                console.log "KEY CHANGED: #{change.key} "
-                    #"doc's: ", JSON.stringify(doc[dep-path]?[role]),
-                    #"own: ", JSON.stringify(own-changes?[dep-path]?[role]),
-                    #"parent: ", JSON.stringify(changes?[dep-path]?[role]),
-                    #"eff: ", JSON.stringify(change)
-                try
-                    # original document's attributes are invalid
-                    throw if own-changes[dep-path][role].key is change.key
-                    console.log "...................invalidating all other attributes"
-                    for i of change when i isnt \key
-                        console.log "...deleting #{JSON.stringify(change[i])}"
-                        delete change[i]
-                doc[dep-path][role] = change
+        for role, eff-change of eff-changes[dep-path]
+            if \key of eff-change
+                # there is a key change, decide whether we are invalidating rest of the changes
+                parent = (try changes[dep-path][role]) or {}
+                own = (try own-changes[dep-path][role]) or {}
+                if own.key isnt eff-change.key
+                    console.log "--------.invalidating all other attributes"
+                    console.log "own: ", JSON.stringify(own)
+                    console.log "parent: ", JSON.stringify(parent)
+
+                    make-like-parent = (eff-change, parent) ->
+                        for k of eff-change when k isnt \key
+                            unless k of parent
+                                console.log "...deleting {#{k}:#{JSON.stringify(eff-change[k])}}"
+                                delete eff-change[k]
+                            else if typeof! parent[k] is \Object
+                                make-like-parent eff-change[k], parent[k]
+
+                    make-like-parent eff-change, parent
+                doc[dep-path][role] = eff-change
             else
                 if typeof! doc[dep-path][role] is \Object
                     #doc[dep-path][role] `merge` change
-                    doc[dep-path][role] = patch-changes doc[dep-path][role], change
+                    doc[dep-path][role] = patch-changes doc[dep-path][role], eff-change
                 else
-                    doc[dep-path][role] = change
+                    doc[dep-path][role] = eff-change
 
 
         if typeof! doc?[dep-path] is \Object
