@@ -34,12 +34,11 @@ Design problems for changes algorithm:
 
 """
 
-debug = no
 dump = (desc, obj) ->
     if typeof! desc is \Object
         obj = desc
         desc = 'obj :'
-    console.log desc, JSON.stringify(obj) if debug
+    console.log desc, JSON.stringify(obj)
 
 export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
     # search-path is "remote document id path" (fixed as `key`)
@@ -62,43 +61,44 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
             missing-deps.push doc-id
 
     if typeof! doc-id is \Object
+        # FIXME: change `doc` with `merged`
         doc = clone doc-id
         own-changes = doc.changes or {}
         eff-changes = (clone own-changes) `merge` changes
+
+        # Any changes that involves remote documents MUST be applied before doing anything
+        # for addressing Design problem #1
+        console.log "-------------------------------------------------"
         dump 'parent changes: ', changes
         dump 'own changes: ', own-changes
         dump 'eff-changes: ', eff-changes
 
-
-        # Any changes that involves remote documents MUST be applied before doing anything
-        # for addressing Design problem #1
         for role, eff-change of eff-changes[dep-path]
-            try
-                if \key of eff-change
-                    # there is a key change, decide whether we are invalidating rest of the changes
-                    parent = (try changes[dep-path][role]) or {}
-                    own = (try own-changes[dep-path][role]) or {}
-                    if own.key isnt eff-change.key
-                        console.log "--------.invalidating all other attributes" if debug
-                        make-like-parent = (eff-change, parent) ->
-                            for k of eff-change when k isnt \key
-                                unless k of parent
-                                    console.log "...deleting {#{k}:#{JSON.stringify(eff-change[k])}}" if debug
-                                    delete eff-change[k]
-                                else if typeof! parent[k] is \Object
-                                    make-like-parent eff-change[k], parent[k]
+            if (typeof! eff-change is \Object) and (\key of eff-change)
+                # there is a key change, decide whether we are invalidating rest of the changes
+                parent = (try changes[dep-path][role]) or {}
+                own = (try own-changes[dep-path][role]) or {}
+                if own.key isnt eff-change.key
+                    console.log "--------.invalidating all other attributes"
+                    make-like-parent = (eff-change, parent) ->
+                        for k of eff-change when k isnt \key
+                            unless k of parent
+                                console.log "...deleting {#{k}:#{JSON.stringify(eff-change[k])}}"
+                                delete eff-change[k]
+                            else if typeof! parent[k] is \Object
+                                make-like-parent eff-change[k], parent[k]
 
-                        make-like-parent eff-change, parent
-                    doc[dep-path][role] = eff-change
+                    make-like-parent eff-change, parent
+
+                doc[dep-path] = {} unless doc[dep-path]
+                doc[dep-path][role] = eff-change
+            else
+                if typeof! doc[dep-path][role] is \Object
+                    #doc[dep-path][role] `merge` change
+                    doc[dep-path][role] = patch-changes doc[dep-path][role], eff-change
                 else
-                    if typeof! doc[dep-path][role] is \Object
-                        #doc[dep-path][role] `merge` change
-                        doc[dep-path][role] = patch-changes doc[dep-path][role], eff-change
-                    else
-                        doc[dep-path][role] = eff-change
-            catch
-                debugger
-
+                    doc[dep-path][role] = eff-change
+        dump "merged (ready): ", doc
 
         if typeof! doc?[dep-path] is \Object
             #console.log "branch so far: ", JSON.stringify(branch)
@@ -140,6 +140,55 @@ export bundle-deps = (doc, deps) ->
 
 # ----------------------- TESTS ------------------------------------------
 make-tests \merge-deps, do
+    'add extra components': ->
+        docs =
+            bar:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my:
+                        key: \foo
+                changes:
+                    deps:
+                        my:
+                            deps:
+                                a:
+                                    key: \qux
+            foo:
+                _id: 'foo'
+                hello: 'there'
+
+            qux:
+                hi: \qux
+                deps:
+                    me:
+                        key: \john
+                        value: \doe
+            john:
+                number: 123
+
+
+        expect merge-deps \bar, \deps.*.key, docs
+        .to-equal do
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    _id: 'foo'
+                    hello: 'there'
+                    key: \foo
+                    deps:
+                        a:
+                            key: \qux
+                            hi: \qux
+                            deps:
+                                me:
+                                    key: \john
+                                    value: \doe
+                                    number: 123
+            changes: clone docs.bar.changes
+
+
     'one dependency used in multiple locations plus empty changes': ->
         docs =
             bar:
@@ -236,43 +285,6 @@ make-tests \merge-deps, do
                     key: \foo
 
         expect docs.bar .to-equal orig-docs.bar
-
-    'add extra components': ->
-        return false
-        docs =
-            bar:
-                _id: 'bar'
-                nice: 'day'
-                deps:
-                    my:
-                        key: \foo
-                changes:
-                    deps:
-                        my:
-                            deps:
-                                key: \qux
-            foo:
-                _id: 'foo'
-                hello: 'there'
-
-            qux:
-                hi: \qux
-
-
-        expect merge-deps \bar, \deps.*.key, docs
-        .to-equal do
-            _id: 'bar'
-            nice: 'day'
-            deps:
-                my:
-                    _id: 'foo'
-                    hello: 'there'
-                    key: \foo
-                    deps:
-                        my:
-                            key: \qux
-                            hi: \qux
-            changes: clone docs.bar.changes
 
 
     'simple with modified deep change': ->
