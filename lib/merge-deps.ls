@@ -53,20 +53,25 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
 
         # Any changes that involves remote documents MUST be applied before doing anything
         # for addressing Design problem #1
-        dump = ->
         for role, eff-change of eff-changes[dep-path]
             if \key of eff-change
                 # there is a key change, decide whether we are invalidating rest of the changes
-                try
-                    parent = (try changes[dep-path][role]) or {}
-                    own = (try own-changes[dep-path][role]) or {}
-                    # original document's attributes are invalid
-                    if own.key is eff-change.key
-                        throw # changes are valid
-                    console.log "...................invalidating all other attributes"
-                    for k of eff-change when k isnt \key
-                        console.log "...invalidating #{JSON.stringify(eff-change[k])}"
-                        delete eff-change[k]
+                parent = (try changes[dep-path][role]) or {}
+                own = (try own-changes[dep-path][role]) or {}
+                if own.key isnt eff-change.key
+                    console.log "--------.invalidating all other attributes"
+                    console.log "own: ", JSON.stringify(own)
+                    console.log "parent: ", JSON.stringify(parent)
+
+                    make-like-parent = (eff-change, parent) ->
+                        for k of eff-change when k isnt \key
+                            unless k of parent
+                                console.log "...deleting {#{k}:#{JSON.stringify(eff-change[k])}}"
+                                delete eff-change[k]
+                            else if typeof! parent[k] is \Object
+                                make-like-parent eff-change[k], parent[k]
+
+                    make-like-parent eff-change, parent
                 doc[dep-path][role] = eff-change
             else
                 if typeof! doc[dep-path][role] is \Object
