@@ -188,8 +188,7 @@ export class CouchDcsServer extends Actor
                                             bundle[..doc._id] = ..doc
                                         lo2(op2)
                                     else if e instanceof CircularDependencyError
-                                        err := "Circular Dependency Error for #{doc._id}
-                                            (#{e.branch.join '->'})"
+                                        err := "Circular Dependency Error for #{doc._id} (needs #{e.branch})"
                                         return op!
                                     else
                                         @log.log "An unknown error occurred: ", e
