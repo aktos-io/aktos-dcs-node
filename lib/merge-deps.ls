@@ -53,27 +53,27 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
 
         # Any changes that involves remote documents MUST be applied before doing anything
         # for addressing Design problem #1
-        for role, change of eff-changes[dep-path]
-            if \key of change
-                console.log "KEY CHANGED: #{change.key} "
-                    #"doc's: ", JSON.stringify(doc[dep-path]?[role]),
-                    #"own: ", JSON.stringify(own-changes?[dep-path]?[role]),
-                    #"parent: ", JSON.stringify(changes?[dep-path]?[role]),
-                    #"eff: ", JSON.stringify(change)
+        dump = ->
+        for role, eff-change of eff-changes[dep-path]
+            if \key of eff-change
+                # there is a key change, decide whether we are invalidating rest of the changes
                 try
+                    parent = (try changes[dep-path][role]) or {}
+                    own = (try own-changes[dep-path][role]) or {}
                     # original document's attributes are invalid
-                    throw if own-changes[dep-path][role].key is change.key
+                    if own.key is eff-change.key
+                        throw # changes are valid
                     console.log "...................invalidating all other attributes"
-                    for i of change when i isnt \key
-                        console.log "...deleting #{JSON.stringify(change[i])}"
-                        delete change[i]
-                doc[dep-path][role] = change
+                    for k of eff-change when k isnt \key
+                        console.log "...invalidating #{JSON.stringify(eff-change[k])}"
+                        delete eff-change[k]
+                doc[dep-path][role] = eff-change
             else
                 if typeof! doc[dep-path][role] is \Object
                     #doc[dep-path][role] `merge` change
-                    doc[dep-path][role] = patch-changes doc[dep-path][role], change
+                    doc[dep-path][role] = patch-changes doc[dep-path][role], eff-change
                 else
-                    doc[dep-path][role] = change
+                    doc[dep-path][role] = eff-change
 
 
         if typeof! doc?[dep-path] is \Object
