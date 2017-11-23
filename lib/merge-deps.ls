@@ -49,8 +49,8 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
     missing-deps = []
 
     if typeof! doc-id is \String
-        console.log "branch: ", branch, ", adding #{doc-id}"
         # detect any circular references
+        #console.log "branch: ", branch, ", adding #{doc-id}"
         if doc-id in branch
             throw new CircularDependencyError "merge-deps: Circular dependency is not allowed", doc-id
         else
@@ -59,7 +59,6 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
         if dep-sources[doc-id]
             doc-id = that
         else
-            console.log "branch is : ", branch, "currently missing doc id is: ", doc-id
             missing-deps.push doc-id
 
     if typeof! doc-id is \Object
@@ -102,7 +101,7 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
 
 
         if typeof! doc?[dep-path] is \Object
-            console.log "branch so far: ", JSON.stringify(branch)
+            #console.log "branch so far: ", JSON.stringify(branch)
             branch-so-far = clone branch
             for role, dep of doc[dep-path] when dep?key?
                 # Report missing dependencies
