@@ -3,7 +3,7 @@ require! 'prelude-ls': {keys, union, Obj}
 
 clean-obj = (obj) ->
     for key of obj
-        unless obj[key]
+        if typeof! obj[key] is \Undefined
             delete obj[key]
 
         if typeof! obj[key] is \Object
