@@ -9,10 +9,10 @@ require! '../../lib/merge-deps': {
     DependencyError, CircularDependencyError
 }
 
-require! 'prelude-ls': {keys, values, flatten, empty, unique, Obj}
+require! 'prelude-ls': {keys, values, flatten, empty, unique, Obj, difference}
 require! './couch-nano': {CouchNano}
 
-show = (name, doc) ->
+dump = (name, doc) ->
     console.log "#{name} :", JSON.stringify(doc, null, 2)
 
 export class CouchDcsServer extends Actor
@@ -147,7 +147,7 @@ export class CouchDcsServer extends Actor
 
                 opts.keys = doc-id
                 opts.include_docs = yes
-                #show 'opts: ', opts
+                #dump 'opts: ', opts
                 _err, _res <~ @db.all-docs opts
                 res := _res
                 err := _err
@@ -155,7 +155,6 @@ export class CouchDcsServer extends Actor
                     # check for the recursion
                     if opts.recurse and not empty res and not err
                         dep-path = opts.recurse
-                        @log.log bg-yellow "Recursion required: #{opts.recurse}"
                         for res
                             unless ..error
                                 bundle[..doc._id] = ..doc
@@ -167,19 +166,15 @@ export class CouchDcsServer extends Actor
                         <~ :lo(op) ~>
                             doc = res[i].doc
 
-                            @log.log "Resolving dependencies for #{doc._id}"
+                            @log.log bg-yellow "Resolving dependencies for #{doc._id} (by #{opts.recurse})"
                             <~ :lo2(op2) ~>
                                 try
                                     merge-deps doc._id, dep-path, bundle
                                     return op2!
                                 catch
                                     if e instanceof DependencyError
-                                        missings = e.dependency
-                                        if not missings or empty missings
-                                            err := "Can not determine missing dependencies for #{doc._id}"
-                                            return op!
-                                        @log.log "...Required dependencies:", missings
-                                        err2, res2 <~ @db.all-docs {keys: missings, +include_docs}
+                                        @log.log "...Required dependencies:", e.dependency.join(',')
+                                        err2, res2 <~ @db.all-docs {keys: e.dependency, +include_docs}
                                         err := err or err2
                                         if err
                                             return op2!
@@ -197,7 +192,7 @@ export class CouchDcsServer extends Actor
                             return op! if ++i is res.length
                             lo(op)
 
-                        #show "bundle is", bundle
+                        #dump "bundle is", bundle
                         @log.log "all dependencies + docs are fetched. total: ", (keys bundle .length)
                         @log.log "...deps+doc(s) in total: #{keys bundle .join ', '}"
                         return endif!
@@ -246,6 +241,6 @@ export class CouchDcsServer extends Actor
 
 
     send-and-echo: (orig, _new) ->
-        @log.log "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
+        @log.log bg-blue "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
         @log.log "error was : #{pack _new.err}" if _new.err
         @send-response orig, _new

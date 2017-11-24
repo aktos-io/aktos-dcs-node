@@ -68,10 +68,10 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
 
         # Any changes that involves remote documents MUST be applied before doing anything
         # for addressing Design problem #1
-        console.log "-------------------------------------------------"
-        dump 'parent changes: ', changes
-        dump 'own changes: ', own-changes
-        dump 'eff-changes: ', eff-changes
+        #console.log "-------------------------------------------------"
+        #dump 'parent changes: ', changes
+        #dump 'own changes: ', own-changes
+        #dump 'eff-changes: ', eff-changes
 
         for role, eff-change of eff-changes[dep-path]
             if (typeof! eff-change is \Object) and (\key of eff-change)
@@ -79,11 +79,11 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
                 parent = (try changes[dep-path][role]) or {}
                 own = (try own-changes[dep-path][role]) or {}
                 if own.key isnt eff-change.key
-                    console.log "--------.invalidating all other attributes"
+                    #console.log "--------.invalidating all other attributes"
                     make-like-parent = (eff-change, parent) ->
                         for k of eff-change when k isnt \key
                             unless k of parent
-                                console.log "...deleting {#{k}:#{JSON.stringify(eff-change[k])}}"
+                                #console.log "...deleting {#{k}:#{JSON.stringify(eff-change[k])}}"
                                 delete eff-change[k]
                             else if typeof! parent[k] is \Object
                                 make-like-parent eff-change[k], parent[k]
@@ -98,7 +98,7 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
                     doc[dep-path][role] = patch-changes doc[dep-path][role], eff-change
                 else
                     doc[dep-path][role] = eff-change
-        dump "merged (ready): ", doc
+        #dump "merged (ready): ", doc
 
         if typeof! doc?[dep-path] is \Object
             #console.log "branch so far: ", JSON.stringify(branch)
