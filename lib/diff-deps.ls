@@ -3,7 +3,9 @@ require! 'prelude-ls': {keys, union, Obj}
 
 clean-obj = (obj) ->
     for key of obj
-        if typeof! obj[key] is \Undefined
+        # WARNING: Changing below list (undefined, null) will effect
+        # the cleanup of former values (+dependencies) when key is changed
+        if typeof! obj[key] in <[ Undefined Null ]>
             delete obj[key]
 
         if typeof! obj[key] is \Object
@@ -51,7 +53,7 @@ export diff-deps = (keypath, orig, curr) ->
             null
         else
             if curr-val isnt orig-val
-                change[key] = (curr-val or null)
+                change[key] = curr-val
 
     return clean-obj change
 
