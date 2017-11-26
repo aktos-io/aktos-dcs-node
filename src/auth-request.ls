@@ -28,7 +28,7 @@ export class AuthRequest extends EventEmitter
             # username, password
             credentials.password = hash-passwd credentials.password
 
-        else if \token of credentials
+        else if credentials.token?
             # token
             if credentials.token.length < 10
                 err = "Token seems empty, not attempting to login."
