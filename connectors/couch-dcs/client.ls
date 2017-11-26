@@ -43,14 +43,14 @@ export class CouchDcsClient extends Actor
 
         callback err, res
 
-    all: (opts, callback) ->
+    all-docs: (opts, callback) ->
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
             opts = {}
         # end of normalization
 
-        err, msg <~ @send-request "#{@topic}.all", {all: opts}
+        err, msg <~ @send-request "#{@topic}.allDocs", {allDocs: opts}
         callback (err or msg?.payload.err), msg?.payload.res
 
     put: (doc, opts, callback) ->

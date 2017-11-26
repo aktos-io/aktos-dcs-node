@@ -209,9 +209,9 @@ export class CouchDcsServer extends Actor
 
                 @send-and-echo msg, {err, res}
 
-            # `all` message
-            else if \all of msg.payload
-                err, res <~ @db.all-docs msg.payload.all
+            # `all-docs` message
+            else if \allDocs of msg.payload
+                err, res <~ @db.all-docs msg.payload.all-docs
                 @send-and-echo msg, {err: err, res: res or null}
 
             # `view` message
