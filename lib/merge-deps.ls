@@ -6,12 +6,14 @@ require! 'prelude-ls': {empty, Obj, unique, keys, find, union}
 #require! './apply-changes': {apply-changes, apply-changes2}
 require! './diff-deps': {diff-deps}
 require! './patch-changes': {patch-changes}
+require! './get-deps': {get-deps}
 
 require! \jsondiffpatch
 
 # re-export
 export diff-deps
 export patch-changes
+export get-deps 
 
 export class DependencyError extends Error
     (@message, @dependency) ->

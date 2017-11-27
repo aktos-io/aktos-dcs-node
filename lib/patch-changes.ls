@@ -7,11 +7,15 @@ export patch-changes = (orig, changes) ->
     if typeof! changes is \Object
         orig = {} unless orig
 
-        if changes.key and (changes.key isnt orig.key)
+        if changes.key? and (changes.key isnt orig.key)
             # original document's attributes are invalid
             orig = changes
         else
             for role, change of changes
+                if role is \changes
+                    console.log "...skipping changes key..."
+                    continue
+
                 if typeof! change is \Object
                     orig[role] = patch-changes orig[role], change
                 else
