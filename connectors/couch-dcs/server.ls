@@ -9,7 +9,10 @@ require! '../../lib/merge-deps': {
     DependencyError, CircularDependencyError
 }
 
-require! 'prelude-ls': {keys, values, flatten, empty, unique, Obj, difference}
+require! 'prelude-ls': {
+    keys, values, flatten, empty, unique,
+    Obj, difference, union
+}
 require! './couch-nano': {CouchNano}
 
 dump = (name, doc) ->
@@ -174,7 +177,13 @@ export class CouchDcsServer extends Actor
                                 catch
                                     if e instanceof DependencyError
                                         @log.log "...Required dependencies:", e.dependency.join(',')
-                                        err2, res2 <~ @db.all-docs {keys: e.dependency, +include_docs}
+                                        cache = []
+
+                                        if doc.cache__?.recurse? and not empty doc.cache__.recurse
+                                            @log.log bg-green "Using cache: #{doc.cache__.recurse.join(',')}"
+                                            cache = union doc.cache__.recurse, e.dependency
+
+                                        err2, res2 <~ @db.all-docs {keys: (e.dependency ++ cache), +include_docs}
                                         err := err or err2
                                         if err
                                             return op2!
