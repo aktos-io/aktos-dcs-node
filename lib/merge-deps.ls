@@ -13,17 +13,19 @@ require! \jsondiffpatch
 # re-export
 export diff-deps
 export patch-changes
-export get-deps 
+export get-deps
 
 export class DependencyError extends Error
     (@message, @dependency) ->
         super ...
-        Error.captureStackTrace(this, DependencyError)
+        # below line causes firefox to fail from exception tests
+        #Error.captureStackTrace(this, DependencyError)
 
 export class CircularDependencyError extends Error
     (@message, @branch) ->
         super ...
-        Error.captureStackTrace(this, CircularDependencyError)
+        # below line causes firefox to fail from exception tests
+        #Error.captureStackTrace(this, CircularDependencyError)
 
 """
 Design problems for changes algorithm:
