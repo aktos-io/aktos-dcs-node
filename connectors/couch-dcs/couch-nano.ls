@@ -131,7 +131,7 @@ export class CouchNano extends EventEmitter
 
         err, res, headers <~ @_view ddoc, viewname, {type: \view}, opts
 
-        callback err, res
+        callback err, (res?rows or [])
 
     _view: (ddoc, viewName, meta, qs, callback) ->
         relax = @request
