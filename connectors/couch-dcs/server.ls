@@ -93,15 +93,12 @@ export class CouchDcsServer extends Actor
                 return callback err=no, doc
 
         transaction-count = (callback) ~>
-            err, res <~ @db.view "transactions/ongoing", {startkey: Date.now! - 10_000ms, endkey: {}}
-            count = try
-                res.0.value
-            catch
-                0
+            transaction-timeout = 10_000ms
+            err, res <~ @db.view "transactions/ongoing", {startkey: Date.now! - transaction-timeout, endkey: {}}
+            count = (try res.0.value) or 0
             @log.log "total ongoing transaction: ", count
             callback count
 
-        @log.log "Accepting messages from DCS network."
         @on \data, (msg) ~>
             #@log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
@@ -117,43 +114,47 @@ export class CouchDcsServer extends Actor
                     ongoing transaction at the same time, and then put their ongoing transaction files concurrently)
                   4. (Roundtrip 4 - Rollback Case) Perform any business logic here. If any stuff can't be less than zero or something like that, fail.
                     Mark the transaction document state as `failed` (or something like that) to clear it from ongoing transactions
-                    list (to prevent performance impact of waiting transaction timeouts)
+                    list (to prevent performance impact of waiting transaction timeouts). This step is optional and there is 
+                    no problem if it fails.
                   5. (Roundtrip 4 - Commit Case) If everything is okay, mark transaction document state as 'done'. 
+
+                This algorithm uses the following views: 
+                  
+                        # _design/transactions
+                        views:
+                            ongoing:
+                                map: (doc) ->
+                                    if (doc.type is \transaction) and (doc.state is \ongoing)
+                                        emit doc.timestamp, 1
+
+                                reduce: (keys, values) ->
+                                    sum values
+
+                            balance:
+                                map: (doc) ->
+                                    if doc.type is \transaction and doc.state is \done
+                                        emit doc.from, (doc.amount * -1)
+                                        emit doc.to, doc.amount
+
+                                reduce: (keys, values) ->
+                                    sum values
                 '''
-                '''
-                # _design/transactions
-                views:
-                    ongoing:
-                        map: (doc) ->
-                            if (doc.type is \transaction) and (doc.state is \ongoing)
-                                emit doc.timestamp, 1
 
-                        reduce: (keys, values) ->
-                            sum values
-
-                    balance:
-                        map: (doc) ->
-                            if doc.type is \transaction and doc.state is \done
-                                emit doc.from, (doc.amount * -1)
-                                emit doc.to, doc.amount
-
-                        reduce: (keys, values) ->
-                            sum values
-                '''
-
-                @log.log bg-yellow "Handling transaction..."
-                curr <~ transaction-count
-                if curr > 0
-                    @log.err bg-red "There is an ongoing transaction, giving up"
-                    return @send-and-echo msg, {err: "Ongoing transaction exists", res: null}
-
-
+                @log.log bg-yellow "Handling transaction..."                
                 doc = msg.payload.put
-
+    
+                # Check if transaction document format is correct 
                 unless doc.from and doc.to
                     return @send-and-echo msg, {err: "Missing source or destination", res: res or null}
                 @log.log "transaction doc is: ", doc
 
+                # Check if there is any ongoing transaction (step 1)
+                count <~ transaction-count
+                if count > 0
+                    @log.err bg-red "There is an ongoing transaction, giving up"
+                    return @send-and-echo msg, {err: "Ongoing transaction exists", res: null}
+
+                # Put the ongoing transaction file to the db (step 2)
                 doc <<<< do
                     state: \ongoing
                     timestamp: Date.now!
@@ -161,17 +162,16 @@ export class CouchDcsServer extends Actor
                 err, res <~ @db.put doc
                 if err
                     return @send-and-echo msg, {err: err, res: res or null}
+                 
+                # update the document
+                doc <<<< {_id: res.id, _rev: res.rev}
 
+                # Ensure that there is no concurrent ongoing transactions (step 3)
                 count <~ transaction-count
                 if count > 1
                     return @send-and-echo msg, {err: "There are more than one ongoing?", res: res or null}
 
-                # we are ready to perform the transaction
-                doc <<<< do
-                    _id: res.id
-                    _rev: res.rev
-
-
+                # Perform the business logic, rollback actively if needed. (step 4)
                 <~ :lo(op) ~>
                     if doc.from isnt \outside
                         # stock can not be less than zero
@@ -182,21 +182,21 @@ export class CouchDcsServer extends Actor
                             @send-and-echo msg, {err, res: null}
                             doc.state = \failed
                             err, res <~ @db.put doc
-                            unless err
-                                @log.log bg-yellow "Transaction ROLLED BACK."
-
+                            if err => @log.warn "Failed to actively rollback. This will cause performance impacts."
+                            @log.log bg-yellow "Transaction ROLLED BACK."
                             return
                         else
                             return op!
                     else
                         return op!
 
-
-                # just mark as "done", no business logic
+                # Commit the transaction (step 5) 
                 doc.state = \done
                 err, res <~ @db.put doc
                 unless err
                     @log.log bg-green "Transaction completed."
+                else 
+                    @log.err "Transaction is not completed. id: #{doc._id}"
 
                 @send-and-echo msg, {err: err, res: res or null}
 
@@ -352,7 +352,8 @@ export class CouchDcsServer extends Actor
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"
                 @send-and-echo msg, {err: err, res: null}
-
+                
+        @log.log "Accepting messages from DCS network."
 
     send-and-echo: (orig, _new) ->
         @log.log bg-blue "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
