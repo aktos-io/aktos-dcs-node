@@ -82,7 +82,7 @@ export class CouchDcsServer extends Actor
                     return callback err
 
                 next-id = try
-                    res.rows.0.key .1 + 1
+                    res.0.key .1 + 1
                 catch
                     1
 
@@ -92,11 +92,103 @@ export class CouchDcsServer extends Actor
             else
                 return callback err=no, doc
 
+        transaction-count = (callback) ~>
+            err, res <~ @db.view "transactions/ongoing", {startkey: Date.now! - 10_000ms, endkey: {}}
+            count = try
+                res.0.value
+            catch
+                0
+            @log.log "total ongoing transaction: ", count
+            callback count
+
         @log.log "Accepting messages from DCS network."
         @on \data, (msg) ~>
             #@log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
-            if \put of msg.payload
+            if msg.payload.put?.type is \transaction
+                # handle the transaction
+                '''
+                # _design/transactions
+                views:
+                    ongoing:
+                        map: (doc) ->
+                            if (doc.type is \transaction) and (doc.state is \ongoing)
+                                emit doc.timestamp, 1
+
+                        reduce: (keys, values) ->
+                            sum values
+
+                    balance:
+                        map: (doc) ->
+                            if doc.type is \transaction and doc.state is \done
+                                emit doc.from, (doc.amount * -1)
+                                emit doc.to, doc.amount
+
+                        reduce: (keys, values) ->
+                            sum values
+                '''
+
+                @log.log bg-yellow "Handling transaction..."
+                curr <~ transaction-count
+                if curr > 0
+                    @log.err bg-red "There is an ongoing transaction, giving up"
+                    return @send-and-echo msg, {err: "Ongoing transaction exists", res: null}
+
+
+                doc = msg.payload.put
+
+                unless doc.from and doc.to
+                    return @send-and-echo msg, {err: "Missing source or destination", res: res or null}
+                @log.log "transaction doc is: ", doc
+
+                doc <<<< do
+                    state: \ongoing
+                    timestamp: Date.now!
+
+                err, res <~ @db.put doc
+                if err
+                    return @send-and-echo msg, {err: err, res: res or null}
+
+                count <~ transaction-count
+                if count > 1
+                    return @send-and-echo msg, {err: "There are more than one ongoing?", res: res or null}
+
+                # we are ready to perform the transaction
+                doc <<<< do
+                    _id: res.id
+                    _rev: res.rev
+
+
+                <~ :lo(op) ~>
+                    if doc.from isnt \outside
+                        # stock can not be less than zero
+                        err, res <~ @db.view 'transactions/balance', {key: doc.from}
+                        amount = (try res.0.value) or 0
+                        if amount < doc.amount
+                            err = "#{doc.from} can not be < 0 (curr: #{amount}, wanted: #{doc.amount})"
+                            @send-and-echo msg, {err, res: null}
+                            doc.state = \failed
+                            err, res <~ @db.put doc
+                            unless err
+                                @log.log bg-yellow "Transaction ROLLED BACK."
+
+                            return
+                        else
+                            return op!
+                    else
+                        return op!
+
+
+                # just mark as "done", no business logic
+                doc.state = \done
+                err, res <~ @db.put doc
+                unless err
+                    @log.log bg-green "Transaction completed."
+
+                @send-and-echo msg, {err: err, res: res or null}
+
+
+            else if \put of msg.payload
                 docs = flatten [msg.payload.put]
 
                 # add server side properties
@@ -227,7 +319,7 @@ export class CouchDcsServer extends Actor
             else if \view of msg.payload
                 @log.log "view message received", pack msg.payload
                 err, res <~ @db.view msg.payload.view, msg.payload.opts
-                @send-and-echo msg, {err: err, res: (res?.rows or null)}
+                @send-and-echo msg, {err: err, res: (res or null)}
 
             # `getAtt` message (for getting attachments)
             else if \getAtt of msg.payload
