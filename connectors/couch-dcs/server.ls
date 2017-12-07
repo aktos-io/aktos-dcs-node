@@ -105,21 +105,21 @@ export class CouchDcsServer extends Actor
             if msg.payload.put?.type is \transaction
                 # handle the transaction
                 '''
-                Transaction follows this path: 
-                  
-                  1. (Roundtrip 1) Check if there is an ongoing transaction. Fail if there is any. 
-                  2. (Roundtrip 2) If there is no ongoing transaction, mark the transaction document as 'ongoing' and save 
-                  3. (Roundtrip 3) At this step, there should be only 1 ongoing transaction. Fail if there are more than 1 ongoing 
-                    transaction. (More than 1 ongoing transaction means more than one process checked and saw no 
+                Transaction follows this path:
+
+                  1. (Roundtrip 1) Check if there is an ongoing transaction. Fail if there is any.
+                  2. (Roundtrip 2) If there is no ongoing transaction, mark the transaction document as 'ongoing' and save
+                  3. (Roundtrip 3) At this step, there should be only 1 ongoing transaction. Fail if there are more than 1 ongoing
+                    transaction. (More than 1 ongoing transaction means more than one process checked and saw no
                     ongoing transaction at the same time, and then put their ongoing transaction files concurrently)
                   4. (Roundtrip 4 - Rollback Case) Perform any business logic here. If any stuff can't be less than zero or something like that, fail.
                     Mark the transaction document state as `failed` (or something like that) to clear it from ongoing transactions
-                    list (to prevent performance impact of waiting transaction timeouts). This step is optional and there is 
+                    list (to prevent performance impact of waiting transaction timeouts). This step is optional and there is
                     no problem if it fails.
-                  5. (Roundtrip 4 - Commit Case) If everything is okay, mark transaction document state as 'done'. 
+                  5. (Roundtrip 4 - Commit Case) If everything is okay, mark transaction document state as 'done'.
 
-                This algorithm uses the following views: 
-                  
+                This algorithm uses the following views:
+
                         # _design/transactions
                         views:
                             ongoing:
@@ -140,10 +140,10 @@ export class CouchDcsServer extends Actor
                                     sum values
                 '''
 
-                @log.log bg-yellow "Handling transaction..."                
+                @log.log bg-yellow "Handling transaction..."
                 doc = msg.payload.put
-    
-                # Check if transaction document format is correct 
+
+                # Check if transaction document format is correct
                 unless doc.from and doc.to
                     return @send-and-echo msg, {err: "Missing source or destination", res: res or null}
                 @log.log "transaction doc is: ", doc
@@ -162,7 +162,7 @@ export class CouchDcsServer extends Actor
                 err, res <~ @db.put doc
                 if err
                     return @send-and-echo msg, {err: err, res: res or null}
-                 
+
                 # update the document
                 doc <<<< {_id: res.id, _rev: res.rev}
 
@@ -176,9 +176,9 @@ export class CouchDcsServer extends Actor
                     if doc.from isnt \outside
                         # stock can not be less than zero
                         err, res <~ @db.view 'transactions/balance', {key: doc.from}
-                        amount = (try res.0.value) or 0
-                        if amount < doc.amount
-                            err = "#{doc.from} can not be < 0 (curr: #{amount}, wanted: #{doc.amount})"
+                        curr-amount = (try res.0.value) or 0
+                        if doc.amount > curr-amount
+                            err = "#{doc.from} can not be < 0 (curr: #{curr-amount}, wanted: #{doc.amount})"
                             @send-and-echo msg, {err, res: null}
                             doc.state = \failed
                             err, res <~ @db.put doc
@@ -190,12 +190,12 @@ export class CouchDcsServer extends Actor
                     else
                         return op!
 
-                # Commit the transaction (step 5) 
+                # Commit the transaction (step 5)
                 doc.state = \done
                 err, res <~ @db.put doc
                 unless err
                     @log.log bg-green "Transaction completed."
-                else 
+                else
                     @log.err "Transaction is not completed. id: #{doc._id}"
 
                 @send-and-echo msg, {err: err, res: res or null}
@@ -352,8 +352,8 @@ export class CouchDcsServer extends Actor
             else
                 err = reason: "Unknown method name: #{pack msg.payload}"
                 @send-and-echo msg, {err: err, res: null}
-                
-        @log.log "Accepting messages from DCS network."
+
+        @log.log bg-green "Accepting messages from DCS network."
 
     send-and-echo: (orig, _new) ->
         @log.log bg-blue "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
