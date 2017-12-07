@@ -108,6 +108,19 @@ export class CouchDcsServer extends Actor
             if msg.payload.put?.type is \transaction
                 # handle the transaction
                 '''
+                Transaction follows this path: 
+                  
+                  1. (Roundtrip 1) Check if there is an ongoing transaction. Fail if there is any. 
+                  2. (Roundtrip 2) If there is no ongoing transaction, mark the transaction document as 'ongoing' and save 
+                  3. (Roundtrip 3) At this step, there should be only 1 ongoing transaction. Fail if there are more than 1 ongoing 
+                    transaction. (More than 1 ongoing transaction means more than one process checked and saw no 
+                    ongoing transaction at the same time, and then put their ongoing transaction files concurrently)
+                  4. (Roundtrip 4 - Rollback Case) Perform any business logic here. If any stuff can't be less than zero or something like that, fail.
+                    Mark the transaction document state as `failed` (or something like that) to clear it from ongoing transactions
+                    list (to prevent performance impact of waiting transaction timeouts)
+                  5. (Roundtrip 4 - Commit Case) If everything is okay, mark transaction document state as 'done'. 
+                '''
+                '''
                 # _design/transactions
                 views:
                     ongoing:
