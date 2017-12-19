@@ -204,6 +204,10 @@ export class CouchDcsServer extends Actor
             else if \put of msg.payload
                 docs = flatten [msg.payload.put]
 
+                if empty docs
+                    return @send-and-echo msg, {err: "Empty document", res: null}
+
+
                 # add server side properties
                 # ---------------------------
                 i = 0; _limit = docs.length - 1
