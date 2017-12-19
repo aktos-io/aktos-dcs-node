@@ -51,6 +51,11 @@ export class CouchDcsServer extends Actor
                     @send "#{topic}.changes.all", change
 
             ..all-docs {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
+                # follow every single view separately
+
+                return
+                ...
+                
                 for res
                     name = ..id.split '/' .1
                     continue if name is \autoincrement
