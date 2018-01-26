@@ -21,7 +21,7 @@ export class CouchNano extends EventEmitter
         @username = @cfg.user.name
         @password = @cfg.user.password
         @db-name = @cfg.database
-        @db = nano url: @cfg.url
+        @db = nano {url: @cfg.url, parseUrl: no}
         @connection = new Signal!
 
         @on \connected, ~>
