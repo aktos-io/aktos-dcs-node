@@ -1,4 +1,17 @@
 require! '../../src/actor': {Actor}
+require! '../../lib/merge-deps': {merge-deps}
+
+'''
+usage:
+
+db = new CouchDcsClient prefix: 'myprefix'
+
+err, res <~ db.get \my-doc
+# sending message with topic: "myprefix.get"
+unless err
+    console.log "My document is: ", res
+
+'''
 
 
 export class CouchDcsClient extends Actor
@@ -6,8 +19,12 @@ export class CouchDcsClient extends Actor
         super "CouchDcs #{opts.name or 'Client'}"
         if opts.topic
             @topic = that
+        else if opts.prefix
+            @topic = that
         else
             throw 'CouchDcsClient: No default topic is given.'
+
+
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
@@ -17,16 +34,23 @@ export class CouchDcsClient extends Actor
         # end of normalization
 
         err, msg <~ @send-request "#{@topic}.get", {get: doc-id, opts: opts}
-        callback (err or msg?.payload.err), msg?.payload.res
+        res = msg?.payload.res
+        err = err or msg?.payload.err
 
-    all: (opts, callback) ->
+        unless err
+            if opts.recurse and opts.merge
+                console.error "THIS IMPLEMENTATION IS REMOVED"
+
+        callback err, res
+
+    all-docs: (opts, callback) ->
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
             opts = {}
         # end of normalization
 
-        err, msg <~ @send-request "#{@topic}.all", {all: opts}
+        err, msg <~ @send-request "#{@topic}.allDocs", {allDocs: opts}
         callback (err or msg?.payload.err), msg?.payload.res
 
     put: (doc, opts, callback) ->
@@ -38,7 +62,8 @@ export class CouchDcsClient extends Actor
 
         err, msg <~ @send-request {
             topic: "#{@topic}.put"
-            timeout: opts.timeout or 20_000ms}, {put: doc}
+            timeout: opts.timeout or 5_000ms}, {put: doc}
+
         callback (err or msg?.payload.err), msg?.payload.res
 
     view: (viewName, opts, callback) ->
@@ -75,3 +100,7 @@ export class CouchDcsClient extends Actor
         err, msg <~ @send-request {topic, timeout}, {follow: opts}
         if typeof! callback is \Function
             callback (err or msg?.payload.err), msg?.payload.res
+
+    observe: (topic, callback) ->
+        @on-topic topic, callback
+        callback!

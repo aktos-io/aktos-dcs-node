@@ -51,7 +51,7 @@ tests =
             i = 0
             <- :lo(op) ->
                 log.log "resetting timeout timer, i: ", i
-                my-timeout.reset-timeout!
+                my-timeout.heartbeat!
                 <- sleep 500ms + ((i++) * 100ms)
                 return op! if i > 10
                 lo(op)

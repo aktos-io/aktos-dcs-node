@@ -121,7 +121,6 @@ export class Actor extends EventEmitter
             # deliver every message to receive-handlers
             @trigger \receive, msg
         catch
-            debugger
             @log.err "problem in handler: ", e
 
     on-topic: (topic, handler) ->

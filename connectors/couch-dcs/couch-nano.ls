@@ -21,7 +21,7 @@ export class CouchNano extends EventEmitter
         @username = @cfg.user.name
         @password = @cfg.user.password
         @db-name = @cfg.database
-        @db = nano url: @cfg.url
+        @db = nano {url: @cfg.url, parseUrl: no}
         @connection = new Signal!
 
         @on \connected, ~>
@@ -29,7 +29,7 @@ export class CouchNano extends EventEmitter
             @connected = yes
 
         @on \disconnected, ~>
-            @connected = no 
+            @connected = no
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -86,6 +86,17 @@ export class CouchNano extends EventEmitter
             method: \post
             , callback
 
+    bulk-docs: (docs, opts, callback) ->
+        [callback, opts] = [opts, {}] if typeof! opts is \Function
+
+        @request do
+            db: @db-name
+            path: '_bulk_docs'
+            body: {docs}
+            method: \POST
+            qs: opts
+            , callback
+
     get: (doc-id, opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 
@@ -95,7 +106,7 @@ export class CouchNano extends EventEmitter
             qs: opts
             , callback
 
-    all: (opts, callback) ->
+    all-docs: (opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 
         err, res, headers <~ @request do
@@ -120,7 +131,7 @@ export class CouchNano extends EventEmitter
 
         err, res, headers <~ @_view ddoc, viewname, {type: \view}, opts
 
-        callback err, res
+        callback err, (res?rows or [])
 
     _view: (ddoc, viewName, meta, qs, callback) ->
         relax = @request
