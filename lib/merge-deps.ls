@@ -124,32 +124,26 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
         if typeof! doc?[dep-path] is \Object
             #console.log "branch so far: ", JSON.stringify(branch)
             branch-so-far = clone branch
-            for role, dep of doc[dep-path]
+            for role, dep of doc[dep-path] when dep?key?
+                # if dependency-source has further dependencies, merge them first
                 dep-changes = eff-changes?[dep-path]?[role]
-
-                if dep?key?
-                    # if dependency-source has further dependencies, merge them first
-                    unless dep.key of dep-sources
-                        # Report missing dependencies
-                        missing-deps.push dep.key
-                        continue
-                    branch = clone branch-so-far
-                    try
-                        dep-source = merge-deps dep.key, dep-path, dep-sources, dep-changes, branch
-                    catch
-                        if e instanceof DependencyError
-                            # bubble up the missing dependencies of dependencies
-                            missing-deps = union missing-deps, e.dependency
-                            continue
-                        else
-                            throw e
-                else
-                    dep-source = dep-changes or {}
-
+                unless dep.key of dep-sources
+                    # Report missing dependencies
+                    missing-deps.push dep.key
+                    continue
+                branch = clone branch-so-far
                 try
-                    doc[dep-path][role] = dep-source `merge` dep
+                    dep-source = merge-deps dep.key, dep-path, dep-sources, dep-changes, branch
                 catch
-                    debugger
+                    if e instanceof DependencyError
+                        # bubble up the missing dependencies of dependencies
+                        missing-deps = union missing-deps, e.dependency
+                        continue
+                    else
+                        throw e
+
+                # merge remote dependency
+                doc[dep-path][role] = dep-source `merge` dep
 
     unless empty missing-deps
         str = missing-deps.join ', '
