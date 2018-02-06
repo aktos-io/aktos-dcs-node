@@ -44,6 +44,18 @@ dump = (desc, obj) ->
         desc = 'obj :'
     console.log desc, JSON.stringify(obj)
 
+
+cleanup-deleted = (obj) ->
+    if typeof! obj is \Object
+        for k, v of obj
+            if k is \changes
+                continue
+            else if v?.deleted
+                delete obj[k]
+            else if typeof! v is \Object
+                cleanup-deleted obj[k]
+    return obj
+
 export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
     # search-path is "remote document id path" (fixed as `key`)
     # dep-path is the path where all dependencies are listed by their roles
@@ -64,20 +76,25 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
         else
             missing-deps.push doc-id
 
+
     if typeof! doc-id is \Object
         # FIXME: change `doc` with `merged`
         doc = clone doc-id
         own-changes = doc.changes or {}
         eff-changes = (clone own-changes) `merge` changes
 
+        /*
+        # Debug outputs
         # Any changes that involves remote documents MUST be applied before doing anything
         # for addressing Design problem #1
-        #console.log "-------------------------------------------------"
-        #dump 'parent changes: ', changes
-        #dump 'own changes: ', own-changes
-        #dump 'eff-changes: ', eff-changes
+        console.log "-------------------------------------------------"
+        dump 'parent changes: ', changes
+        dump 'own changes: ', own-changes
+        dump 'eff-changes: ', eff-changes
+        # End of debug outputs */
 
         for role, eff-change of eff-changes[dep-path]
+            dump "eff-change is: ", eff-change
             if (typeof! eff-change is \Object) and (\key of eff-change)
                 # there is a key change, decide whether we are invalidating rest of the changes
                 parent = (try changes[dep-path][role]) or {}
@@ -98,36 +115,41 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
                 doc[dep-path][role] = eff-change
             else
                 if typeof! doc[dep-path][role] is \Object
-                    #doc[dep-path][role] `merge` change
                     doc[dep-path][role] = patch-changes doc[dep-path][role], eff-change
                 else
                     doc[dep-path][role] = eff-change
-        #dump "merged (ready): ", doc
+
+        #dump "merged (ready to merge with deps): ", doc
 
         if typeof! doc?[dep-path] is \Object
             #console.log "branch so far: ", JSON.stringify(branch)
             branch-so-far = clone branch
-            for role, dep of doc[dep-path] when dep?key?
-                # Report missing dependencies
-                unless dep.key of dep-sources
-                    missing-deps.push dep.key
-                    continue
-
+            for role, dep of doc[dep-path]
                 dep-changes = eff-changes?[dep-path]?[role]
 
-                # if dependency-source has further dependencies, merge them first
-                branch = clone branch-so-far
-                try
-                    dep-source = merge-deps dep.key, dep-path, dep-sources, dep-changes, branch
-                catch
-                    if e instanceof DependencyError
-                        # bubble up the missing dependencies of dependencies
-                        missing-deps = union missing-deps, e.dependency
+                if dep?key?
+                    # if dependency-source has further dependencies, merge them first
+                    unless dep.key of dep-sources
+                        # Report missing dependencies
+                        missing-deps.push dep.key
                         continue
-                    else
-                        throw e
+                    branch = clone branch-so-far
+                    try
+                        dep-source = merge-deps dep.key, dep-path, dep-sources, dep-changes, branch
+                    catch
+                        if e instanceof DependencyError
+                            # bubble up the missing dependencies of dependencies
+                            missing-deps = union missing-deps, e.dependency
+                            continue
+                        else
+                            throw e
+                else
+                    dep-source = dep-changes or {}
 
-                doc[dep-path][role] = dep-source `merge` dep
+                try
+                    doc[dep-path][role] = dep-source `merge` dep
+                catch
+                    debugger
 
     unless empty missing-deps
         str = missing-deps.join ', '
@@ -135,7 +157,8 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
 
     # TODO: below clone is mandatory for preventing messing up the original dep-sources
     # Prepare a test case for this.
-    return clone doc
+    return clone cleanup-deleted doc
+
 
 
 export bundle-deps = (doc, deps) ->
@@ -144,6 +167,115 @@ export bundle-deps = (doc, deps) ->
 
 # ----------------------- TESTS ------------------------------------------
 make-tests \merge-deps, do
+    'deleted a simple sub property': ->
+        docs =
+            bar:
+                nice: 'day'
+                deps:
+                    my:
+                        prop: \foo
+                    your:
+                        hello: \there
+                changes:
+                    deps:
+                        my: {+deleted}
+
+        expect merge-deps \bar, \deps.*.key, docs
+        .to-equal do
+            nice: 'day'
+            deps:
+                your:
+                    hello: \there
+            changes: clone docs.bar.changes
+
+    'deleted a deep simple sub property': ->
+        docs =
+            bar:
+                nice: 'day'
+                deps:
+                    my:
+                        prop: \foo
+                        deps:
+                            tmp:
+                                x: \y
+                                z: \t
+                                deps:
+                                    j:
+                                        m: \m
+                    your:
+                        hello: \there
+                changes:
+                    deps:
+                        my:
+                            deps:
+                                tmp:
+                                    deps:
+                                        j: {+deleted}
+
+        expect merge-deps \bar, \deps.*.key, docs
+        .to-equal do
+            nice: 'day'
+            deps:
+                my:
+                    prop: \foo
+                    deps:
+                        tmp:
+                            x: \y
+                            z: \t
+                            deps: {}
+                your:
+                    hello: \there
+            changes: clone docs.bar.changes
+
+
+    'deleted a subcomponent': ->
+        docs =
+            bar:
+                _id: 'bar'
+                nice: 'day'
+                deps:
+                    my:
+                        key: \foo
+                changes:
+                    deps:
+                        my:
+                            deps:
+                                a:
+                                    key: \qux
+                                    deps:
+                                        me: {+deleted}
+            foo:
+                _id: 'foo'
+                hello: 'there'
+
+            qux:
+                hi: \qux
+                deps:
+                    me:
+                        key: \john
+                        value: \doe
+            john:
+                number: 123
+
+
+        expect merge-deps \bar, \deps.*.key, docs
+        .to-equal do
+            _id: 'bar'
+            nice: 'day'
+            deps:
+                my:
+                    _id: 'foo'
+                    hello: 'there'
+                    key: \foo
+                    deps:
+                        a:
+                            key: \qux
+                            hi: \qux
+                            deps: {}
+            changes: clone docs.bar.changes
+
+
+
     'add extra components': ->
         docs =
             bar:
