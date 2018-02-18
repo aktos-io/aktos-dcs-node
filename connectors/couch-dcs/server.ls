@@ -38,7 +38,10 @@ export class CouchDcsServer extends Actor
                     @log.log (bg-red "Problem while connecting database: "), err
 
                 disconnected: (err) ~>
-                    @log.log (bg-red "Disconnected..."), err
+                    @log.log (bg-red "Disconnected..., reconnecting in 1 second"), err
+                    <~ sleep 1000ms
+                    @log.log (bg-green "Reconnecting...")
+                    @db.connect!
 
             ..connect!
 
@@ -55,7 +58,7 @@ export class CouchDcsServer extends Actor
 
                 return
                 ...
-                
+
                 for res
                     name = ..id.split '/' .1
                     continue if name is \autoincrement
