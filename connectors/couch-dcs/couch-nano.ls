@@ -41,9 +41,7 @@ export class CouchNano extends EventEmitter
         if err => if err.statusCode is 401
             @trigger \disconnected, {err}
             @connect (err) ~>
-                unless err
-                    @trigger \connected
-                    @request opts, callback
+                unless err => @request opts, callback
             return
 
         if headers?
@@ -54,23 +52,20 @@ export class CouchNano extends EventEmitter
         err = {reason: err.reason, name: err.name, message: err.reason} if err
         callback err, res, headers
 
-    connect: ->
-        callback = (->) if typeof! callback isnt \Function
+    connect: (callback) ->
+        if typeof! callback isnt \Function then callback = ->
         @log.log "Authenticating as #{@username}"
         @cookie = null
         err, body, headers <~ @db.auth @username, @password
         if err
             @trigger \error, err
-            return
 
         if headers
             if headers['set-cookie']
                 # connection is successful
                 @cookie = that
                 @trigger \connected
-                return
-
-        @trigger \error, {text: "unexpected response"}
+        callback err
 
     invalidate: ->
         # Debug Start
