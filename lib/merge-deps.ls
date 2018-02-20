@@ -94,7 +94,7 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
         # End of debug outputs */
 
         for role, eff-change of eff-changes[dep-path]
-            dump "eff-change is: ", eff-change
+            #dump "eff-change is: ", eff-change
             if (typeof! eff-change is \Object) and (\key of eff-change)
                 # there is a key change, decide whether we are invalidating rest of the changes
                 parent = (try changes[dep-path][role]) or {}
