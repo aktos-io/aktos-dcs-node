@@ -42,31 +42,30 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
-        <~ @db.once \connected
+            ..once \connected, ~>
+                @db
+                    ..follow (change) ~>
+                        @log.log "** publishing change on database:", change.id
+                        for let topic in @subscriptions
+                            @send "#{topic}.changes.all", change
 
-        @db
-            ..follow (change) ~>
-                @log.log "** publishing change on database:", change.id
-                for let topic in @subscriptions
-                    @send "#{topic}.changes.all", change
+                    ..all-docs {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
+                        # follow every single view separately
 
-            ..all-docs {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
-                # follow every single view separately
+                        return
+                        ...
 
-                return
-                ...
-                
-                for res
-                    name = ..id.split '/' .1
-                    continue if name is \autoincrement
-                    #@log.log "all design documents: ", ..doc
-                    for let view-name of eval ..doc.javascript .views
-                        view = "#{name}/#{view-name}"
-                        @log.log "following view: #{view}"
-                        @db.follow {view}, (change) ~>
-                            @log.log "..publishing view change on #{view}", change.id
-                            for let topic in @subscriptions
-                                @send "#{topic}.changes.view.#{view}", change
+                        for res
+                            name = ..id.split '/' .1
+                            continue if name is \autoincrement
+                            #@log.log "all design documents: ", ..doc
+                            for let view-name of eval ..doc.javascript .views
+                                view = "#{name}/#{view-name}"
+                                @log.log "following view: #{view}"
+                                @db.follow {view}, (change) ~>
+                                    @log.log "..publishing view change on #{view}", change.id
+                                    for let topic in @subscriptions
+                                        @send "#{topic}.changes.view.#{view}", change
 
 
         get-next-id = (doc, callback) ~>

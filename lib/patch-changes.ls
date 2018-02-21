@@ -13,16 +13,42 @@ export patch-changes = (orig, changes) ->
         else
             for role, change of changes
                 if role is \changes
-                    console.log "...skipping changes key..."
+                    #console.log "...skipping changes key..."
                     continue
 
                 if typeof! change is \Object
                     orig[role] = patch-changes orig[role], change
                 else
                     orig[role] = change
+
+                if orig[role]?.deleted
+                    try delete orig[role]
+                    continue
+
     orig
 
 make-tests \patch-changes, do
+    'delete something': ->
+        orig =
+            components:
+                my:
+                    key: 'hey'
+                    components:
+                        your:
+                            key: 'how'
+                your:
+                    key: 'foo'
+
+        changes =
+            components:
+                my: {+deleted}
+
+        expect patch-changes orig, changes
+        .to-equal do
+            components:
+                your:
+                    key: 'foo'
+
     'changed key will invalidate the further component changes': ->
         orig =
             components:
