@@ -130,4 +130,4 @@ http://example.com/yourdb/_design/autoincrement/_view/short?descending=true&star
 document with `your_document_id` and the documents with ids that match with
 `recurse` keypath.
 
-Checkout [the tests](./merge-deps.ls) for examples.
+Checkout [the tests](../../lib/merge-deps.ls) for examples.
