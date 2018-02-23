@@ -269,7 +269,7 @@ export class CouchDcsServer extends Actor
                 err := _err
                 <~ :asyncif(endif) ~>
                     # check for the recursion
-                    if opts.recurse and not empty res and not err
+                    if opts.recurse and res and not empty res and not err
                         dep-path = opts.recurse
                         for res
                             unless ..error
