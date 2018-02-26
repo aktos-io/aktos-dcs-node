@@ -286,7 +286,7 @@ export class CouchDcsServer extends Actor
                             @log.log bg-yellow "Resolving dependencies for #{doc._id} (by #{opts.recurse})"
                             <~ :lo2(op2) ~>
                                 try
-                                    merge-deps doc._id, dep-path, bundle
+                                    merge-deps doc._id, bundle, {dep-path: dep-path}
                                     return op2!
                                 catch
                                     if e instanceof DependencyError
