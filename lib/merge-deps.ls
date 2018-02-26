@@ -28,14 +28,16 @@ export class CircularDependencyError extends Error
         #Error.captureStackTrace(this, CircularDependencyError)
 
 """
-Design problems for changes algorithm:
-    1. Changes should be applied AFTER merging the original document with its
-    dependencies in order to overwrite the changes appropriately.
+Design challenges for the changes algorithm:
 
-    2. Changes should be applied BEFORE merging the original document, because
-    a remote dependency might be changed, and subsequent changes should be applied
-    after merging with the correct remote dependencies.
+    1. Chicken/egg problem:
 
+        1. Changes should be applied AFTER merging the original document with its
+        dependencies in order to overwrite the changes appropriately.
+
+        2. Changes should be applied BEFORE merging the original document, because
+        a remote dependency might be changed, and subsequent changes should be applied
+        after merging with the correct remote dependencies.
 """
 
 dump = (desc, obj) ->
@@ -152,11 +154,6 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
     # TODO: below clone is mandatory for preventing messing up the original dep-sources
     # Prepare a test case for this.
     return clone cleanup-deleted doc
-
-
-
-export bundle-deps = (doc, deps) ->
-    return {doc, deps}
 
 
 # ----------------------- TESTS ------------------------------------------

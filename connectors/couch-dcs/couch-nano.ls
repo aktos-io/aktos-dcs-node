@@ -49,7 +49,10 @@ export class CouchNano extends EventEmitter
             sleep @retry-timeout, ~>
                 @log.log "Retrying connection..."
                 @_connect (err) ~>
-                    @log.log "Connect returned: ", err
+                    unless err
+                        @log.log "Connection successful"
+                    else
+                        @log.warn "Connection failed"
                     if @retry-timeout < @max-delay
                         @retry-timeout *= 2
                     # retry the last request (irrespective of err)

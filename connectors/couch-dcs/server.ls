@@ -5,7 +5,7 @@ require! 'colors': {
 }
 require! '../../lib': {sleep, pack, clone}
 require! '../../lib/merge-deps': {
-    bundle-deps, merge-deps
+    merge-deps
     DependencyError, CircularDependencyError
 }
 
@@ -17,6 +17,7 @@ require! './couch-nano': {CouchNano}
 
 dump = (name, doc) ->
     console.log "#{name} :", JSON.stringify(doc, null, 2)
+
 
 export class CouchDcsServer extends Actor
     (@params) ->
@@ -361,7 +362,6 @@ export class CouchDcsServer extends Actor
                 err = reason: "Unknown method name: #{pack msg.payload}"
                 @send-and-echo msg, {err: err, res: null}
 
-        @log.log bg-green "Accepting messages from DCS network."
 
     send-and-echo: (orig, _new) ->
         @log.log bg-blue "sending topic: #{orig.topic} (#{pack _new .length} bytes) "

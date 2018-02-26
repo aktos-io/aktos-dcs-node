@@ -6,49 +6,50 @@ export make-tests = (lib-name, tests) ->
         tests = lib-name
         lib-name = \Tests
 
-    console.log "++++++++++ Start of tests: #{lib-name}"
+    #consolelog "++++++++++ Start of tests: #{lib-name}"
     for name, test of tests
         @expect = expect
         try
             res = test.call this
         catch
-            console.error   "- FAILED on test: #{name}"
+            #consoleerror   "- FAILED on test: #{name}"
             if (typeof! e.matcherResult isnt \Object) or not e.matcherResult.actual
                 throw e
 
             actual = JSON.stringify(e.matcherResult.actual)
             expected = JSON.stringify(e.matcherResult.expected)
-            console.log     "- result  \t: ", actual
-            console.log     "- expected\t: ", expected
+            #consolelog     "- result  \t: ", actual
+            #consolelog     "- expected\t: ", expected
 
             d = jsondiffpatch.diff e.matcherResult.actual, e.matcherResult.expected
-            console.error "diff: "
-            console.error (JSON.stringify d, null, 2)
+            #consoleerror "diff: "
+            #consoleerror (JSON.stringify d, null, 2)
 
             # Visual diff
             left = encodeURIComponent expected
             right = encodeURIComponent actual
-            console.log "Visual Diff: http://benjamine.github.io/jsondiffpatch/demo/index.html?desc=Expected..Actual&left=#{left}&right=#{right}"
+            #consolelog "Visual Diff: http://benjamine.github.io/jsondiffpatch/demo/index.html?desc=Expected..Actual&left=#{left}&right=#{right}"
 
             throw  "- FAILED on test: #{name}"
 
 
         if typeof! res is \Undefined
-            console.log "...passed from external test: #{name}."
-
+            #consolelog "...passed from external test: #{name}."
+            null
         else if not res
-            console.warn "Test [#{name}] is skipped..."
+            #consolewarn "Test [#{name}] is skipped..."
+            null
         else
             expected = JSON.stringify(res.expect)
             result = JSON.stringify(res.result)
             if jsondiffpatch.diff res.result, res.expect
-                console.error   "- FAILED on test: #{name}"
-                console.log     "- diff    \t: ", that
-                console.log     "- result  \t: ", result
-                console.log     "- expected\t: ", expected
-                console.warn "DEPRECATED: ----------- convert to 'expect' method --------------"
+                #consoleerror   "- FAILED on test: #{name}"
+                #consolelog     "- diff    \t: ", that
+                #consolelog     "- result  \t: ", result
+                #consolelog     "- expected\t: ", expected
+                #consolewarn "DEPRECATED: ----------- convert to 'expect' method --------------"
                 throw   "- FAILED on test: #{name}"
 
             else
-                console.log "...passed from test: #{name}."
-    console.log "End of tests."
+                #consolelog "...passed from test: #{name}."
+    #consolelog "End of tests."
