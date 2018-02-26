@@ -58,11 +58,18 @@ cleanup-deleted = (obj) ->
                 cleanup-deleted obj[k]
     return obj
 
-export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
+export merge-deps = (doc-id, dep-sources={}, opts={}, superior-changes={}, branch=[]) ->
+    """
+    opts:
+        remote-doc: remote document id (default: "key")
+        dep-path: dependency path (default: "components")
+        changes: document changes (default: doc.changes)
+
+    """
     # search-path is "remote document id path" (fixed as `key`)
     # dep-path is the path where all dependencies are listed by their roles
-    search-path = \key
-    dep-path = dep-path.split '.*.' .0
+    search-path = opts.search-path or \key
+    dep-path = opts.dep-path or \components
     missing-deps = []
 
     if typeof! doc-id is \String
@@ -82,15 +89,15 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
     if typeof! doc-id is \Object
         # FIXME: change `doc` with `merged`
         doc = clone doc-id
-        own-changes = doc.changes or {}
-        eff-changes = (clone own-changes) `merge` changes
+        own-changes = opts.changes or doc.changes or {}
+        eff-changes = (clone own-changes) `merge` superior-changes
 
         /*
         # Debug outputs
         # Any changes that involves remote documents MUST be applied before doing anything
         # for addressing Design problem #1
         console.log "-------------------------------------------------"
-        dump 'parent changes: ', changes
+        dump 'parent changes: ', superior-changes
         dump 'own changes: ', own-changes
         dump 'eff-changes: ', eff-changes
         # End of debug outputs */
@@ -99,7 +106,7 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
             #dump "eff-change is: ", eff-change
             if (typeof! eff-change is \Object) and (\key of eff-change)
                 # there is a key change, decide whether we are invalidating rest of the changes
-                parent = (try changes[dep-path][role]) or {}
+                parent = (try superior-changes[dep-path][role]) or {}
                 own = (try own-changes[dep-path][role]) or {}
                 if own.key isnt eff-change.key
                     #console.log "--------.invalidating all other attributes"
@@ -135,7 +142,9 @@ export merge-deps = (doc-id, dep-path, dep-sources={}, changes={}, branch=[]) ->
                     continue
                 branch = clone branch-so-far
                 try
-                    dep-source = merge-deps dep.key, dep-path, dep-sources, dep-changes, branch
+                    dep-source = merge-deps dep.key, dep-sources,
+                        {dep-path: opts.dep-path, search-path: opts.search-path},
+                        dep-changes, branch
                 catch
                     if e instanceof DependencyError
                         # bubble up the missing dependencies of dependencies
@@ -171,7 +180,7 @@ make-tests \merge-deps, do
                     deps:
                         my: {+deleted}
 
-        expect merge-deps \bar, \deps.*.key, docs
+        expect merge-deps \bar, docs, {dep-path: \deps}
         .to-equal do
             nice: 'day'
             deps:
@@ -203,7 +212,7 @@ make-tests \merge-deps, do
                                     deps:
                                         j: {+deleted}
 
-        expect merge-deps \bar, \deps.*.key, docs
+        expect merge-deps \bar, docs, {dep-path: \deps}
         .to-equal do
             nice: 'day'
             deps:
@@ -249,7 +258,7 @@ make-tests \merge-deps, do
                 number: 123
 
 
-        expect merge-deps \bar, \deps.*.key, docs
+        expect merge-deps \bar, docs, {dep-path: \deps}
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -295,7 +304,7 @@ make-tests \merge-deps, do
                 number: 123
 
 
-        expect merge-deps \bar, \deps.*.key, docs
+        expect merge-deps \bar, docs, {dep-path: \deps}
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -344,7 +353,7 @@ make-tests \merge-deps, do
                 _id: 'qux'
                 hello: 'world'
 
-        expect merge-deps \bar, \deps.*.key , docs
+        expect merge-deps \bar , docs, {dep-path: \deps}
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -384,7 +393,7 @@ make-tests \merge-deps, do
                     my:
                         val: \hi
 
-        expect (-> merge-deps \bar, \deps.*.key, docs)
+        expect (-> merge-deps \bar, docs, {dep-path: \deps})
         .to-throw "merge-deps: Circular dependency is not allowed"
 
     'simple': ->
@@ -401,7 +410,7 @@ make-tests \merge-deps, do
 
         orig-docs = clone docs
 
-        expect merge-deps \bar, \deps.*.key, docs
+        expect merge-deps \bar, docs, {dep-path: \deps}
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -446,7 +455,7 @@ make-tests \merge-deps, do
                 size: \grande
 
 
-        expect merge-deps \doc, \deps.*.key, docs
+        expect merge-deps \doc, docs, {dep-path: \deps}
         .to-equal do
             nice: 'day'
             deps:
@@ -469,7 +478,7 @@ make-tests \merge-deps, do
         # make a change
         docs.doc.changes.deps.my.deps = y: key: \well
         docs.well = seems: \great
-        expect merge-deps \doc, \deps.*.key, docs
+        expect merge-deps \doc, docs, {dep-path: \deps}
         .to-equal do
             nice: 'day'
             deps:
@@ -516,7 +525,7 @@ make-tests \merge-deps, do
             nice:
                 very: \well
 
-        expect merge-deps \doc, \deps.*.key, docs
+        expect merge-deps \doc, docs, {dep-path: \deps}
         .to-equal do
             nice: 'day'
             deps:
@@ -567,7 +576,7 @@ make-tests \merge-deps, do
             nice:
                 very: \well
 
-        expect merge-deps \doc, \deps.*.key, docs
+        expect merge-deps \doc, docs, {dep-path: \deps}
         .to-equal do
             nice: 'day'
             deps:
@@ -598,7 +607,7 @@ make-tests \merge-deps, do
                 _id: 'foo'
                 hello: 'there'
 
-        expect merge-deps \doc, \deps.*.key, docs
+        expect merge-deps \doc, docs, {dep-path: \deps}
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -625,7 +634,7 @@ make-tests \merge-deps, do
                     hey:
                         key: \foo
 
-        expect (-> merge-deps \bar, \deps.*.key, docs)
+        expect (-> merge-deps \bar, docs, {dep-path: \deps})
         .to-throw "merge-deps: Circular dependency is not allowed"
 
 
@@ -645,7 +654,7 @@ make-tests \merge-deps, do
                         key: \missing-dependency
 
 
-        expect (-> merge-deps 'a', \components.*.key, docs)
+        expect (-> merge-deps 'a', docs, {dep-path: \components})
         .to-throw "merge-deps: Required dependencies are not found: missing-dependency, y"
 
 
@@ -659,13 +668,13 @@ make-tests \merge-deps, do
                 _id: 'bar'
                 hello: 'there'
 
-        expect (-> merge-deps \doc, \deps.*.key, docs)
+        expect (-> merge-deps \doc, docs, {dep-path: \deps})
         .to-throw "merge-deps: Required dependencies are not found: foo"
 
     'missing dependency 2': ->
         docs = {}
 
-        expect (-> merge-deps \doc, \deps.*.key, docs)
+        expect (-> merge-deps \doc, docs, {dep-path: \deps})
         .to-throw "merge-deps: Required dependencies are not found: doc"
 
 
@@ -692,7 +701,7 @@ make-tests \merge-deps, do
                 _id: 'foo-dep'
                 eating: 'seed'
 
-        expect merge-deps \doc, \deps.*.key, docs
+        expect merge-deps \doc, docs, {dep-path: \deps}
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -735,7 +744,7 @@ make-tests \merge-deps, do
             hi: \world
             key: \roadrunner
 
-        expect merge-deps \doc, \deps.*.key, docs
+        expect merge-deps \doc, docs, {dep-path: \deps}
         .to-equal do
             _id: 'bar'
             nice: 'day'
@@ -797,7 +806,7 @@ make-tests \merge-deps, do
                 components: {}
 
 
-        expect merge-deps \doc, \components.*.key, docs
+        expect merge-deps \doc, docs, {dep-path: \components}
         .to-equal do
             components:
                 foo:
