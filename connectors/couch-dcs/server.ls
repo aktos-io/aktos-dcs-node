@@ -70,7 +70,9 @@ export class CouchDcsServer extends Actor
 
 
         get-next-id = (doc, callback) ~>
-            return callback err=no, doc unless doc._id
+            unless doc._id
+                return callback err={reason: "document must have and _id field"}, null
+
             # handle autoincrement values here.
             autoinc = doc._id.split /#+/
             if autoinc.length > 1
