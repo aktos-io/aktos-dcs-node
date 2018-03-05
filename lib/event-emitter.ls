@@ -61,3 +61,10 @@ export class EventEmitter
             for i in [1 to that.length]
                 handler = that.shift!
                 handler ...args
+
+    has-listener: (ev) ->
+        if @_events[ev]
+            for that
+                if typeof! .. is \Function
+                    return true
+        return false
