@@ -243,6 +243,12 @@ export class CouchDcsServer extends Actor
 
             # `get` message
             else if \get of msg.payload
+                if msg.payload.opts.custom
+                    # this message will be handled custom
+                    @trigger \custom-get, @db, msg.payload, (err, res) ~> 
+                        console.log "...handled by custom handler"
+                        @send-and-echo msg, {err, res}
+                    return
                 multiple = typeof! msg.payload.get is \Array
                 doc-id = unique flatten [msg.payload.get]
                 opts = msg.payload.opts or {}
