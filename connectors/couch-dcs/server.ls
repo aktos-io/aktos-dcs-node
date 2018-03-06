@@ -4,11 +4,6 @@ require! 'colors': {
     green, yellow, blue
 }
 require! '../../lib': {sleep, pack, clone}
-require! '../../lib/merge-deps': {
-    merge-deps
-    DependencyError, CircularDependencyError
-}
-
 require! 'prelude-ls': {
     keys, values, flatten, empty, unique,
     Obj, difference, union
@@ -50,12 +45,9 @@ export class CouchDcsServer extends Actor
                         for let topic in @subscriptions
                             @send "#{topic}.changes.all", change
 
+                    '''
                     ..all-docs {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
                         # follow every single view separately
-
-                        return
-                        ...
-
                         for res
                             name = ..id.split '/' .1
                             continue if name is \autoincrement
@@ -67,7 +59,7 @@ export class CouchDcsServer extends Actor
                                     @log.log "..publishing view change on #{view}", change.id
                                     for let topic in @subscriptions
                                         @send "#{topic}.changes.view.#{view}", change
-
+                    '''
 
         get-next-id = (doc, callback) ~>
             unless doc._id
@@ -92,7 +84,6 @@ export class CouchDcsServer extends Actor
                     res.0.key .1 + 1
                 catch
                     1
-
                 doc._id = "#{prefix}#{next-id}"
                 @log.log bg-blue "+++ new doc id: ", doc._id
                 return callback err=no, doc
@@ -252,86 +243,21 @@ export class CouchDcsServer extends Actor
 
             # `get` message
             else if \get of msg.payload
-                multiple = if typeof! msg.payload.get is \Array => yes else no
+                multiple = typeof! msg.payload.get is \Array
                 doc-id = unique flatten [msg.payload.get]
                 opts = msg.payload.opts or {}
-                err = null
-                res = null
-                bundle = {}
-
                 if multiple
                     @log.log "Requested multiple documents:", JSON.stringify(doc-id)
                 else
                     @log.log "Requested single document:", doc-id.0
-
                 opts.keys = doc-id
                 opts.include_docs = yes
                 #dump 'opts: ', opts
-                _err, _res <~ @db.all-docs opts
-                res := _res
-                err := _err
-                <~ :asyncif(endif) ~>
-                    # check for the recursion
-                    if opts.recurse and res and not empty res and not err
-                        dep-path = opts.recurse
-                        for res
-                            unless ..error
-                                bundle[..doc._id] = ..doc
-                            else
-                                err := ..error
-                                return endif!
-
-                        i = 0
-                        <~ :lo(op) ~>
-                            doc = res[i].doc
-
-                            @log.log bg-yellow "Resolving dependencies for #{doc._id} (by #{opts.recurse})"
-                            <~ :lo2(op2) ~>
-                                try
-                                    merge-deps doc._id, bundle, {dep-path: dep-path}
-                                    return op2!
-                                catch
-                                    if e instanceof DependencyError
-                                        @log.log "...Required dependencies:", e.dependency.join(',')
-                                        cache = []
-
-                                        if doc.cache__?.recurse? and not empty doc.cache__.recurse
-                                            @log.log bg-green "Using cache: #{doc.cache__.recurse.join(',')}"
-                                            cache = union doc.cache__.recurse, e.dependency
-
-                                        err2, res2 <~ @db.all-docs {keys: (e.dependency ++ cache), +include_docs}
-                                        err := err or err2
-                                        if err
-                                            return op2!
-                                        # append the dependencies to the list
-                                        for res2
-                                            bundle[..doc._id] = ..doc
-                                        lo2(op2)
-                                    else if e instanceof CircularDependencyError
-                                        err := "Circular Dependency Error for #{doc._id} (needs #{e.branch})"
-                                        return op!
-                                    else
-                                        @log.log "An unknown error occurred: ", e
-                                        return op!
-
-                            return op! if ++i is res.length
-                            lo(op)
-
-                        #dump "bundle is", bundle
-                        @log.log "all dependencies + docs are fetched. total: ", (keys bundle .length)
-                        @log.log "...deps+doc(s) in total: #{keys bundle .join ', '}"
-                        return endif!
-                    else
-                        return endif!
-
-                unless err or multiple or opts.recurse
-                    console.log "...this was a successful plain single document request."
+                err, res <~ @db.all-docs opts
+                unless err or multiple
                     if res and not empty res
-                        res := res.0.doc
-
-                unless Obj.empty bundle
-                    res := bundle
-
+                        res = res.0.doc
+                    console.log "...this was a successful plain single document request."
                 @send-and-echo msg, {err, res}
 
             # `all-docs` message
@@ -366,6 +292,8 @@ export class CouchDcsServer extends Actor
 
 
     send-and-echo: (orig, _new) ->
-        @log.log bg-blue "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
-        @log.log "error was : #{pack _new.err}" if _new.err
+        if _new.err
+             @log.log "error was : #{pack _new.err}"
+        else
+            @log.log bg-blue "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
         @send-response orig, _new

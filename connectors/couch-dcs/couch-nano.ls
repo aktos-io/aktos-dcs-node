@@ -23,17 +23,20 @@ export class CouchNano extends EventEmitter
         @db-name = @cfg.database
         @db = nano {url: @cfg.url, parseUrl: no}
         @connection = new Signal!
+        @first-connection-made = no
 
         @on \connected, ~>
             @connection.go!
             @connected = yes
             @retry-timeout = 100ms
+            @first-connection-made = yes
 
         @on \disconnected, ~>
             @connected = no
 
         @retry-timeout = 100ms
         @max-delay = 12_000ms
+
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -45,7 +48,8 @@ export class CouchNano extends EventEmitter
         #console.log "request opts : ", opts
         err, res, headers <~ @db.request opts
         if err?.statusCode is 401
-            @trigger \disconnected, {err}
+            if @first-connection-made
+                @trigger \disconnected, {err}
             sleep @retry-timeout, ~>
                 @log.log "Retrying connection..."
                 @_connect (err) ~>
@@ -69,11 +73,8 @@ export class CouchNano extends EventEmitter
 
     connect: (callback) ->
         if typeof! callback isnt \Function then callback = (->)
-        @log.log "...called '.connect!'"
         err, res <~ @get ''
-        @log.log "err: ", err, "res: ", res
-        unless err
-            callback!
+        callback err, res
 
     _connect: (callback) ->
         if typeof! callback isnt \Function then callback = (->)

@@ -1,5 +1,4 @@
 require! '../../src/actor': {Actor}
-require! '../../lib/merge-deps': {merge-deps}
 
 '''
 usage:
