@@ -6,7 +6,7 @@ require! 'colors': {
 require! '../../lib': {sleep, pack, clone}
 require! 'prelude-ls': {
     keys, values, flatten, empty, unique,
-    Obj, difference, union
+    Obj, difference, union, group-by, unique-by
 }
 require! './couch-nano': {CouchNano}
 
@@ -249,23 +249,69 @@ export class CouchDcsServer extends Actor
                         console.log "...handled by custom handler"
                         @send-and-echo msg, {err, res}
                     return
-                multiple = typeof! msg.payload.get is \Array
-                doc-id = unique flatten [msg.payload.get]
+
+                multiple = typeof! msg.payload.get is \Array # decide response format
+                doc-id = msg.payload.get
+                doc-id = [doc-id] if typeof! doc-id is \String
+                doc-id = doc-id |> unique-by JSON.stringify
+                console.log "requested doc-id", doc-id
+                {String: doc-id, Array: older-revs} = doc-id |> group-by (-> typeof! it)
+                if older-revs
+                    @log.log bg-yellow "Older versions are requested: ", that
+
                 opts = msg.payload.opts or {}
                 if multiple
                     @log.log "Requested multiple documents:", JSON.stringify(doc-id)
                 else
                     @log.log "Requested single document:", doc-id.0
-                opts.keys = doc-id
+                opts.keys = doc-id or []
                 opts.include_docs = yes
                 #dump 'opts: ', opts
-                err, res <~ @db.all-docs opts
-                unless err
-                    if res and not empty res
-                        res = [..doc for res]
-                        unless multiple
-                            res = res.0
-                @send-and-echo msg, {err, res}
+                error = no
+                response = []
+
+                # fetch older revisions (if requested)
+                # async loop
+                index = 0
+                <~ :lo(op) ~>
+                    return op! if index is older-revs?.length
+                    unless older-revs
+                        @log.log bg-red "no older-revs is requested"
+                        return op!
+                    [id, rev] = older-revs[index]
+                    unless rev
+                        # last revision is requested by undefined rev
+                        opts.keys.push id
+                        index++
+                        lo(op)
+                    else
+                        err, res <~ @db.get id, {rev}
+                        unless err
+                            console.log "adding older response: ", res
+                            response.push res
+                        else
+                            error := err
+                        index++
+                        lo(op)
+
+                # fetch documents
+                <~ :lo(op) ~>
+                    if empty opts.keys 
+                        @log.log bg-red "no doc-id is requested"
+                        return op!
+                    err, res <~ @db.all-docs opts
+                    unless err
+                        if res and not empty res
+                            response.push [..doc for res]
+                    else
+                        error := err
+                    return op!
+
+                response := flatten response
+                unless multiple
+                    response := response.0
+                @send-and-echo msg, {error, res: response}
+
 
             # `all-docs` message
             else if \allDocs of msg.payload
