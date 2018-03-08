@@ -245,7 +245,7 @@ export class CouchDcsServer extends Actor
             else if \get of msg.payload
                 if msg.payload.opts.custom
                     # this message will be handled custom
-                    @trigger \custom-get, @db, msg.payload, (err, res) ~> 
+                    @trigger \custom-get, @db, msg.payload, (err, res) ~>
                         console.log "...handled by custom handler"
                         @send-and-echo msg, {err, res}
                     return
@@ -260,10 +260,11 @@ export class CouchDcsServer extends Actor
                 opts.include_docs = yes
                 #dump 'opts: ', opts
                 err, res <~ @db.all-docs opts
-                unless err or multiple
+                unless err
                     if res and not empty res
-                        res = res.0.doc
-                    console.log "...this was a successful plain single document request."
+                        res = [..doc for res]
+                        unless multiple
+                            res = res.0
                 @send-and-echo msg, {err, res}
 
             # `all-docs` message
