@@ -5,23 +5,23 @@ Connectors are the actors that provides a proper communication with the outside 
 # Connector Design
 
 ```
- ________________________________________________________________________________
-| PHYSICAL DEVICE / DATABASE / BROWSER / ANOTHER DCS NETWORK / WEBSERVICE / ...  |
-|________________________________________________________________________________|
+ ______________________________________________________________________________________
+| PHYSICAL DEVICE / DATABASE / PLC / BROWSER / ANOTHER DCS NETWORK / WEBSERVICE / ...  |
+|______________________________________________________________________________________|
 
                                    ^^^
                                    |||
                                    |||
-                                   vvv
-                            _________________
-                           |   Transport     | 
-                           |-----------------|
-                           |    Protocol?    |
-                           |-----------------|
-                           |  Protocol Actor |
-                           |_________________|
-                                    ^
-                                    |
+                                   vvv             \
+                            _________________        \
+                           |   Transport     |        |
+                           |-----------------|        |
+                           |    Protocol?    |         > Connector 
+                           |-----------------|        |
+                           |  Protocol Actor |        |
+                           |_________________|        |
+                                    ^                /
+                                    |              /
                                     v
                            ~~~~~~~~~~~~~~~~~~~~
                            |   DCS NETWORK    |
