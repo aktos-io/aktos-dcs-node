@@ -37,7 +37,7 @@ export make-tests = (lib-name, tests) ->
 
 
         if typeof! res is \Undefined
-            console.log "...passed from external test: #{name}."
+            #console.log "...passed from external test: #{name}."
             null
         else if not res
             console.warn "Test [#{name}] is skipped..."
@@ -54,5 +54,5 @@ export make-tests = (lib-name, tests) ->
                 throw   "- FAILED on test: #{name}"
 
             else
-                console.log "...passed from test: #{name}."
+                #console.log "...passed from test: #{name}."
     console.log "End of tests."
