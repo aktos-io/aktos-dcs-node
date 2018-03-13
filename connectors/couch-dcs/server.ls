@@ -254,16 +254,8 @@ export class CouchDcsServer extends Actor
                 doc-id = msg.payload.get
                 doc-id = [doc-id] if typeof! doc-id is \String
                 doc-id = doc-id |> unique-by JSON.stringify
-                console.log "requested doc-id", doc-id
                 {String: doc-id, Array: older-revs} = doc-id |> group-by (-> typeof! it)
-                if older-revs
-                    @log.log bg-yellow "Older versions are requested: ", that
-
                 opts = msg.payload.opts or {}
-                if multiple
-                    @log.log "Requested multiple documents:", JSON.stringify(doc-id)
-                else
-                    @log.log "Requested single document:", doc-id.0
                 opts.keys = doc-id or []
                 opts.include_docs = yes
                 #dump 'opts: ', opts
@@ -276,7 +268,7 @@ export class CouchDcsServer extends Actor
                 <~ :lo(op) ~>
                     return op! if index is older-revs?.length
                     unless older-revs
-                        @log.log bg-red "no older-revs is requested"
+                        #@log.log bg-yellow "no older-revs is requested"
                         return op!
                     [id, rev] = older-revs[index]
                     unless rev
@@ -285,20 +277,22 @@ export class CouchDcsServer extends Actor
                         index++
                         lo(op)
                     else
+                        @log.log bg-yellow "Older version requested: #{id}"
+                        @log.log bg-yellow "rev: ", rev
                         err, res <~ @db.get id, {rev}
                         unless err
-                            console.log "adding older response: ", res
                             response.push res
                         else
                             error := err
                         index++
                         lo(op)
 
-                # fetch documents
+                # fetch the latest versions (if requested any)
                 <~ :lo(op) ~>
-                    if empty opts.keys 
-                        @log.log bg-red "no doc-id is requested"
+                    if empty opts.keys
+                        #@log.log bg-yellow "no doc-id is requested"
                         return op!
+                    @log.log "Docs are requested: #{opts.keys.join ', '}"
                     err, res <~ @db.all-docs opts
                     unless err
                         if res and not empty res
@@ -348,5 +342,5 @@ export class CouchDcsServer extends Actor
         if _new.err
              @log.log "error was : #{pack _new.err}"
         else
-            @log.log bg-blue "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
+            @log.log (green ">>>"), "responding for #{orig.topic}: #{pack _new .length} bytes"
         @send-response orig, _new
