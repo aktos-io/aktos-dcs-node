@@ -36,11 +36,20 @@ console.log "response is: ", res
 
 `CouchDcsClient` has the following API:
 
-* `.get 'document-id', [opts, ] callback`
-* `.put doc, callback`
-* `.view 'designName/yourView', [opts, ] callback`
-* `.all callback`
-* `.getAttachment 'document-id', 'attachment-name', callback`
+* `.get docs, [opts, ] callback(err, res)`
+    docs format:
+        if `String`: fetch only one document, response is the document itself
+        if `Array`: fetch multiple documents, response is an array of documents
+            Documents are fetched depending on the array elements.
+            Element type:
+                `"SOME_ID"`: fetch the latest revision
+                `["SOME_ID", "SOME_REV"]`: fetch `"SOME_REV"` revision
+                `["SOME_ID", undefined]`: fetch the latest version
+
+* `.put doc, callback(err, res)`
+* `.view 'designName/yourView', [opts, ] callback(err, res)`
+* `.all callback(err, res)`
+* `.getAttachment 'document-id', 'attachment-name', callback(err, res)`
 
 Callbacks will be called with `error, response` parameters.
 

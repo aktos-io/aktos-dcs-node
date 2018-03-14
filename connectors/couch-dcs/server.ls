@@ -4,19 +4,15 @@ require! 'colors': {
     green, yellow, blue
 }
 require! '../../lib': {sleep, pack, clone}
-require! '../../lib/merge-deps': {
-    bundle-deps, merge-deps
-    DependencyError, CircularDependencyError
-}
-
 require! 'prelude-ls': {
     keys, values, flatten, empty, unique,
-    Obj, difference, union
+    Obj, difference, union, group-by, unique-by
 }
 require! './couch-nano': {CouchNano}
 
 dump = (name, doc) ->
     console.log "#{name} :", JSON.stringify(doc, null, 2)
+
 
 export class CouchDcsServer extends Actor
     (@params) ->
@@ -49,12 +45,9 @@ export class CouchDcsServer extends Actor
                         for let topic in @subscriptions
                             @send "#{topic}.changes.all", change
 
+                    '''
                     ..all-docs {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
                         # follow every single view separately
-
-                        return
-                        ...
-
                         for res
                             name = ..id.split '/' .1
                             continue if name is \autoincrement
@@ -66,10 +59,12 @@ export class CouchDcsServer extends Actor
                                     @log.log "..publishing view change on #{view}", change.id
                                     for let topic in @subscriptions
                                         @send "#{topic}.changes.view.#{view}", change
-
+                    '''
 
         get-next-id = (doc, callback) ~>
-            return callback err=no, doc unless doc._id
+            unless doc._id
+                return callback err={reason: "document must have and _id field"}, null
+
             # handle autoincrement values here.
             autoinc = doc._id.split /#+/
             if autoinc.length > 1
@@ -89,7 +84,6 @@ export class CouchDcsServer extends Actor
                     res.0.key .1 + 1
                 catch
                     1
-
                 doc._id = "#{prefix}#{next-id}"
                 @log.log bg-blue "+++ new doc id: ", doc._id
                 return callback err=no, doc
@@ -249,87 +243,69 @@ export class CouchDcsServer extends Actor
 
             # `get` message
             else if \get of msg.payload
-                multiple = if typeof! msg.payload.get is \Array => yes else no
-                doc-id = unique flatten [msg.payload.get]
+                if msg.payload.opts.custom
+                    # this message will be handled custom
+                    @trigger \custom-get, @db, msg.payload, (err, res) ~>
+                        console.log "...handled by custom handler"
+                        @send-and-echo msg, {err, res}
+                    return
+
+                multiple = typeof! msg.payload.get is \Array # decide response format
+                doc-id = msg.payload.get
+                doc-id = [doc-id] if typeof! doc-id is \String
+                doc-id = doc-id |> unique-by JSON.stringify
+                {String: doc-id, Array: older-revs} = doc-id |> group-by (-> typeof! it)
                 opts = msg.payload.opts or {}
-                err = null
-                res = null
-                bundle = {}
-
-                if multiple
-                    @log.log "Requested multiple documents:", JSON.stringify(doc-id)
-                else
-                    @log.log "Requested single document:", doc-id.0
-
-                opts.keys = doc-id
+                opts.keys = doc-id or []
                 opts.include_docs = yes
                 #dump 'opts: ', opts
-                _err, _res <~ @db.all-docs opts
-                res := _res
-                err := _err
-                <~ :asyncif(endif) ~>
-                    # check for the recursion
-                    if opts.recurse and not empty res and not err
-                        dep-path = opts.recurse
-                        for res
-                            unless ..error
-                                bundle[..doc._id] = ..doc
-                            else
-                                err := ..error
-                                return endif!
+                error = no
+                response = []
 
-                        i = 0
-                        <~ :lo(op) ~>
-                            doc = res[i].doc
-
-                            @log.log bg-yellow "Resolving dependencies for #{doc._id} (by #{opts.recurse})"
-                            <~ :lo2(op2) ~>
-                                try
-                                    merge-deps doc._id, dep-path, bundle
-                                    return op2!
-                                catch
-                                    if e instanceof DependencyError
-                                        @log.log "...Required dependencies:", e.dependency.join(',')
-                                        cache = []
-
-                                        if doc.cache__?.recurse? and not empty doc.cache__.recurse
-                                            @log.log bg-green "Using cache: #{doc.cache__.recurse.join(',')}"
-                                            cache = union doc.cache__.recurse, e.dependency
-
-                                        err2, res2 <~ @db.all-docs {keys: (e.dependency ++ cache), +include_docs}
-                                        err := err or err2
-                                        if err
-                                            return op2!
-                                        # append the dependencies to the list
-                                        for res2
-                                            bundle[..doc._id] = ..doc
-                                        lo2(op2)
-                                    else if e instanceof CircularDependencyError
-                                        err := "Circular Dependency Error for #{doc._id} (needs #{e.branch})"
-                                        return op!
-                                    else
-                                        @log.log "An unknown error occurred: ", e
-                                        return op!
-
-                            return op! if ++i is res.length
-                            lo(op)
-
-                        #dump "bundle is", bundle
-                        @log.log "all dependencies + docs are fetched. total: ", (keys bundle .length)
-                        @log.log "...deps+doc(s) in total: #{keys bundle .join ', '}"
-                        return endif!
+                # fetch older revisions (if requested)
+                # async loop
+                index = 0
+                <~ :lo(op) ~>
+                    return op! if index is older-revs?.length
+                    unless older-revs
+                        #@log.log bg-yellow "no older-revs is requested"
+                        return op!
+                    [id, rev] = older-revs[index]
+                    unless rev
+                        # last revision is requested by undefined rev
+                        opts.keys.push id
+                        index++
+                        lo(op)
                     else
-                        return endif!
+                        @log.log bg-yellow "Older version requested: #{id}"
+                        @log.log bg-yellow "rev: ", rev
+                        err, res <~ @db.get id, {rev}
+                        unless err
+                            response.push res
+                        else
+                            error := err
+                        index++
+                        lo(op)
 
-                unless err or multiple or opts.recurse
-                    console.log "...this was a successful plain single document request."
-                    if res and not empty res
-                        res := res.0.doc
+                # fetch the latest versions (if requested any)
+                <~ :lo(op) ~>
+                    if empty opts.keys
+                        #@log.log bg-yellow "no doc-id is requested"
+                        return op!
+                    @log.log "Docs are requested: #{opts.keys.join ', '}"
+                    err, res <~ @db.all-docs opts
+                    unless err
+                        if res and not empty res
+                            response.push [..doc for res]
+                    else
+                        error := err
+                    return op!
 
-                unless Obj.empty bundle
-                    res := bundle
+                response := flatten response
+                unless multiple
+                    response := response.0
+                @send-and-echo msg, {error, res: response}
 
-                @send-and-echo msg, {err, res}
 
             # `all-docs` message
             else if \allDocs of msg.payload
@@ -361,9 +337,10 @@ export class CouchDcsServer extends Actor
                 err = reason: "Unknown method name: #{pack msg.payload}"
                 @send-and-echo msg, {err: err, res: null}
 
-        @log.log bg-green "Accepting messages from DCS network."
 
     send-and-echo: (orig, _new) ->
-        @log.log bg-blue "sending topic: #{orig.topic} (#{pack _new .length} bytes) "
-        @log.log "error was : #{pack _new.err}" if _new.err
+        if _new.err
+             @log.log "error was : #{pack _new.err}"
+        else
+            @log.log (green ">>>"), "responding for #{orig.topic}: #{pack _new .length} bytes"
         @send-response orig, _new

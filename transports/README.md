@@ -3,15 +3,17 @@
 A `Transport` is responsible to transport the telegram to another connector's
 transport (or to a physical device) and may be one of the followings:
 
-* TCP
-* *UDP*
-* Websocket
-* Socket.io
-* *WebRTC*
-* Serial Port (RS-232, RS-485, etc...)
-* *USB*
-* *Can-Bus*
-* Yet another `Actor`
+- [ ] TCP: A TCP transport which will handle re-connection
+- [ ] UDP: A UDP transport which will handle heartbeat, app level ACK, etc.
+- [ ] Websocket
+- [ ] Socket.io
+- [x] Serial Port (RS-232, RS-485, etc...)
+- [ ] USB
+- [ ] CanBus (hardware specific)
+- [ ] E-mail
+- [ ] SMS
+- [ ] WebRTC
+- [ ] EtherCAT
 
 # Transport Properties
 
@@ -26,8 +28,8 @@ transport (or to a physical device) and may be one of the followings:
 
   * `write data, callback`: callback will be fired when data is sent succesfully
     * `callback` will take 1 `error` argument. `error` is an Object which has a
-      `resolved` method, which is called on error resolve. As [an example](https://github.com/aktos-io/dcs-nodejs-examples/blob/5fc2ef0221186ce316eef49a899634e5f57c150d/examples/serial-port-test.ls#L21-L26): 
-      
+      `resolved` method, which is called on error resolve. As [an example](https://github.com/aktos-io/dcs-nodejs-examples/blob/5fc2ef0221186ce316eef49a899634e5f57c150d/examples/serial-port-test.ls#L21-L26):
+
       ```ls
       err <~ port.write ('something' * 40) + '\n'
       if err

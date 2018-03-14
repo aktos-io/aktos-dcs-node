@@ -1,5 +1,6 @@
 jsondiffpatch = require 'jsondiffpatch'
 require! \expect
+require! './packing': {clone}
 
 export make-tests = (lib-name, tests) ->
     if typeof! lib-name is \Object
@@ -9,6 +10,8 @@ export make-tests = (lib-name, tests) ->
     console.log "++++++++++ Start of tests: #{lib-name}"
     for name, test of tests
         @expect = expect
+        @clone = clone
+
         try
             res = test.call this
         catch
@@ -34,10 +37,11 @@ export make-tests = (lib-name, tests) ->
 
 
         if typeof! res is \Undefined
-            console.log "...passed from external test: #{name}."
-
+            #console.log "...passed from external test: #{name}."
+            null
         else if not res
             console.warn "Test [#{name}] is skipped..."
+            null
         else
             expected = JSON.stringify(res.expect)
             result = JSON.stringify(res.result)
@@ -50,5 +54,5 @@ export make-tests = (lib-name, tests) ->
                 throw   "- FAILED on test: #{name}"
 
             else
-                console.log "...passed from test: #{name}."
+                #console.log "...passed from test: #{name}."
     console.log "End of tests."

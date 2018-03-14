@@ -23,25 +23,44 @@ export class CouchNano extends EventEmitter
         @db-name = @cfg.database
         @db = nano {url: @cfg.url, parseUrl: no}
         @connection = new Signal!
+        @first-connection-made = no
 
         @on \connected, ~>
             @connection.go!
             @connected = yes
+            @retry-timeout = 100ms
+            @first-connection-made = yes
 
         @on \disconnected, ~>
             @connected = no
+
+        @retry-timeout = 100ms
+        @max-delay = 12_000ms
+
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
         opts.headers['X-CouchDB-WWW-Authenticate'] = 'Cookie'
         opts.headers.cookie = @cookie
 
+        unless typeof! callback is \Function => callback = (->)
+
         #console.log "request opts : ", opts
         err, res, headers <~ @db.request opts
-        if err => if err.statusCode is 401
-            @trigger \disconnected, {err}
-            @connect (err) ~>
-                unless err => @request opts, callback
+        if err?.statusCode is 401
+            if @first-connection-made
+                @trigger \disconnected, {err}
+            sleep @retry-timeout, ~>
+                @log.log "Retrying connection..."
+                @_connect (err) ~>
+                    unless err
+                        @log.log "Connection successful"
+                    else
+                        @log.warn "Connection failed"
+                    if @retry-timeout < @max-delay
+                        @retry-timeout *= 2
+                    # retry the last request (irrespective of err)
+                    @request opts, callback
             return
 
         if headers?
@@ -53,7 +72,12 @@ export class CouchNano extends EventEmitter
         callback err, res, headers
 
     connect: (callback) ->
-        if typeof! callback isnt \Function then callback = ->
+        if typeof! callback isnt \Function then callback = (->)
+        err, res <~ @get ''
+        callback err, res
+
+    _connect: (callback) ->
+        if typeof! callback isnt \Function then callback = (->)
         @log.log "Authenticating as #{@username}"
         @cookie = null
         err, body, headers <~ @db.auth @username, @password
