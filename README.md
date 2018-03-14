@@ -1,15 +1,32 @@
 # aktos-dcs-node
 
+Node.js port of [`aktos-dcs`](https://github.com/aktos-io/aktos-dcs) library (v2).
 
-Node.js port of `aktos-dcs` library, written from scratch by [aktos.io](https://aktos.io) in Livescript. 
+# Additional Features 
 
-Implements the following features: 
+`aktos-dcs-node` provides following transport and connectors:
 
-* Node.js client 
-* Node.js server (broker)
-* Browser Realtime Layer (via socket.io)
-* Browser Actors 
-* Message routing by subscriptions
+### [Transports](./transports/README.md)
+
+* Serial Port Transport 
+
+### [Connectors](./connectors/README.md)
+
+* CouchDB
+* SocketIO (Server + Client)
+* TCP (Server + Client)
+* Omron
+  * Hostlink 
+  * FINS 
+* Siemens 
+  * S7 Comm
+* Raspberry 
+  * Digital Input 
+  * Digital Output 
+  
+# Examples 
+
+Examples can be found [here](https://github.com/aktos-io/dcs-nodejs-examples)
 
 # Contact 
 
