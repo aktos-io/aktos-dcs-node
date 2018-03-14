@@ -1,6 +1,6 @@
-# Description 
+# Description
 
-Connectors are the actors that provides a proper communication with the outside of the process. 
+Connectors are the actors that provides a proper communication with the outside of the process.
 
 # Connector Design
 
@@ -16,7 +16,7 @@ Connectors are the actors that provides a proper communication with the outside 
                             _________________        \
                            |   Transport     |        |
                            |-----------------|        |
-                           |    Protocol?    |         > Connector 
+                           |    Protocol?    |         > Connector
                            |-----------------|        |
                            |  Protocol Actor |        |
                            |_________________|        |
@@ -31,13 +31,5 @@ Connectors are the actors that provides a proper communication with the outside 
 | Term | Necessity | Definition |
 | --- | --- | --- |  
 | Transport | Required | A physical transport media (serial, usb, ethernet, wifi, sound card, ...)|
-| Protocol | Optional | Protocol that converts the dcs-message format for the physical/target device/system. (Transparent, Modbus, AT Commands, Hostlink, ...) | 
+| Protocol | Optional | Protocol that converts the dcs-message format for the physical/target device/system. (Transparent, Modbus, AT Commands, Hostlink, ...) |
 | Protocol Actor | Required | An actor with standardized message payload format |
-
-
-# TODO
-
-- [ ] email
-- [ ] sms
-- [ ] udp
-- [ ] webrtc
