@@ -38,28 +38,19 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
-            ..once \connected, ~>
-                @db
-                    ..follow (change) ~>
-                        @log.log "** publishing change on database:", change.id
-                        for let topic in @subscriptions
-                            @send "#{topic}.changes.all", change
+            ..follow (change) ~>
+                @log.log (bg-green "<<<<<<>>>>>>"), "publishing change on #{@name}:", change.id
+                for let topic in @subscriptions
+                    @send "#{topic}.changes.all", change
 
-                    '''
-                    ..all-docs {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
-                        # follow every single view separately
-                        for res
-                            name = ..id.split '/' .1
-                            continue if name is \autoincrement
-                            #@log.log "all design documents: ", ..doc
-                            for let view-name of eval ..doc.javascript .views
-                                view = "#{name}/#{view-name}"
-                                @log.log "following view: #{view}"
-                                @db.follow {view}, (change) ~>
-                                    @log.log "..publishing view change on #{view}", change.id
-                                    for let topic in @subscriptions
-                                        @send "#{topic}.changes.view.#{view}", change
-                    '''
+            ..get-all-views (err, res) ~>
+                for let view in res
+                    @log.log (bg-green "<<<_view_>>>"), "following view: #{view}"
+                    @db.follow {view}, (change) ~>
+                        for let subs in @subscriptions
+                            topic = "#{subs}.changes.view.#{view}"
+                            @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
+                            @send topic, change
 
         get-next-id = (doc, callback) ~>
             unless doc._id
