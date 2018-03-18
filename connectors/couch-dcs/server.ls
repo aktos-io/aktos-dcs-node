@@ -294,17 +294,26 @@ export class CouchDcsServer extends Actor
                         return op!
                     @log.log "Docs are requested: #{opts.keys.join ', '}"
                     err, res <~ @db.all-docs opts
+                    _errors = []
                     unless err
                         if res and not empty res
-                            response.push [..doc for res]
+                            for res
+                                if ..doc
+                                    response.push ..doc
+                                if ..error
+                                    _errors.push ..
                     else
                         error := err
+
+                    if not error and not empty _errors
+                        error := _errors
                     return op!
 
                 response := flatten response
                 unless multiple
-                    response := response.0
-                @send-and-echo msg, {error, res: response}
+                    response := response?.0
+                    error := error?.0
+                @send-and-echo msg, {err: error, res: response}
 
 
             # `all-docs` message
