@@ -2,50 +2,55 @@ require! 'prelude-ls': {max, split}
 
 split-dot = split '.'
 
-export topic-match = (topic, keypath, opts={}) ->
+export topic-match = (topics, keypaths, opts={}) ->
     # returns true if keypath fits into topic
     # else, return false
-    if '**' in [topic, keypath]
-        console.log "topic is **, immediately matches with anything" if opts.debug
-        return yes
+    for topic in topics.trim!.split ' '
+        for keypath in keypaths.trim!.split ' '
+            try
+                if '**' in [topic, keypath]
+                    console.log "topic is **, immediately matches with anything" if opts.debug
+                    return yes
 
-    unless topic and keypath
-        # both should be different from undefined
-        return no
+                unless topic and keypath
+                    # both should be different from undefined
+                    return no
 
-    try
-        topic-arr = split-dot topic
-        keypath-arr = split-dot keypath
-    catch
-        console.error "both topic and keypath should be string."
-        return no 
+                try
+                    topic-arr = split-dot topic
+                    keypath-arr = split-dot keypath
+                catch
+                    console.error "both topic and keypath should be string."
+                    return no
 
-    for index in [til max(topic-arr.length, keypath-arr.length)]
-        topic-part = try topic-arr[index]
-        keypath-part = try keypath-arr[index]
+                for index in [til max(topic-arr.length, keypath-arr.length)]
+                    topic-part = try topic-arr[index]
+                    keypath-part = try keypath-arr[index]
 
-        console.log "topic-part: #{topic-part}, keypath-part: #{keypath-part}" if opts.debug
+                    console.log "topic-part: #{topic-part}, keypath-part: #{keypath-part}" if opts.debug
 
-        if '*' in [keypath-part, topic-part]
-            if undefined in [keypath-part, topic-part]
-                console.log "returning false because there is no command to look for match" if opts.debug
-                return false
-            continue
+                    if '*' in [keypath-part, topic-part]
+                        if undefined in [keypath-part, topic-part]
+                            console.log "returning false because there is no command to look for match" if opts.debug
+                            throw
+                        continue
 
-        if undefined in [keypath-part, topic-part]
-            console.log "returning false because there is no command to look for match" if opts.debug
-            return false
+                    if undefined in [keypath-part, topic-part]
+                        console.log "returning false because there is no command to look for match" if opts.debug
+                        throw
 
-        if '**' in [keypath-part, topic-part]
-            console.log "returning true because '**' will match with anything." if opts.debug
-            return true
+                    if '**' in [keypath-part, topic-part]
+                        console.log "returning true because '**' will match with anything." if opts.debug
+                        return true
 
-        if topic-part isnt keypath-part
-            #console.log "topic-part: #{topic-part}, keypath-part: #{keypath-part}"
-            return false
+                    if topic-part isnt keypath-part
+                        #console.log "topic-part: #{topic-part}, keypath-part: #{keypath-part}"
+                        throw "not matching"
 
-    console.log "no condition broke the match." if opts.debug
-    return true
+
+                console.log "no condition broke the match." if opts.debug
+                return true
+        return false
 
 
 do test-topic-match = ->
@@ -58,6 +63,9 @@ do test-topic-match = ->
         * topic: "foo.bar", keypath: "foo.*", expected: true
         * topic: "*.bar", keypath: "foo.*", expected: true
         * topic: "foo.bar", keypath: "baz.bar", expected: false
+
+        # multi match
+        * topic: "foo.bar", keypath: "baz.bar foo.*", expected: true
 
         # any foo messages that contains exactly two level deep commands
         * topic: "foo.bar", keypath: "foo.*.*", expected: false
