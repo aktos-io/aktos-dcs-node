@@ -253,11 +253,11 @@ export class CouchNano extends EventEmitter
         # "include_rows" workaround
         <~ :lo(op) ~>
             if options.view and options.include_rows
-                @log.log "including row"
+                #@log.log "including row"
                 feed.include_docs = yes
                 [ddoc-name, view-name] = options.view.split '/'
                 err, res <~ @get "_design/#{ddoc-name}"
-                console.log res.javascript
+                #console.log res.javascript
                 options.view-function = (doc) ->
                     emit = (key, value) ->
                         {id: doc._id, key, value}
