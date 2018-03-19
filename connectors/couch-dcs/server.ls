@@ -46,18 +46,23 @@ export class CouchDcsServer extends Actor
             ..get-all-views (err, res) ~>
                 for let view in res
                     @log.log (bg-green "<<<_view_>>>"), "following view: #{view}"
-                    @db.follow {view}, (change) ~>
+                    @db.follow {view, +include_rows}, (change) ~>
                         for let subs in @subscriptions
                             topic = "#{subs}.changes.view.#{view}"
                             @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
                             @send topic, change
 
-        get-next-id = (doc, callback) ~>
-            unless doc._id
-                return callback err={reason: "document must have and _id field"}, null
-
+        get-next-id = (template, callback) ~>
+            # returns the next available `_id`
+            # if template format is applicable for autoincrementing, return the incremented id
+            # if template format is not correct, return the `_id` as is
+            unless template
+                return callback err={
+                    reason: "No template is supplied for autoincrement"
+                    }, null
+            @log.log "Getting next id for #{template}"
             # handle autoincrement values here.
-            autoinc = doc._id.split /#+/
+            autoinc = template.split /#+/
             if autoinc.length > 1
                 prefix = autoinc.0
                 @log.log "prefix is: ", prefix
@@ -75,11 +80,11 @@ export class CouchDcsServer extends Actor
                     res.0.key .1 + 1
                 catch
                     1
-                doc._id = "#{prefix}#{next-id}"
-                @log.log bg-blue "+++ new doc id: ", doc._id
-                return callback err=no, doc
+                new-doc-id = "#{prefix}#{next-id}"
+                @log.log bg-blue "+++ new doc id: ", new-doc-id
+                return callback err=no, new-doc-id
             else
-                return callback err=no, doc
+                return callback err=no, template
 
         transaction-count = (callback) ~>
             transaction-timeout = 10_000ms
@@ -192,32 +197,29 @@ export class CouchDcsServer extends Actor
 
             else if \put of msg.payload
                 docs = flatten [msg.payload.put]
-
                 if empty docs
                     return @send-and-echo msg, {err: "Empty document", res: null}
 
-
-                # add server side properties
+                # Apply server side attributes
                 # ---------------------------
-                i = 0; _limit = docs.length - 1
+                # FIXME: "Set unless null" strategy can be hacked in the client
+                # (client may set it to any value) but the original value is kept
+                # in the first revision . Fetch the first version on request.
+                i = 0;
                 <~ :lo(op) ~>
-                    err, doc <~ get-next-id docs[i]
-                    if err
-                        return @send-and-echo msg, {err: err, res: null}
+                    return op! if i > (docs.length - 1)
+                    err, next-id <~ get-next-id docs[i]._id
+                    unless err
+                        docs[i]._id = next-id
 
-                    # FIXME: "Set unless null" strategy can be hacked in the client
-                    # (client may set it to any value) but the original value is kept
-                    # in the first revision . Fetch the first version on request.
-                    unless doc.timestamp
-                        doc.timestamp = Date.now!
-
-                    unless doc.owner
-                        doc.owner = if msg.ctx => that.user else \_process
-
-                    docs[i] = doc
-                    return op! if ++i > _limit
+                    unless docs[i].timestamp
+                        docs[i].timestamp = Date.now!
+                    unless docs[i].owner
+                        docs[i].owner = if msg.ctx => that.user else \_process
+                    i++
                     lo(op)
 
+                # Write to database 
                 if docs.length is 1
                     err, res <~ @db.put docs.0
                     @send-and-echo msg, {err: err, res: res or null}
