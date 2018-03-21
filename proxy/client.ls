@@ -2,9 +2,10 @@ require! './helpers': {MessageBinder}
 require! '../src/auth-request': {AuthRequest}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! '../lib': {sleep, pack, unpack}
-require! 'prelude-ls': {split, flatten, split-at}
+require! 'prelude-ls': {split, flatten, split-at, empty}
 require! '../src/signal':{Signal}
 require! '../src/actor': {Actor}
+require! '../src/topic-match': {topic-match}
 
 
 export class ProxyClient extends Actor
@@ -16,32 +17,38 @@ export class ProxyClient extends Actor
         @role = \client
         @connected = no
         @data-binder = new MessageBinder!
-        @proxy = yes 
+        @proxy = yes
+        @permissions-rw = []
 
         @auth = new AuthRequest!
             ..on \to-server, (msg) ~>
                 @socket.write pack msg
 
             ..on \login, (permissions) ~>
-                topics = permissions.rw
-                if topics
-                    topics = [topics] unless typeof! topics is \Array
-                    @log.log "logged in succesfully. subscribing to: ", topics
-                    @subscribe topics
+                @permissions-rw = flatten [permissions.rw]
+                unless empty @permissions-rw
+                    @log.log "logged in succesfully. subscribing to: ", @permissions-rw
+                    @subscribe @permissions-rw
                     @log.log "requesting update messages for subscribed topics"
-                    for topic in topics
+                    for topic in @permissions-rw
                         {topic, +update}
                         |> @msg-template
                         |> @auth.add-token
                         |> pack
                         |> @socket.write
-
                 else
                     @log.warn "logged in, but there is no rw permissions found."
 
         @on do
             receive: (msg) ~>
-                #@log.log "forwarding message #{msg.topic} to network interface"
+                #@log.log "forwarding received DCS message #{msg.topic} to TCP socket"
+                unless msg.topic `topic-match` @permissions-rw
+                    @send-response msg, {err: "
+                        How come the ProxyClient is subscribed a topic
+                        that it has no rights to send? This is a DCS malfunction.
+                        "}
+                    return
+
                 if @socket-ready
                     msg
                     |> @auth.add-token
