@@ -51,13 +51,13 @@ export class Actor extends EventEmitter
         if typeof! topic isnt \String
             throw "Topic is not string? topic: #{topic}"
 
-        debugger if @debug
+        if @debug => debugger
         enveloped = @msg-template! <<< do
             topic: topic
             payload: payload
         try
             @send-enveloped enveloped
-            @log.log "sending #{pack enveloped}" if @debug
+            if @debug => @log.log "sending #{pack enveloped}"
         catch
             @log.err "sending message failed. msg: ", payload, e
 
@@ -80,7 +80,7 @@ export class Actor extends EventEmitter
                 id: @id
                 seq: enveloped.msg_id
 
-        @log.log "sending request: ", enveloped if @debug
+        if @debug => @log.log "sending request: ", enveloped
         @subscribe topic
         response-signal = new Signal!
         @request-queue[enveloped.req.seq] = response-signal
@@ -146,7 +146,7 @@ export class Actor extends EventEmitter
             @log.err "send-enveloped: Message has no topic. Not sending."
             debugger
             return
-        @log.log "sending message: ", msg if @debug
+        if @debug => @log.log "sending message: ", msg
         @mgr.distribute msg
 
     kill: (...reason) ->
