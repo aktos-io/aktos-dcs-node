@@ -5,17 +5,19 @@ split-dot = split '.'
 export topic-match = (topics, keypaths, opts={}) ->
     # returns true if keypath fits into topic
     # else, return false
-    for topic in topics.trim!.split ' '
-        for keypath in keypaths.trim!.split ' '
+    unless topics? and keypaths?
+        # both should be different from undefined
+        return no
+
+    as-array = (x) ->
+        if typeof! x is \String then x.trim!.split ' ' else x
+
+    for topic in topics |> as-array
+        for keypath in keypaths |> as-array
             try
                 if '**' in [topic, keypath]
                     console.log "topic is **, immediately matches with anything" if opts.debug
                     return yes
-
-                unless topic and keypath
-                    # both should be different from undefined
-                    return no
-
                 try
                     topic-arr = split-dot topic
                     keypath-arr = split-dot keypath
