@@ -138,8 +138,8 @@ export class CouchDcsServer extends Actor
                 doc = msg.payload.put
 
                 # Check if transaction document format is correct
-                unless doc.from and doc.to
-                    return @send-and-echo msg, {err: "Missing source or destination", res: res or null}
+                unless (doc.from and doc.to) or doc.transactions
+                    return @send-and-echo msg, {err: "Missing source or destination", res: null}
                 @log.log "transaction doc is: ", doc
 
                 # Check if there is any ongoing transaction (step 1)
@@ -176,7 +176,7 @@ export class CouchDcsServer extends Actor
                             @send-and-echo msg, {err, res: null}
                             doc.state = \failed
                             err, res <~ @db.put doc
-                            if err => @log.warn "Failed to actively rollback. This will cause performance impacts."
+                            if err => @log.warn "Failed to actively rollback. This will cause performance impacts only."
                             @log.log bg-yellow "Transaction ROLLED BACK."
                             return
                         else
@@ -219,7 +219,7 @@ export class CouchDcsServer extends Actor
                     i++
                     lo(op)
 
-                # Write to database 
+                # Write to database
                 if docs.length is 1
                     err, res <~ @db.put docs.0
                     @send-and-echo msg, {err: err, res: res or null}
