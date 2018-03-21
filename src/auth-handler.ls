@@ -46,7 +46,7 @@ export class AuthHandler extends EventEmitter
         @on \check-auth, (msg) ~>
             #@log.log "Processing authentication message", msg
 
-            if msg.auth? and (msg.auth.user is \guest)
+            if msg.auth? and (msg.auth.user is \public)
                 token = uuid4!
 
                 session =
@@ -58,7 +58,7 @@ export class AuthHandler extends EventEmitter
 
                 @session-cache.add session
 
-                @log.log bg-green "new Guest Login: #{msg.auth.user} (#{token})"
+                @log.log bg-green "new Public Login: #{msg.auth.user} (#{token})"
                 @log.log "(...sending with #{@@login-delay}ms delay)"
 
 
