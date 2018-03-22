@@ -60,10 +60,10 @@ export class CouchDcsServer extends Actor
                 return callback err={
                     reason: "No template is supplied for autoincrement"
                     }, null
-            @log.log "Getting next id for #{template}"
             # handle autoincrement values here.
             autoinc = template.split /#+/
             if autoinc.length > 1
+                @log.log "Getting next id for #{template}"
                 prefix = autoinc.0
                 @log.log "prefix is: ", prefix
                 view-prefix = prefix.split /[^a-zA-Z]+/ .0.to-upper-case!
@@ -198,7 +198,7 @@ export class CouchDcsServer extends Actor
             else if \put of msg.payload
                 docs = flatten [msg.payload.put]
                 if empty docs
-                    return @send-and-echo msg, {err: "Empty document", res: null}
+                    return @send-and-echo msg, {err: message: "Empty document", res: null}
 
                 # Apply server side attributes
                 # ---------------------------
@@ -229,7 +229,7 @@ export class CouchDcsServer extends Actor
                     if typeof! res is \Array and not err
                         for res
                             if ..error
-                                err = {error: 'couchdb error'}
+                                err = {error: message: 'Errors occurred, see the response'}
                                 break
 
                     @send-and-echo msg, {err: err, res: res or null}

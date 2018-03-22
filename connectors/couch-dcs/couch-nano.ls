@@ -68,12 +68,24 @@ export class CouchNano extends EventEmitter
                 @cookie = that
                 @trigger \refresh-cookie
 
-        err = {reason: err.reason, name: err.name, message: err.reason} if err
+        if err
+            err =
+                reason: err.reason
+                name: err.name
+                message: err.reason or err.error
+
         callback err, res, headers
 
     connect: (callback) ->
         if typeof! callback isnt \Function then callback = (->)
-        err, res <~ @get ''
+        err, res <~ @get null
+        if err
+            console.error "Connection has error:", err
+        else
+            console.log "-----------------------------------------"
+            console.log "Connection to #{res.db_name} is successful,
+                disk_size: #{parse-int res.disk_size / 1024}K"
+            console.log "-----------------------------------------"
         callback err, res
 
     _connect: (callback) ->
@@ -82,6 +94,7 @@ export class CouchNano extends EventEmitter
         @cookie = null
         err, body, headers <~ @db.auth @username, @password
         if err
+            @log.log "Connecting DB with username & password has error: ", err
             @trigger \error, err
 
         if headers
@@ -112,7 +125,7 @@ export class CouchNano extends EventEmitter
             db: @db-name
             path: '_bulk_docs'
             body: {docs}
-            method: \POST
+            method: \post
             qs: opts
             , callback
 
