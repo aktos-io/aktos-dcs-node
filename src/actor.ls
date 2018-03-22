@@ -105,23 +105,19 @@ export class Actor extends EventEmitter
 
     _inbox: (msg) ->
         # process one message at a time
-        try
-            if \res of msg
-                if msg.res.id is @id
-                    if msg.res.seq of @request-queue
-                        @request-queue[msg.res.seq].go msg
-                        delete @request-queue[msg.res.seq]
-                        return
-                return unless @proxy
-
-            if \update of msg
-                @trigger \update, msg
-            if \payload of msg
-                @trigger \data, msg
-            # deliver every message to receive-handlers
-            @trigger \receive, msg
-        catch
-            @log.err "problem in handler: ", e
+        if \res of msg
+            if msg.res.id is @id
+                if msg.res.seq of @request-queue
+                    @request-queue[msg.res.seq].go msg
+                    delete @request-queue[msg.res.seq]
+                    return
+            return unless @proxy
+        if \update of msg
+            @trigger \update, msg
+        if \payload of msg
+            @trigger \data, msg
+        # deliver every message to receive-handlers
+        @trigger \receive, msg
 
     on-topic: (topic, handler) ->
         return unless topic
