@@ -7,17 +7,6 @@ In order to prevent unauthorized access to any database:
     [chttpd]
     require_valid_user = true
 
-
-### VERY IMPORTANT: Testing the Installation
-
-Following request MUST FAIL:
-
-    curl http://localhost:5984/_session
-    {"error":"unauthorized","reason":"Authentication required."}
-
-
-**If above request DOES NOT FAIL,** then you MUST put your database behind a proxy server.
-
 # Creating Users:
 
 With CouchDB >= 1.2.0:
@@ -36,7 +25,7 @@ Add a document to `_users` database:
 
 # Database Security Settings:
 
-Create a document with `_security` id in the database, like so:
+Create `_security` document in `yourdb` in order to enable authenticated access:
 
 ```json
   {
@@ -60,6 +49,17 @@ Create a document with `_security` id in the database, like so:
     }
   }
 ```
+
+## VERY IMPORTANT: Testing the Installation
+
+Following request MUST FAIL:
+
+    curl http://localhost:5984/yourdb/_session
+    {"error":"unauthorized","reason":"Authentication required."}
+
+
+**If above request DOES NOT FAIL,** then you MUST put your database behind a proxy server.
+
 ## Replication:
 
 Design documents will only replicate if you are authenticated as an admin, or a db admin, on your target. Create a
