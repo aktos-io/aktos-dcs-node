@@ -38,7 +38,7 @@ export class AuthRequest extends EventEmitter
                 return
         else
             # public
-            credentials = {user: 'guest', password: null}
+            credentials = {user: 'public', password: null}
 
         @log.log "Trying to authenticate with", keys credentials
 

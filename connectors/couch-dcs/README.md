@@ -77,7 +77,7 @@ views:
 
 ### Creating a document
 
-1. If you want to assign an autoincremented ID, append '#' character to your document's `_id`  field:
+1. If you want to assign an autoincremented ID, append '####' to your document's `_id`  field:
 
 ```js
 {
@@ -98,9 +98,9 @@ character and grabbing left side of the result.
 
 | Autoincrement ID | Calculated Prefix | Example ID |
 | ---- | ----- | ---- |
-| `foo###` | `foo` | `foo1234` |
-| `foo-###` | `foo-` | `foo-1234` |
-| `Foo-###` | `Foo-` | `Foo-1234` |
+| `foo####` | `foo` | `foo1234` |
+| `foo-####` | `foo-` | `foo-1234` |
+| `Foo-####` | `Foo-` | `Foo-1234` |
 
 2. *On calculating next ID*: Current biggest ID is calculated by splitting right before any alphanumeric characters, grabbing left side, converting to upper case.
 
@@ -108,11 +108,11 @@ For example, we have `foo-5` in the database. Following autoincremented IDs will
 
 | Seq. | Provided `doc._id` | Saved as |
 | ---- | ----- | ----- |
-| 1 | `foo-#` | `foo-6` |
-| 2 | `foo-#` | `foo-7` |
-| 3 | `foo#`  | `foo8`
-| 4 | `FoO---###` | `FoO---9` |
-| 5 | `fooo-#` | `fooo-1` |
+| 1 | `foo-####` | `foo-6` |
+| 2 | `foo-####` | `foo-7` |
+| 3 | `foo####`  | `foo8`
+| 4 | `FoO---####` | `FoO---9` |
+| 5 | `fooo-####` | `fooo-1` |
 | 6 | `fOO#####` | `fOO10` |
 
 ### Troubleshooting

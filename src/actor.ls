@@ -51,13 +51,13 @@ export class Actor extends EventEmitter
         if typeof! topic isnt \String
             throw "Topic is not string? topic: #{topic}"
 
-        debugger if @debug
+        if @debug => debugger
         enveloped = @msg-template! <<< do
             topic: topic
             payload: payload
         try
             @send-enveloped enveloped
-            @log.log "sending #{pack enveloped}" if @debug
+            if @debug => @log.log "sending #{pack enveloped}"
         catch
             @log.err "sending message failed. msg: ", payload, e
 
@@ -80,7 +80,7 @@ export class Actor extends EventEmitter
                 id: @id
                 seq: enveloped.msg_id
 
-        @log.log "sending request: ", enveloped if @debug
+        if @debug => @log.log "sending request: ", enveloped
         @subscribe topic
         response-signal = new Signal!
         @request-queue[enveloped.req.seq] = response-signal
@@ -105,23 +105,19 @@ export class Actor extends EventEmitter
 
     _inbox: (msg) ->
         # process one message at a time
-        try
-            if \res of msg
-                if msg.res.id is @id
-                    if msg.res.seq of @request-queue
-                        @request-queue[msg.res.seq].go msg
-                        delete @request-queue[msg.res.seq]
-                        return
-                return unless @proxy
-
-            if \update of msg
-                @trigger \update, msg
-            if \payload of msg
-                @trigger \data, msg
-            # deliver every message to receive-handlers
-            @trigger \receive, msg
-        catch
-            @log.err "problem in handler: ", e
+        if \res of msg
+            if msg.res.id is @id
+                if msg.res.seq of @request-queue
+                    @request-queue[msg.res.seq].go msg
+                    delete @request-queue[msg.res.seq]
+                    return
+            return unless @proxy
+        if \update of msg
+            @trigger \update, msg
+        if \payload of msg
+            @trigger \data, msg
+        # deliver every message to receive-handlers
+        @trigger \receive, msg
 
     on-topic: (topic, handler) ->
         return unless topic
@@ -146,7 +142,7 @@ export class Actor extends EventEmitter
             @log.err "send-enveloped: Message has no topic. Not sending."
             debugger
             return
-        @log.log "sending message: ", msg if @debug
+        if @debug => @log.log "sending message: ", msg
         @mgr.distribute msg
 
     kill: (...reason) ->

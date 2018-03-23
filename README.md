@@ -1,6 +1,14 @@
 # aktos-dcs-node
 
+### Description 
+
 Node.js port of [`aktos-dcs`](https://github.com/aktos-io/aktos-dcs) library (v2).
+
+### Install 
+
+1. `git init yourproject && cd yourproject`
+2. `git submodule add https://github.com/aktos-io/aktos-dcs-node dcs`
+3. `./dcs/update.sh --all`
 
 # Additional Features 
 

@@ -38,36 +38,32 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
-            ..once \connected, ~>
-                @db
-                    ..follow (change) ~>
-                        @log.log "** publishing change on database:", change.id
-                        for let topic in @subscriptions
-                            @send "#{topic}.changes.all", change
+            ..follow (change) ~>
+                @log.log (bg-green "<<<<<<>>>>>>"), "publishing change on #{@name}:", change.id
+                for let topic in @subscriptions
+                    @send "#{topic}.changes.all", change
 
-                    '''
-                    ..all-docs {startkey: "_design/", endkey: "_design0", +include_docs}, (err, res) ~>
-                        # follow every single view separately
-                        for res
-                            name = ..id.split '/' .1
-                            continue if name is \autoincrement
-                            #@log.log "all design documents: ", ..doc
-                            for let view-name of eval ..doc.javascript .views
-                                view = "#{name}/#{view-name}"
-                                @log.log "following view: #{view}"
-                                @db.follow {view}, (change) ~>
-                                    @log.log "..publishing view change on #{view}", change.id
-                                    for let topic in @subscriptions
-                                        @send "#{topic}.changes.view.#{view}", change
-                    '''
+            ..get-all-views (err, res) ~>
+                for let view in res
+                    @log.log (bg-green "<<<_view_>>>"), "following view: #{view}"
+                    @db.follow {view, +include_rows}, (change) ~>
+                        for let subs in @subscriptions
+                            topic = "#{subs}.changes.view.#{view}"
+                            @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
+                            @send topic, change
 
-        get-next-id = (doc, callback) ~>
-            unless doc._id
-                return callback err={reason: "document must have and _id field"}, null
-
+        get-next-id = (template, callback) ~>
+            # returns the next available `_id`
+            # if template format is applicable for autoincrementing, return the incremented id
+            # if template format is not correct, return the `_id` as is
+            unless template
+                return callback err={
+                    reason: "No template is supplied for autoincrement"
+                    }, null
             # handle autoincrement values here.
-            autoinc = doc._id.split /#+/
+            autoinc = template.split /#{4,}/
             if autoinc.length > 1
+                @log.log "Getting next id for #{template}"
                 prefix = autoinc.0
                 @log.log "prefix is: ", prefix
                 view-prefix = prefix.split /[^a-zA-Z]+/ .0.to-upper-case!
@@ -84,11 +80,11 @@ export class CouchDcsServer extends Actor
                     res.0.key .1 + 1
                 catch
                     1
-                doc._id = "#{prefix}#{next-id}"
-                @log.log bg-blue "+++ new doc id: ", doc._id
-                return callback err=no, doc
+                new-doc-id = "#{prefix}#{next-id}"
+                @log.log bg-blue "+++ new doc id: ", new-doc-id
+                return callback err=no, new-doc-id
             else
-                return callback err=no, doc
+                return callback err=no, template
 
         transaction-count = (callback) ~>
             transaction-timeout = 10_000ms
@@ -142,8 +138,8 @@ export class CouchDcsServer extends Actor
                 doc = msg.payload.put
 
                 # Check if transaction document format is correct
-                unless doc.from and doc.to
-                    return @send-and-echo msg, {err: "Missing source or destination", res: res or null}
+                unless (doc.from and doc.to) or doc.transactions
+                    return @send-and-echo msg, {err: "Missing source or destination", res: null}
                 @log.log "transaction doc is: ", doc
 
                 # Check if there is any ongoing transaction (step 1)
@@ -180,7 +176,7 @@ export class CouchDcsServer extends Actor
                             @send-and-echo msg, {err, res: null}
                             doc.state = \failed
                             err, res <~ @db.put doc
-                            if err => @log.warn "Failed to actively rollback. This will cause performance impacts."
+                            if err => @log.warn "Failed to actively rollback. This will cause performance impacts only."
                             @log.log bg-yellow "Transaction ROLLED BACK."
                             return
                         else
@@ -201,32 +197,29 @@ export class CouchDcsServer extends Actor
 
             else if \put of msg.payload
                 docs = flatten [msg.payload.put]
-
                 if empty docs
-                    return @send-and-echo msg, {err: "Empty document", res: null}
+                    return @send-and-echo msg, {err: message: "Empty document", res: null}
 
-
-                # add server side properties
+                # Apply server side attributes
                 # ---------------------------
-                i = 0; _limit = docs.length - 1
+                # FIXME: "Set unless null" strategy can be hacked in the client
+                # (client may set it to any value) but the original value is kept
+                # in the first revision . Fetch the first version on request.
+                i = 0;
                 <~ :lo(op) ~>
-                    err, doc <~ get-next-id docs[i]
-                    if err
-                        return @send-and-echo msg, {err: err, res: null}
+                    return op! if i > (docs.length - 1)
+                    err, next-id <~ get-next-id docs[i]._id
+                    unless err
+                        docs[i]._id = next-id
 
-                    # FIXME: "Set unless null" strategy can be hacked in the client
-                    # (client may set it to any value) but the original value is kept
-                    # in the first revision . Fetch the first version on request.
-                    unless doc.timestamp
-                        doc.timestamp = Date.now!
-
-                    unless doc.owner
-                        doc.owner = if msg.ctx => that.user else \_process
-
-                    docs[i] = doc
-                    return op! if ++i > _limit
+                    unless docs[i].timestamp
+                        docs[i].timestamp = Date.now!
+                    unless docs[i].owner
+                        docs[i].owner = if msg.ctx => that.user else \_process
+                    i++
                     lo(op)
 
+                # Write to database
                 if docs.length is 1
                     err, res <~ @db.put docs.0
                     @send-and-echo msg, {err: err, res: res or null}
@@ -236,7 +229,7 @@ export class CouchDcsServer extends Actor
                     if typeof! res is \Array and not err
                         for res
                             if ..error
-                                err = {error: 'couchdb error'}
+                                err = {error: message: 'Errors occurred, see the response'}
                                 break
 
                     @send-and-echo msg, {err: err, res: res or null}
@@ -294,17 +287,26 @@ export class CouchDcsServer extends Actor
                         return op!
                     @log.log "Docs are requested: #{opts.keys.join ', '}"
                     err, res <~ @db.all-docs opts
+                    _errors = []
                     unless err
                         if res and not empty res
-                            response.push [..doc for res]
+                            for res
+                                if ..doc
+                                    response.push ..doc
+                                if ..error
+                                    _errors.push ..
                     else
                         error := err
+
+                    if not error and not empty _errors
+                        error := _errors
                     return op!
 
                 response := flatten response
                 unless multiple
-                    response := response.0
-                @send-and-echo msg, {error, res: response}
+                    response := response?.0
+                    error := error?.0
+                @send-and-echo msg, {err: error, res: response}
 
 
             # `all-docs` message

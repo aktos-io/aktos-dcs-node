@@ -35,11 +35,8 @@ export class CouchDcsClient extends Actor
         err, msg <~ @send-request "#{@topic}.get", {get: doc-id, opts: opts}
         res = msg?.payload.res
         err = err or msg?.payload.err
-
-        unless err
-            if opts.recurse and opts.merge
-                console.error "THIS IMPLEMENTATION IS REMOVED"
-
+        if err
+            err.message = "#{err.key}: #{err.error}" 
         callback err, res
 
     all-docs: (opts, callback) ->

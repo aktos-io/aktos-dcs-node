@@ -5,6 +5,9 @@ require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
 require! 'cloudant-follow': follow
 require! '../../src/signal': {Signal}
 
+UNAUTHORIZED = 401
+FORBIDDEN = 403
+
 export class CouchNano extends EventEmitter
     """
     Events:
@@ -30,13 +33,16 @@ export class CouchNano extends EventEmitter
             @connected = yes
             @retry-timeout = 100ms
             @first-connection-made = yes
+            #console.log "couch-nano says: connected"
 
         @on \disconnected, ~>
             @connected = no
+            #console.log "couch-nano says: disconnected!"
 
         @retry-timeout = 100ms
         @max-delay = 12_000ms
 
+        @security-required = no
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -47,9 +53,10 @@ export class CouchNano extends EventEmitter
 
         #console.log "request opts : ", opts
         err, res, headers <~ @db.request opts
-        if err?.statusCode is 401
+        if (err?.statusCode in [UNAUTHORIZED, FORBIDDEN]) or err?code is 'ECONNREFUSED'
             if @first-connection-made
                 @trigger \disconnected, {err}
+            @log.log "Retrying connection because:", (err.reason or err.description)
             sleep @retry-timeout, ~>
                 @log.log "Retrying connection..."
                 @_connect (err) ~>
@@ -62,21 +69,38 @@ export class CouchNano extends EventEmitter
                     # retry the last request (irrespective of err)
                     @request opts, callback
             return
-
+        else if err
+            err =
+                reason: err.reason
+                name: err.name
+                message: err.reason or err.error
+                orig: err
         if headers?
             if headers['set-cookie']
                 @cookie = that
                 @trigger \refresh-cookie
-
-        err = {reason: err.reason, name: err.name, message: err.reason} if err
         callback err, res, headers
 
     connect: (callback) ->
         if typeof! callback isnt \Function then callback = (->)
-        err, res <~ @get ''
+        err, res <~ @get null
+        if err
+            console.error "Connection has error:", err
+        else
+            unless @security-required
+                @log.log bg-red "You MUST create the '_security' document in your db."
+                throw "Insecure DB!"
+
+            @trigger \connected
+            console.log "-----------------------------------------"
+            console.log "Connection to #{res.db_name} is successful, disk_size
+                : #{parse-int res.disk_size / 1024}K"
+            console.log "-----------------------------------------"
+
         callback err, res
 
     _connect: (callback) ->
+        @security-required = yes
         if typeof! callback isnt \Function then callback = (->)
         @log.log "Authenticating as #{@username}"
         @cookie = null
@@ -88,7 +112,6 @@ export class CouchNano extends EventEmitter
             if headers['set-cookie']
                 # connection is successful
                 @cookie = that
-                @trigger \connected
         callback err
 
     invalidate: ->
@@ -112,7 +135,7 @@ export class CouchNano extends EventEmitter
             db: @db-name
             path: '_bulk_docs'
             body: {docs}
-            method: \POST
+            method: \post
             qs: opts
             , callback
 
@@ -233,8 +256,10 @@ export class CouchNano extends EventEmitter
             callback = opts
             opts = {}
 
-        @connection.go! if @connected
-        <~ @connection.wait
+        <~ :lo(op) ~>
+            return op! if @connected
+            <~ sleep 2000ms
+            lo(op)
 
         default-opts =
             db: "#{@cfg.url}/#{@db-name}"
@@ -245,18 +270,15 @@ export class CouchNano extends EventEmitter
             since: 'now'
 
         options = default-opts `merge` opts
-
         feed = new follow.Feed options
-
-
         # "include_rows" workaround
         <~ :lo(op) ~>
             if options.view and options.include_rows
-                @log.log "including row"
+                #@log.log "including row"
                 feed.include_docs = yes
                 [ddoc-name, view-name] = options.view.split '/'
                 err, res <~ @get "_design/#{ddoc-name}"
-                console.log res.javascript
+                #console.log res.javascript
                 options.view-function = (doc) ->
                     emit = (key, value) ->
                         {id: doc._id, key, value}
@@ -266,6 +288,7 @@ export class CouchNano extends EventEmitter
             else
                 return op!
 
+        @log.log "___feeding #{options.view or '/'}"
         feed
             ..on \change, (changes) ~>
                 if options.view-function
@@ -277,3 +300,15 @@ export class CouchNano extends EventEmitter
                 @log.log "error is: ", error
 
             ..follow!
+
+    get-all-views: (callback) ->
+        views = []
+        err, res <~ @all-docs {startkey: "_design/", endkey: "_design0", +include_docs}
+        unless err
+            for res
+                name = ..id.split '/' .1
+                continue if name is \autoincrement
+                #@log.log "all design documents: ", ..doc
+                for let view-name of eval ..doc.javascript .views
+                    views.push "#{name}/#{view-name}"
+        callback err, views
