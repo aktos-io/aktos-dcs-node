@@ -30,13 +30,19 @@ export class CouchNano extends EventEmitter
             @connected = yes
             @retry-timeout = 100ms
             @first-connection-made = yes
+            #console.log "couch-nano says: connected"
 
         @on \disconnected, ~>
             @connected = no
+            #console.log "couch-nano says: disconnected!"
 
         @retry-timeout = 100ms
         @max-delay = 12_000ms
 
+        @danger = sleep 1000ms, ~>
+            @log.log bg-red "You MUST set require_valid_user = true in [chttpd] section."
+            @trigger \connected
+            #throw "...seems not..."
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -86,16 +92,24 @@ export class CouchNano extends EventEmitter
             console.log "Connection to #{res.db_name} is successful,
                 disk_size: #{parse-int res.disk_size / 1024}K"
             console.log "-----------------------------------------"
+
         callback err, res
 
     _connect: (callback) ->
+        try clear-timeout @danger
         if typeof! callback isnt \Function then callback = (->)
         @log.log "Authenticating as #{@username}"
         @cookie = null
         err, body, headers <~ @db.auth @username, @password
         if err
-            @log.log "Connecting DB with username & password has error: ", err
-            @trigger \error, err
+            @log.log "Connecting DB with username & password has error: ", err.reason
+            console.log err
+            if err.error is \unauthorized
+                # this should never happen
+                @log.log bg-red "Are you sure you've enabled the cookie authentication?"
+                #return
+            else
+                @trigger \error, err
 
         if headers
             if headers['set-cookie']
@@ -246,9 +260,10 @@ export class CouchNano extends EventEmitter
             callback = opts
             opts = {}
 
-        connection = new Signal!
-        connection.go! if @connected
-        <~ connection.wait
+        <~ :lo(op) ~>
+            return op! if @connected
+            <~ sleep 2000ms
+            lo(op)
 
         default-opts =
             db: "#{@cfg.url}/#{@db-name}"
@@ -259,10 +274,7 @@ export class CouchNano extends EventEmitter
             since: 'now'
 
         options = default-opts `merge` opts
-
         feed = new follow.Feed options
-
-
         # "include_rows" workaround
         <~ :lo(op) ~>
             if options.view and options.include_rows
@@ -280,6 +292,7 @@ export class CouchNano extends EventEmitter
             else
                 return op!
 
+        @log.log "___feeding #{options.view}"
         feed
             ..on \change, (changes) ~>
                 if options.view-function
