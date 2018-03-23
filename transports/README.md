@@ -3,8 +3,8 @@
 A `Transport` is responsible to transport the telegram to another connector's
 transport (or to a physical device) and may be one of the followings:
 
-- [ ] TCP: A TCP transport which will handle re-connection
-- [ ] UDP: A UDP transport which will handle heartbeat, app level ACK, etc.
+- [x] TCP: A TCP transport layer which handles re-connection
+- [ ] UDP: A UDP transport layer which will handle heartbeat, app level ACK, etc.
 - [ ] Websocket
 - [ ] Socket.io
 - [x] Serial Port (RS-232, RS-485, etc...)
