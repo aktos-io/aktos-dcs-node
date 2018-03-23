@@ -5,6 +5,9 @@ require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
 require! 'cloudant-follow': follow
 require! '../../src/signal': {Signal}
 
+UNAUTHORIZED = 401
+FORBIDDEN = 403
+
 export class CouchNano extends EventEmitter
     """
     Events:
@@ -39,10 +42,7 @@ export class CouchNano extends EventEmitter
         @retry-timeout = 100ms
         @max-delay = 12_000ms
 
-        @danger = sleep 1000ms, ~>
-            @log.log bg-red "You MUST set require_valid_user = true in [chttpd] section."
-            @trigger \connected
-            #throw "...seems not..."
+        @security-required = no
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -53,9 +53,10 @@ export class CouchNano extends EventEmitter
 
         #console.log "request opts : ", opts
         err, res, headers <~ @db.request opts
-        if err?.statusCode is 401
+        if (err?.statusCode in [UNAUTHORIZED, FORBIDDEN]) or err?code is 'ECONNREFUSED'
             if @first-connection-made
                 @trigger \disconnected, {err}
+            @log.log "Retrying connection because:", (err.reason or err.description)
             sleep @retry-timeout, ~>
                 @log.log "Retrying connection..."
                 @_connect (err) ~>
@@ -68,18 +69,16 @@ export class CouchNano extends EventEmitter
                     # retry the last request (irrespective of err)
                     @request opts, callback
             return
-
-        if headers?
-            if headers['set-cookie']
-                @cookie = that
-                @trigger \refresh-cookie
-
-        if err
+        else if err
             err =
                 reason: err.reason
                 name: err.name
                 message: err.reason or err.error
-
+                orig: err
+        if headers?
+            if headers['set-cookie']
+                @cookie = that
+                @trigger \refresh-cookie
         callback err, res, headers
 
     connect: (callback) ->
@@ -88,34 +87,31 @@ export class CouchNano extends EventEmitter
         if err
             console.error "Connection has error:", err
         else
+            unless @security-required
+                @log.log bg-red "You MUST create the '_security' document in your db."
+                throw "Insecure DB!"
+
+            @trigger \connected
             console.log "-----------------------------------------"
-            console.log "Connection to #{res.db_name} is successful,
-                disk_size: #{parse-int res.disk_size / 1024}K"
+            console.log "Connection to #{res.db_name} is successful, disk_size
+                : #{parse-int res.disk_size / 1024}K"
             console.log "-----------------------------------------"
 
         callback err, res
 
     _connect: (callback) ->
-        try clear-timeout @danger
+        @security-required = yes
         if typeof! callback isnt \Function then callback = (->)
         @log.log "Authenticating as #{@username}"
         @cookie = null
         err, body, headers <~ @db.auth @username, @password
         if err
-            @log.log "Connecting DB with username & password has error: ", err.reason
-            console.log err
-            if err.error is \unauthorized
-                # this should never happen
-                @log.log bg-red "Are you sure you've enabled the cookie authentication?"
-                #return
-            else
-                @trigger \error, err
+            @trigger \error, err
 
         if headers
             if headers['set-cookie']
                 # connection is successful
                 @cookie = that
-                @trigger \connected
         callback err
 
     invalidate: ->
@@ -292,7 +288,7 @@ export class CouchNano extends EventEmitter
             else
                 return op!
 
-        @log.log "___feeding #{options.view}"
+        @log.log "___feeding #{options.view or '/'}"
         feed
             ..on \change, (changes) ~>
                 if options.view-function
