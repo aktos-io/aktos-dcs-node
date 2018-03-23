@@ -16,6 +16,8 @@ Following request MUST FAIL:
     {"error":"unauthorized","reason":"Authentication required."}
 
 
+**If above request DOES NOT FAIL,** then you MUST put your database behind a proxy server.
+
 # Creating Users:
 
 With CouchDB >= 1.2.0:
