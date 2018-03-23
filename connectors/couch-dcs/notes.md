@@ -1,13 +1,6 @@
 # DB Installation
 
-### Settings
-
-In order to prevent unauthorized access to any database:
-
-    [chttpd]
-    require_valid_user = true
-
-# Creating Users:
+## Creating Users:
 
 With CouchDB >= 1.2.0:
 
@@ -23,9 +16,9 @@ Add a document to `_users` database:
 }
 ```
 
-# Database Security Settings:
+## Database Security Settings:
 
-Create `_security` document in `yourdb` in order to enable authenticated access:
+Create the `_security` document in `yourdb` in order to prevent unauthorized access:
 
 ```json
   {
@@ -54,11 +47,11 @@ Create `_security` document in `yourdb` in order to enable authenticated access:
 
 Following request MUST FAIL:
 
-    curl http://localhost:5984/yourdb/_session
+    curl http://localhost:5984/yourdb/
     {"error":"unauthorized","reason":"Authentication required."}
 
 
-**If above request DOES NOT FAIL,** then you MUST put your database behind a proxy server.
+**If above request DOES NOT FAIL,** then it means `yourdb` is **public** so anyone can read your DB. You MUST consider putting your CouchDB behind a proxy server.
 
 ## Replication:
 
