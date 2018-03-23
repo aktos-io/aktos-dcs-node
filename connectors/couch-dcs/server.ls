@@ -61,7 +61,7 @@ export class CouchDcsServer extends Actor
                     reason: "No template is supplied for autoincrement"
                     }, null
             # handle autoincrement values here.
-            autoinc = template.split /#+/
+            autoinc = template.split /#{4,}/
             if autoinc.length > 1
                 @log.log "Getting next id for #{template}"
                 prefix = autoinc.0
