@@ -60,10 +60,9 @@ export class ProxyClient extends Actor
                         "}
                     return
 
-                @transport.write
-                    <| msg
+                err <~ @transport.write (msg
                     |> @auth.add-token
-                    |> pack
+                    |> pack)
 
                 console.log "transport write callback called"
 
