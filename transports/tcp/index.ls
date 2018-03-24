@@ -25,7 +25,7 @@ export class TcpTransport extends EventEmitter
             ..on \connect, ~>
                 NetKeepAlive.setKeepAliveInterval @socket, 1000ms
                 NetKeepAlive.setKeepAliveProbes @socket, 1
-                @log.log "Connected. Try to unplug the connection"
+                #@log.log "Connected. Try to unplug the connection"
                 @connected = yes  # should be BEFORE "connect" trigger
                 @trigger \connect
 
@@ -57,9 +57,12 @@ export class TcpTransport extends EventEmitter
         else
             callback do
                 message: 'not connected'
-                data: data
+
+                /* disabling, because this will likely cause memory leak
+                 * for long disconnections
                 resolved: (callback) ~>
                     @once \connect, callback
+                */
 
 if require.main is module
     # open a server in another terminal:
@@ -83,9 +86,10 @@ if require.main is module
         err <~ transport.write "#{payload}\n"
         if err
             logger.err "something went wrong while writing"
-            logger.err "waiting for resolution..."
-            <~ err.resolved
-            logger.log "error is resolved, continuing"
+            #logger.err "waiting for resolution..."
+            #<~ err.resolved
+            #logger.log "error is resolved, continuing"
+            <~ sleep 1000ms
             lo(op)
         else
             return op! if ++i > 10
