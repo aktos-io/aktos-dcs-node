@@ -63,8 +63,12 @@ export class ProxyClient extends Actor
                 err <~ @transport.write (msg
                     |> @auth.add-token
                     |> pack)
-
-                console.log "transport write callback called"
+                /* Success status is not used for now
+                if err
+                    console.err "could not sent the data..."
+                else
+                    console.log "written to transport successfully..."
+                */
 
         # ----------------------------------------------
         #            network interface events
