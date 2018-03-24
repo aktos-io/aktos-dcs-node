@@ -1,12 +1,11 @@
 # Core
+# ---------
 require! './src/actor': {Actor}
 require! './src/filters': {FpsExec}
 require! './src/signal': {Signal}
 
 # Connectors
-# TCP
-require! './connectors/tcp/client': {TCPProxyClient}
-require! './connectors/tcp/server': {TCPProxyServer}
+# ----------
 # CouchDCS
 require! './connectors/couch-dcs/client': {CouchDcsClient}
 require! './connectors/couch-dcs/server': {CouchDcsServer}
@@ -14,14 +13,17 @@ require! './connectors/couch-dcs/server': {CouchDcsServer}
 require! './connectors/tcp-dcs/server': {TcpDcsServer}
 require! './connectors/tcp-dcs/client': {TcpDcsClient}
 
-require! './proxy/auth-db': {AuthDB}
-require! './lib': {EventEmitter, Logger, sleep, merge}
+require! './protocol-actors/proxy/auth-db': {AuthDB}
+require! './lib': {
+    EventEmitter, Logger, sleep, merge
+    pack, unpack, clone, diff
+}
 
 module.exports = {
-    Actor, TCPProxyClient, TCPProxyServer,
+    Actor, FpsExec, Signal
     CouchDcsClient, CouchDcsServer
-    FpsExec, Signal
+    TcpDcsServer, TcpDcsClient
     AuthDB
     EventEmitter, Logger, sleep, merge
-    TcpDcsServer, TcpDcsClient
+    pack, unpack, clone, diff
 }

@@ -1,14 +1,13 @@
 require! '../../lib': {EventEmitter}
 
-export class Wrapper extends EventEmitter
+export class SocketIOTransport extends EventEmitter
     (@orig) ->
         super!
-        @handlers = {}
         @orig.on \aea, (data) ~>
             @trigger \data, data
 
         @orig.on \disconnect, ~>
-            @trigger \end
+            @trigger \disconnect
 
         @orig.on \connect, ~>
             @trigger \connect
