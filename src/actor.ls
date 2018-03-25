@@ -5,6 +5,13 @@ require! 'prelude-ls': {split, flatten, keys, unique}
 require! uuid4
 require! './topic-match': {topic-match}
 
+export class TopicTypeError extends Error
+    (@message, @topic) ->
+        super ...
+        Error.captureStackTrace(this, TopicTypeError)
+        @type = \DiffError
+
+
 
 export class Actor extends EventEmitter
     (name, opts={}) ->
@@ -49,7 +56,7 @@ export class Actor extends EventEmitter
 
     send: (topic, payload) ~>
         if typeof! topic isnt \String
-            throw "Topic is not string? topic: #{topic}"
+            throw new TopicTypeError "Topic is not a string?", topic
 
         if @debug => debugger
         enveloped = @msg-template! <<< do
