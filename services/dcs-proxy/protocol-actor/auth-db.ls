@@ -1,4 +1,4 @@
-require! '../../lib':{sleep}
+require! '../deps':{sleep}
 require! 'prelude-ls': {find}
 
 export class AuthDB

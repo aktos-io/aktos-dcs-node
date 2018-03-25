@@ -1,5 +1,5 @@
 require! 'socket.io': socketio
-require! '../../lib': {Logger}
+require! '../deps': {Logger}
 require! '../../transports/socket-io': {SocketIOTransport}
 require! '../../protocol-actors/proxy/handler': {ProxyHandler}
 

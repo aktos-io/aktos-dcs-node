@@ -1,11 +1,10 @@
 require! './helpers': {MessageBinder}
-require! '../../src/auth-request': {AuthRequest}
+require! '../deps': {
+    AuthRequest, sleep, pack, unpack
+    Signal, Actor, topic-match
+}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue, bg-green}
-require! '../../lib': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at, empty}
-require! '../../src/signal':{Signal}
-require! '../../src/actor': {Actor}
-require! '../../src/topic-match': {topic-match}
 
 """
 Description

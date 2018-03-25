@@ -1,11 +1,11 @@
 require! 'net'
 require! 'colors': {yellow, green, red, blue, bg-green}
-require! '../../protocol-actors/proxy/handler':{ProxyHandler}
-require! '../../lib': {Logger}
-require! '../../transports/tcp/handler-socket': {TcpHandlerTransport}
+require! '../protocol-actor/handler':{ProxyHandler}
+require! '../deps': {Logger}
+require! 'dcs/transports/tcp/handler': {TcpHandlerTransport}
 
 
-export class TcpDcsServer
+export class DcsTcpServer
     (opts={}) ->
         """
         opts:

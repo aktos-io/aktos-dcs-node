@@ -1,7 +1,7 @@
 require! '../../transports/socket-io': {SocketIOTransport}
 require! '../../protocol-actors/proxy/client': {ProxyClient}
 
-export class SocketIOBrowser extends ProxyClient
+export class DcsSocketIOBrowser extends ProxyClient
     (opts) ->
         addr = opts.address
         path = "#{opts.path or '/'}socket.io"

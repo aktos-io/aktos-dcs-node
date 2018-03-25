@@ -1,9 +1,7 @@
 require! './helpers': {MessageBinder}
-require! '../../src/auth-handler': {AuthHandler}
+require! '../deps': {AuthHandler, pack, Actor}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
-require! '../../lib': {pack}
 require! 'prelude-ls': {split, flatten, split-at}
-require! '../../src/actor': {Actor}
 
 
 export class ProxyHandler extends Actor

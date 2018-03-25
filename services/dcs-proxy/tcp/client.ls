@@ -1,7 +1,7 @@
-require! '../../protocol-actors/proxy/client': {ProxyClient}
-require! '../../transports/tcp': {TcpTransport}
+require! '../protocol-actor/client': {ProxyClient}
+require! 'dcs/transports/tcp': {TcpTransport}
 
-export class TcpDcsClient extends ProxyClient
+export class DcsTcpClient extends ProxyClient
     (@opts={}) ->
         transport = new TcpTransport do
             host: @opts.host or \127.0.0.1

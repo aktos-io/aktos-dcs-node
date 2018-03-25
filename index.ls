@@ -7,13 +7,14 @@ require! './src/signal': {Signal}
 # Connectors
 # ----------
 # CouchDCS
-require! './connectors/couch-dcs/client': {CouchDcsClient}
-require! './connectors/couch-dcs/server': {CouchDcsServer}
-# TCP DCS
-require! './connectors/tcp-dcs/server': {TcpDcsServer}
-require! './connectors/tcp-dcs/client': {TcpDcsClient}
+require! './services/couch-dcs/client': {CouchDcsClient}
+require! './services/couch-dcs/server': {CouchDcsServer}
 
-require! './protocol-actors/proxy/auth-db': {AuthDB}
+# Dcs Proxy
+require! './services/dcs-proxy/tcp/client': {DcsTcpClient}
+require! './services/dcs-proxy/tcp/server': {DcsTcpServer}
+require! './services/dcs-proxy/protocol-actor/auth-db': {AuthDB}
+
 require! './lib': {
     EventEmitter, Logger, sleep, merge
     pack, unpack, clone, diff
@@ -21,9 +22,8 @@ require! './lib': {
 
 module.exports = {
     Actor, FpsExec, Signal
-    CouchDcsClient, CouchDcsServer
-    TcpDcsServer, TcpDcsClient
-    AuthDB
+    CouchDcsClient, CouchDcsServer,
+    DcsTcpClient, DcsTcpServer, AuthDB
     EventEmitter, Logger, sleep, merge
     pack, unpack, clone, diff
 }
