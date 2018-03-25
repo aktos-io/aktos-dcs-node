@@ -1,8 +1,7 @@
-require! 'dcs': {Actor}
-require! 'dcs/src/signal': {Signal}
-require! '../lib': {sleep, pack}
+require! 'dcs': {Actor, Signal, sleep, pack}
 require! 'omron-fins': fins
 require! 'prelude-ls': {chars, reverse}
+require! 'colors': {bg-yellow}
 
 
 export class OmronFinsClient extends Actor
@@ -11,9 +10,10 @@ export class OmronFinsClient extends Actor
         throw 'Fins Client need a name to be subscribed' unless @name
 
         super @name
-        @subscribe "io.#{@name}.**"
+        @subscribe "#{@name}.**"
 
         @target = {port: 9600, host: '192.168.250.1'} <<< @opts
+        @log.log bg-yellow "Using #{@target.host}:#{@target.port}"
 
         @client = fins.FinsClient @target.port, @target.host
 
@@ -47,8 +47,8 @@ export class OmronFinsClient extends Actor
             lo(op)
         '''
 
-        curr-input = for i in [to 10] => -1
-        do ~>
+        curr-input = for i in [to 10] => null
+        do
             <~ :lo(op) ~>
                 err, bytes <~ @client.read 'C00000', 1
                 reason, msg <~ @read-signal.wait 5000ms
@@ -61,7 +61,7 @@ export class OmronFinsClient extends Actor
                             prev = curr-input[b]
                             curr-input[b] = inp
                             @log.log "bit #{b} is changed: #{inp}"
-                            @send {read: {bit: b, val: inp, prev: prev}}, "io.#{@name}.read"
+                            @send "#{@name}.read", {read: {bit: b, val: inp, prev: prev}}
                 <~ sleep 500ms
                 lo(op)
 
@@ -78,7 +78,7 @@ export class OmronFinsClient extends Actor
                 #console.log "writing bit #{_bit}, val: #{_val}"
                 curr-output[_bit] = _val
                 <~ sync-output
-                @send {write: {bit: _bit, val: _val}}, "io.#{@name}.write"
+                @send "#{@name}.write", {write: {bit: _bit, val: _val}}
 
             else if \read of msg.payload
                 '''
@@ -96,6 +96,6 @@ export class OmronFinsClient extends Actor
                         throw 'invalid block'
                         -1
 
-                    @send {read: {bit: b, val: val}}, "io.#{@name}.read"
+                    @send "#{@name}.read", {read: {bit: b, val: val}}
                 catch
                     @log.log "error for read: #{pack e}"

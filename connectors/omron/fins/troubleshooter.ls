@@ -1,11 +1,10 @@
-require! 'dcs': {Actor}
-require! '../lib': {sleep, pack}
+require! 'dcs': {Actor, sleep, pack}
 require! './omron-fins-client': {OmronFinsClient}
 
-class Simulator extends Actor
-    ->
-        super ...
-        @subscribe "io.my1.**"
+class DataSourceSimulator extends Actor
+    (@opts)->
+        super @opts.name
+        @subscribe "#{@opts.name}.**"
         @on \data, (msg) ~>
             @log.log "simulator got message: #{pack msg.payload}"
 
@@ -14,12 +13,12 @@ class Simulator extends Actor
         x = no
         do ~>
             <~ :lo(op) ~>
-                @log.log "sending: #{x}"
-                @send {write: {bit: 0, val: x}}, "io.my1.write"
+                @log.log "sending: " , x
+                @send "#{@opts.name}.write", {write: {bit: 0, val: x}}
                 x := not x
                 <~ sleep 2000ms
                 lo(op)
 
 
-new Simulator!
-new OmronFinsClient {name: \my1}
+new DataSourceSimulator {name: \io.my1}
+new OmronFinsClient {name: \io.my1}
