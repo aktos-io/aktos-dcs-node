@@ -1,4 +1,4 @@
-find_scada_root () {
+find_DCS_root () {
     local name=""
     testing_dir=$1
     while :; do
@@ -28,12 +28,12 @@ fi
 base_dir=$(dirname $filename)
 #echo "DEBUG: Base Dir: $base_dir"
 
-SCADA_DIR=$(find_scada_root $base_dir)
+DCS_DIR=$(find_DCS_root $base_dir)
 
-if [[ -d $SCADA_DIR ]]; then
-    #echo "DEBUG: found scada root: $SCADA_DIR"
-    SCADA_MODULES="${SCADA_DIR}/lib"
-    PROJECT_PATH=$(realpath "${SCADA_DIR}/..")
+if [[ -d $DCS_DIR ]]; then
+    #echo "DEBUG: found scada root: $DCS_DIR"
+    DCS_MODULES="${DCS_DIR}/lib"
+    PROJECT_PATH=$(realpath "${DCS_DIR}/..")
 
     echo "DCS project path: ${PROJECT_PATH}"
 
@@ -45,4 +45,4 @@ if [[ -d $SCADA_DIR ]]; then
     done < <(find $PROJECT_PATH -type d -name "node_modules" | grep -v "node_modules\/" )
 fi
 
-export NODE_PATH="${SCADA_MODULES}:${FOUND_MODULES}:${NODE_PATH}"
+export NODE_PATH="${DCS_MODULES}:${FOUND_MODULES}:${NODE_PATH}:${PROJECT_PATH}"
