@@ -6,7 +6,7 @@ transport (or to a physical device) and may be one of the followings:
 - [x] TCP: A TCP transport layer which handles re-connection
 - [ ] UDP: A UDP transport layer which will handle heartbeat, app level ACK, etc.
 - [ ] Websocket
-- [ ] Socket.io
+- [x] Socket.io
 - [x] Serial Port (RS-232, RS-485, etc...)
 - [ ] USB
 - [ ] CanBus (hardware specific)
@@ -37,6 +37,7 @@ transport (or to a physical device) and may be one of the followings:
           <~ err.resolved
           logger.log "error is resolved, continuing"
       ```
+
 # Tests
 
 1. DO: Unplug the physical connection, start the application.

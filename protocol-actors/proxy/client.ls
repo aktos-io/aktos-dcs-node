@@ -1,16 +1,16 @@
 require! './helpers': {MessageBinder}
-require! '../src/auth-request': {AuthRequest}
+require! '../../src/auth-request': {AuthRequest}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue, bg-green}
-require! '../lib': {sleep, pack, unpack}
+require! '../../lib': {sleep, pack, unpack}
 require! 'prelude-ls': {split, flatten, split-at, empty}
-require! '../src/signal':{Signal}
-require! '../src/actor': {Actor}
-require! '../src/topic-match': {topic-match}
+require! '../../src/signal':{Signal}
+require! '../../src/actor': {Actor}
+require! '../../src/topic-match': {topic-match}
 
 """
 Description
 -------------
-This is a Protocol Suit: A Connector without transport
+This is a Protocol Actor: A Connector without transport
 
     * Message format: Transparent,
     * Has Actor,
@@ -60,12 +60,15 @@ export class ProxyClient extends Actor
                         "}
                     return
 
-                @transport.write
-                    <| msg
+                err <~ @transport.write (msg
                     |> @auth.add-token
-                    |> pack
-
-                console.log "transport write callback called"
+                    |> pack)
+                /* Success status is not used for now
+                if err
+                    console.err "could not sent the data..."
+                else
+                    console.log "written to transport successfully..."
+                */
 
         # ----------------------------------------------
         #            network interface events
@@ -98,6 +101,15 @@ export class ProxyClient extends Actor
         if typeof! credentials is \Function
             callback = credentials
             credentials = null
+        else if not callback
+            # default callback
+            callback = (err, res) ~>
+                if err
+                    @log.err bg-red "Something went wrong while login: ", pack(err)
+                else if res.auth?error
+                    @log.err bg-red "Wrong credentials?"
+                else
+                    @log.log bg-green "Logged in into the DCS network."
 
         @off \_login
         @on \_login, (opts) ~>

@@ -1,38 +1,18 @@
-require! 'colors': {yellow, green, red, blue, bg-green, bg-red}
-require! '../../lib': {sleep, pack, hex, ip-to-hex, Logger, EventEmitter}
-require! 'prelude-ls': {drop, reverse}
-require! '../../proxy/client': {ProxyClient}
+require! '../../protocol-actors/proxy/client': {ProxyClient}
 require! '../../transports/tcp': {TcpTransport}
 
-export class TcpDcsClient extends EventEmitter
+export class TcpDcsClient extends ProxyClient
     (@opts={}) ->
-        super!
-        @log = new Logger \TcpDcsClient
-        @log.log "Starting..."
-        @transport = new TcpTransport do
-            host: @opts.host
-            port: @opts.port
+        transport = new TcpTransport do
+            host: @opts.host or \127.0.0.1
+            port: @opts.port or 5523
 
-        # refire transport events
-        @transport
-            ..on \disconnect, ~> @trigger \disconnect, ...arguments
-            ..on \connect, ~> @trigger \connect, ...arguments
+        super transport, do
+            name: \TcpDcsClient
+            forget-password: no
 
-        @proxy = new ProxyClient @transport, do
-            name: (@opts.name or 'client') + '-connector'
-            creator: this
+        @on \connected, ~>
+            @log.log "Info: Connected to server..."
 
-        @proxy.on \logged-in, ~>
-            @trigger \logged-in, ...arguments
-
-    login: (credentials, callback) ->
-        unless callback
-            callback = (err, res) ~>
-                if err
-                    @log.err bg-red "Something went wrong while login: ", pack(err)
-                else if res.auth?error
-                    @log.err bg-red "Wrong credentials?"
-                else
-                    @log.log bg-green "Logged in into the DCS network."
-
-        @proxy.login credentials, callback
+        @on \disconnect, ~>
+            @log.log "Info: Disconnected."

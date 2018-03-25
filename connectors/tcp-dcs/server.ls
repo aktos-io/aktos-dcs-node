@@ -1,37 +1,39 @@
 require! 'net'
-require! '../../src/actor': {Actor}
 require! 'colors': {yellow, green, red, blue, bg-green}
-require! '../../lib': {sleep, hex, ip-to-hex}
-require! 'prelude-ls': {drop, reverse}
-require! '../../proxy/authority':{ProxyAuthority}
+require! '../../protocol-actors/proxy/handler':{ProxyHandler}
+require! '../../lib': {Logger}
+require! '../../transports/tcp/handler-socket': {TcpHandlerTransport}
 
 
-export class TcpDcsServer extends Actor
+export class TcpDcsServer
     (opts={}) ->
         """
         opts:
             db: auth-db object
             port: dcs port
         """
-        super \TCPProxyServer
-        @server = null
-        @port = if opts.port => that else 5523
+        @port = opts.port or 5523
+        @log = new Logger \TcpDcsServer
 
-        @server = net.create-server (socket) ~>
-            name = "H#{ip-to-hex (drop 7, socket.remoteAddress)}:#{hex socket.remotePort}"
+        count = 0
+        seq = 0
+        server = net.create-server (socket) ~>
+            transport = new TcpHandlerTransport socket
+            count++
 
-            proxy = new ProxyAuthority socket, do
-                name: name
-                creator: this
+            handler = new ProxyHandler transport, do
+                name: "handler-#{seq++} (\##{count})"
                 db: opts.db
 
-            proxy.on \kill, (reason) ~>
-                @log.log "Creator says proxy actor (authority) (#{proxy.id}) just died!"
+            handler.on \kill, (reason) ->
+                @log.log "ProxyHandler is just died!"
+                count--
 
-        @server.on \error, (e) ~>
-            if e.code is 'EADDRINUSE'
-                @log.warn "Address in use, giving up."
-                @server.close!
+        server
+            ..on \error, (e) ~>
+                if e.code is 'EADDRINUSE'
+                    @log.warn "Address in use, giving up."
+                    server.close!
 
-        @server.listen @port, ~>
-            @log.log "TCP DCS Server started on port #{bg-green @port}."
+            ..listen @port, ~>
+                @log.log "TCP DCS Server started on port #{bg-green @port}."
