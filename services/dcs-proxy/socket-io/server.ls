@@ -14,16 +14,17 @@ export class DcsSocketIOServer
         io.on 'connection', (socket) ~>
             transport = new SocketIOTransport socket
 
-            # track online users
-            @log.log "Total online users: #{count++}"
-
             # launch a new handler
             handler = new ProxyHandler transport, do
-                name: "socketio-#{seq++}"
+                name: "s.io-#{seq++}"
                 db: opts.db
 
-            handler.on \kill, (reason) ->
-                @log.log "ProxyHandler is just died!"
-                @log.log "Total online users: #{count--}"
+            handler.on \kill, (reason) ~>
+                count--
+                @log.log "Total online users: #{count}"
+
+            # track online users
+            count++
+            @log.log "Total online users: #{count}"
 
         @log.log "SocketIO server is started..."
