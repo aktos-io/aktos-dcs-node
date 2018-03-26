@@ -40,9 +40,11 @@ export class ProxyHandler extends Actor
                 @log.info "Handler subscriptions: ", @subscriptions.join(', ')
 
             ..on \logout, ~>
-                ...
-                # this is an unreachable code, since "logout" can only be
-                # handled by creator of this actor
+                # logout is specific to browser like environments, where user
+                # might want to log out and log in with a different user.
+
+                # IMPORTANT: SECURITY: Clear subscriptions
+                @subscriptions = []
 
         # DCS interface
         @on do

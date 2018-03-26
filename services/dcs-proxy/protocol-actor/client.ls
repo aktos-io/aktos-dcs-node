@@ -25,8 +25,15 @@ export class ProxyClient extends Actor
         # actor behaviours
         @role = \client
         @connected = no
-        @proxy = yes
         @permissions-rw = []
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        @this-actor-is-a-proxy = yes # THIS IS VERY IMPORTANT
+        # responses to the requests will be silently dropped otherwise
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
 
         # Authentication protocol
         @auth = new AuthRequest!
