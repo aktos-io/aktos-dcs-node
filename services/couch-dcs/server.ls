@@ -34,7 +34,7 @@ export class CouchDcsServer extends Actor
                     @log.log (bg-red "Problem while connecting database: "), err
 
                 disconnected: (err) ~>
-                    @log.log (bg-red "Disconnected..."), err
+                    @log.info "Disconnected from db."
 
             ..connect!
 
