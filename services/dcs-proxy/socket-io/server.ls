@@ -1,10 +1,10 @@
 require! 'socket.io': socketio
 require! '../deps': {Logger}
-require! '../../transports/socket-io': {SocketIOTransport}
-require! '../../protocol-actors/proxy/handler': {ProxyHandler}
+require! 'dcs/transports/socket-io': {SocketIOTransport}
+require! '../protocol-actor/handler': {ProxyHandler}
 
 
-export class SocketIOServer
+export class DcsSocketIOServer
     (@http, opts={}) ->
         io = socketio @http
         @log = new Logger \SocketIOServer

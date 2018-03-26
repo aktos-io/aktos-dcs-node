@@ -2,7 +2,7 @@ require! 'net'
 require! 'colors': {yellow, green, red, blue, bg-green}
 require! '../protocol-actor/handler':{ProxyHandler}
 require! '../deps': {Logger}
-require! 'dcs/transports/tcp/handler': {TcpHandlerTransport}
+require! 'dcs/transports/tcp': {TcpHandlerTransport}
 
 
 export class DcsTcpServer
@@ -22,7 +22,7 @@ export class DcsTcpServer
             count++
 
             handler = new ProxyHandler transport, do
-                name: "handler-#{seq++} (\##{count})"
+                name: "tcp-#{seq++} (\##{count})"
                 db: opts.db
 
             handler.on \kill, (reason) ->

@@ -1,5 +1,5 @@
-require! '../../transports/socket-io': {SocketIOTransport}
-require! '../../protocol-actors/proxy/client': {ProxyClient}
+require! 'dcs/transports/socket-io': {SocketIOTransport}
+require! '../protocol-actor/client': {ProxyClient}
 
 export class DcsSocketIOBrowser extends ProxyClient
     (opts) ->

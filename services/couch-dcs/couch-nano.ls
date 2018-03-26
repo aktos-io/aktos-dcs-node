@@ -42,7 +42,7 @@ export class CouchNano extends EventEmitter
         @retry-timeout = 100ms
         @max-delay = 12_000ms
 
-        @security-required = no
+        @security-is-okay = no
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -87,7 +87,7 @@ export class CouchNano extends EventEmitter
         if err
             console.error "Connection has error:", err
         else
-            unless @security-required
+            unless @security-is-okay
                 @log.log bg-red "You MUST create the '_security' document in your db."
                 throw "Insecure DB!"
 
@@ -100,7 +100,8 @@ export class CouchNano extends EventEmitter
         callback err, res
 
     _connect: (callback) ->
-        @security-required = yes
+        @security-is-okay = yes
+
         if typeof! callback isnt \Function then callback = (->)
         @log.log "Authenticating as #{@username}"
         @cookie = null

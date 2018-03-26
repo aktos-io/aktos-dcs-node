@@ -5,6 +5,20 @@ require! '../../lib': {sleep, Logger, EventEmitter}
 require! 'net-keepalive': NetKeepAlive
 
 
+export class TcpHandlerTransport extends EventEmitter
+    (@orig) ->
+        super!
+        @orig
+            ..on \end, ~>
+                @trigger \disconnect
+
+            ..on \data, (data) ~>
+                @trigger \data, data
+
+    write: (data) ->
+        @orig.write data
+
+
 export class TcpTransport extends EventEmitter
     (opts={}) ->
         super!
@@ -18,6 +32,7 @@ export class TcpTransport extends EventEmitter
         @socket = new net.Socket!
         Reconnect.apply @socket, @opts
         @connected = no
+
         @socket
             ..setKeepAlive yes, 1000ms
             ..setTimeout 1000ms
@@ -36,7 +51,6 @@ export class TcpTransport extends EventEmitter
                     @trigger \disconnect
 
             ..on \data, (data) ~>
-                #@log.log "Received: ", data
                 @trigger \data, data
 
         unless opts.manual-start
@@ -52,7 +66,6 @@ export class TcpTransport extends EventEmitter
 
         if @connected
             @socket.write data, ~>
-                console.log ""
                 callback err=null
         else
             callback do

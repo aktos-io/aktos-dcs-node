@@ -36,8 +36,7 @@ export class AuthHandler extends EventEmitter
     @i = 0
     (db, name) ->
         super!
-        name = "AuthHandler.#{@@i++}" unless name
-        @log = new Logger name
+        @log = new Logger (name or "AuthHandler.#{@@i++}")
         @session-cache = new SessionCache!
 
         unless db

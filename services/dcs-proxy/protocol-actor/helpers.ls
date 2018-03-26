@@ -1,9 +1,12 @@
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
-require! '../deps': {sleep, pack, unpack, Logger}
+require! '../deps': {pack, unpack, Logger}
 require! 'prelude-ls': {split, flatten, split-at}
 
 
-export function unpack-telegrams data
+function unpack-telegrams data
+    """
+    Search for valid JSON parts recursively
+    """
     if typeof! data isnt \String
         return []
 
@@ -31,7 +34,7 @@ export class MessageBinder
         const @timeout = 400ms
         @max-try = 1200_chunks
 
-    get-messages: (data) ->
+    append: (data) ->
         if typeof! data is \Uint8Array
             data = data.to-string!
         #@log.log "got message from network interface: ", data, (typeof! data)
@@ -58,3 +61,4 @@ export class MessageBinder
         catch
             #@log.err bg-red "Problem while unpacking data, trying to cache.", e
             []
+        return res
