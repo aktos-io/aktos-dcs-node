@@ -19,7 +19,7 @@ prompt_yes_no () {
 }
 
 DIR=$(dirname "$(readlink -f "$0")")
-PREFERENCES="module-preferences.txt"
+PREFERENCES="modules.txt"
 
 if [ ! -f "$DIR/$PREFERENCES" ]; then
     echo
@@ -45,7 +45,7 @@ if [ ! -f "$DIR/$PREFERENCES" ]; then
     done < <(find . -name "node_modules" -prune -a ! -name "node_modules" -o -name "package.json" | tac )
 
     echo
-    echo "Saving Preferences to ./module-preferences.txt"
+    echo "Saving Preferences to ./$PREFERENCES"
     echo "----------------------------------------------"
     echo -e $modules > "$DIR/$PREFERENCES"
 else
