@@ -7,7 +7,7 @@ require! 'colors': {
     bg-red, bg-yellow, bg-green
     bg-cyan
 }
-require! './auth-helpers': {hash-passwd}
+require! './auth-helpers': {hash-passwd, AuthError}
 require! './topic-match': {topic-match}
 
 class SessionCache
@@ -168,4 +168,4 @@ export class AuthHandler extends EventEmitter
             return msg
         else
             @log.err (bg-red "filter-incoming dropping unauthorized message!"),
-            throw 'unauthorized message'
+            throw new AuthError 'unauthorized message'

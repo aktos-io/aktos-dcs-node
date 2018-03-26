@@ -1,5 +1,5 @@
 require! '../deps': {AuthHandler, pack, unpack, Actor}
-require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
+require! 'colors': {bg-red, red, bg-yellow, green, bg-cyan}
 require! 'prelude-ls': {split, flatten, split-at}
 require! './helpers': {MessageBinder}
 
@@ -17,7 +17,8 @@ export class ProxyHandler extends Actor
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------
-        @proxy = yes # THIS IS VERY IMPORTANT
+        @this-actor-is-a-proxy = yes # THIS IS VERY IMPORTANT
+        # responses to the requests will be silently dropped otherwise
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------
@@ -30,14 +31,13 @@ export class ProxyHandler extends Actor
                 @log.name = "#{ctx.user}/#{@log.name}"
 
                 subscriptions = ctx.permissions
-                @log.log bg-blue "subscribing readonly: ", subscriptions.ro
+                @log.info "subscribing readonly: ", subscriptions.ro.join(', ')
                 @subscribe subscriptions.ro
 
-                @log.log bg-yellow "subscribing read/write: ", subscriptions.rw
+                @log.info "subscribing read/write: ", subscriptions.rw.join(', ')
                 @subscribe subscriptions.rw
 
-                @log.log "Handler subscriptions so far: "
-                for @subscriptions => @log.log "++ #{..}"
+                @log.info "Handler subscriptions: ", @subscriptions.join(', ')
 
             ..on \logout, ~>
                 ...
@@ -47,8 +47,9 @@ export class ProxyHandler extends Actor
         # DCS interface
         @on do
             receive: (msg) ~>
-                @log.log "DCS > Transport (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                @log.log "... #{pack msg.payload}"
+                # debug
+                #@log.log "DCS > Transport (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                #@log.log "... #{pack msg.payload}"
                 @transport.write pack msg
 
             kill: (reason, e) ~>
@@ -73,10 +74,14 @@ export class ProxyHandler extends Actor
                             #|> (x) -> console.log "permissions okay for #{x.sender}.#{x.msg_id}"; return x
                             |> @send-enveloped
 
-                            @log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                            @log.log "... #{pack msg.payload}"
+                            # debug
+                            #@log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                            #@log.log "... #{pack msg.payload}"
                         catch
-                            @log.warn "TODO: RETHROW IF NEEDED: Authorization failed, dropping (silently)"
+                            if e.type is \AuthError
+                                @log.warn "Authorization failed, dropping message."
+                            else
+                                throw e
 
             ..on \disconnect, ~>
                 @log.log "proxy handler is exiting."

@@ -1,5 +1,5 @@
 # for debugging purposes
-require! colors: {green, gray, yellow, bg-red, bg-yellow}
+require! colors: {green, gray, yellow, bg-red, bg-yellow, cyan, bg-cyan}
 require! moment
 require! 'prelude-ls': {map}
 require! './event-emitter': {EventEmitter}
@@ -89,3 +89,6 @@ export class Logger extends EventEmitter
 
     warn: (...args) ~>
         console.warn.apply console, [@get-prefix(bg-yellow), yellow('[WARNING]')] ++ args
+
+    info: (...args) ~>
+        console.info.apply console, [@get-prefix!, cyan('[INFO]')] ++ args

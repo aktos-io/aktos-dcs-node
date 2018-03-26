@@ -26,6 +26,7 @@ export class Actor extends EventEmitter
         @subscriptions = [] # subscribe all topics by default.
 
         @request-queue = {}
+        @this-actor-is-a-proxy = no
 
         @_state =
             kill:
@@ -67,6 +68,7 @@ export class Actor extends EventEmitter
             if @debug => @log.log "sending #{pack enveloped}"
         catch
             @log.err "sending message failed. msg: ", payload, e
+            throw e 
 
     send-request: (_topic, payload, callback) ->
         /*
@@ -112,23 +114,25 @@ export class Actor extends EventEmitter
 
     _inbox: (msg) ->
         # process one message at a time
-        @log.log "Got message to inbox:", msg.payload
+        #@log.log "Got message to inbox:", msg.payload
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         if \res of msg
             if msg.res.id is @id
                 if msg.res.seq of @request-queue
-                    @log.log "...and triggered request queue:", msg.payload
+                    #@log.log "...and triggered request queue:", msg.payload
                     @request-queue[msg.res.seq].go msg
                     delete @request-queue[msg.res.seq]
                     return
-            return unless @proxy
+            unless @this-actor-is-a-proxy
+                #@log.warn "Not my response, simply dropping the msg: ", msg.payload
+                return
         if \update of msg
             @trigger \update, msg
         if \payload of msg
             @trigger \data, msg
         # deliver every message to receive-handlers
 
-        @log.log "...and triggered to 'receive':", msg.payload
+        #@log.log "...and triggered to 'receive':", msg.payload
         @trigger \receive, msg
 
     on-topic: (topic, handler) ->

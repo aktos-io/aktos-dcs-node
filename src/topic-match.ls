@@ -69,11 +69,6 @@ do test-topic-match = ->
         # multi match
         * topic: "foo.bar", keypath: "baz.bar foo.*", expected: true
 
-        # match from real bugs
-        * topic: "db.heyyyyyyyyyy", keypath: "public.**", expected: false
-        * topic: "db.heyyyyyyyyyy", keypath: "**", expected: true
-        * topic: "db.heyyyyyyyyyy", keypath: "db.**", expected: true
-
         # any foo messages that contains exactly two level deep commands
         * topic: "foo.bar", keypath: "foo.*.*", expected: false
 
