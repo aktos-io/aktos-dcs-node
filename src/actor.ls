@@ -112,9 +112,12 @@ export class Actor extends EventEmitter
 
     _inbox: (msg) ->
         # process one message at a time
+        @log.log "Got message to inbox:", msg.payload
+        <~ sleep 0  # IMPORTANT: this fixes message sequences
         if \res of msg
             if msg.res.id is @id
                 if msg.res.seq of @request-queue
+                    @log.log "...and triggered request queue:", msg.payload
                     @request-queue[msg.res.seq].go msg
                     delete @request-queue[msg.res.seq]
                     return
@@ -124,6 +127,8 @@ export class Actor extends EventEmitter
         if \payload of msg
             @trigger \data, msg
         # deliver every message to receive-handlers
+
+        @log.log "...and triggered to 'receive':", msg.payload
         @trigger \receive, msg
 
     on-topic: (topic, handler) ->
@@ -149,6 +154,7 @@ export class Actor extends EventEmitter
             @log.err "send-enveloped: Message has no topic. Not sending."
             debugger
             return
+        <~ sleep 0
         if @debug => @log.log "sending message: ", msg
         @mgr.distribute msg
 

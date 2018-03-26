@@ -5,7 +5,7 @@ export class SocketIOTransport extends EventEmitter
         super!
         # data received
         @orig.on \aea, (data) ~>
-            console.log ">>> socket-io data received: ", data
+            #console.log ">>> socket-io data received: ", data
             @trigger \data, data
 
         # disconnected
@@ -17,5 +17,5 @@ export class SocketIOTransport extends EventEmitter
             @trigger \connect
 
     write: (data) ->
-        console.log "<<< socket-io data write: ", data 
+        #console.log "<<< socket-io data write: ", data
         @orig.emit \aea, data

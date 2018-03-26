@@ -14,28 +14,41 @@ export class ProxyHandler extends Actor
         super opts.name
         @subscribe "public.**"
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        @proxy = yes # THIS IS VERY IMPORTANT
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
 
         @auth = new AuthHandler opts.db, opts.name
             ..on \to-client, (msg) ~>
                 @transport.write pack @msg-template msg
 
-            ..on \login, (subscriptions) ~>
-                if subscriptions.ro
-                    @log.log bg-blue "subscribing readonly: ", that
-                    @subscribe that
+            ..on \login, (ctx) ~>
+                @log.name = "#{ctx.user}/#{@log.name}"
 
-                if subscriptions.rw
-                    @log.log bg-yellow "subscribing read/write: ", that
-                    @subscribe that
+                subscriptions = ctx.permissions
+                @log.log bg-blue "subscribing readonly: ", subscriptions.ro
+                @subscribe subscriptions.ro
+
+                @log.log bg-yellow "subscribing read/write: ", subscriptions.rw
+                @subscribe subscriptions.rw
+
+                @log.log "Handler subscriptions so far: "
+                for @subscriptions => @log.log "++ #{..}"
 
             ..on \logout, ~>
-                # remove all subscriptions
-                @subscriptions = []
+                ...
+                # this is an unreachable code, since "logout" can only be
+                # handled by creator of this actor
 
         # DCS interface
         @on do
             receive: (msg) ~>
-                @log.log "            DCS > Transport: (topic : #{msg.topic})"
+                @log.log "DCS > Transport (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                @log.log "... #{pack msg.payload}"
                 @transport.write pack msg
 
             kill: (reason, e) ~>
@@ -45,6 +58,7 @@ export class ProxyHandler extends Actor
         @m = new MessageBinder!
         @transport
             ..on "data", (data) ~>
+                #@log.log "________data:", data.to-string!
                 for msg in @m.append data
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager
@@ -52,14 +66,17 @@ export class ProxyHandler extends Actor
                         #@log.log green "received auth message: ", msg
                         @auth.trigger \check-auth, msg
                     else
-                        @log.log "Transport > DCS (topic: #{msg.topic})"
                         try
                             msg
                             |> @auth.check-permissions
-                            #|> (x) -> console.log "checked permissions", x; return x
+                            # permission check ok, send to DCS network
+                            #|> (x) -> console.log "permissions okay for #{x.sender}.#{x.msg_id}"; return x
                             |> @send-enveloped
 
-                            #@log.log "forwarding to DCS network...", data.to-string!
+                            @log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                            @log.log "... #{pack msg.payload}"
+                        catch
+                            @log.warn "TODO: RETHROW IF NEEDED: Authorization failed, dropping (silently)"
 
             ..on \disconnect, ~>
                 @log.log "proxy handler is exiting."

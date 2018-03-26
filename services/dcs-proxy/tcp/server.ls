@@ -19,15 +19,18 @@ export class DcsTcpServer
         seq = 0
         server = net.create-server (socket) ~>
             transport = new TcpHandlerTransport socket
+
+            # track online users
             count++
+            @log.log "Total online users: #{count}"
 
             handler = new ProxyHandler transport, do
-                name: "tcp-#{seq++} (\##{count})"
+                name: "tcp-#{seq++}"
                 db: opts.db
 
-            handler.on \kill, (reason) ->
-                @log.log "ProxyHandler is just died!"
+            handler.on \kill, (reason) ~>
                 count--
+                @log.log "Total online users: #{count}"
 
         server
             ..on \error, (e) ~>

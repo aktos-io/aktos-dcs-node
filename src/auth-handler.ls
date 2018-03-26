@@ -61,7 +61,7 @@ export class AuthHandler extends EventEmitter
                 @log.log "(...sending with #{@@login-delay}ms delay)"
 
 
-                @trigger \login, session.permissions
+                @trigger \login, session
                 <~ sleep @@login-delay
                 @trigger \to-client, do
                     auth:
@@ -98,7 +98,7 @@ export class AuthHandler extends EventEmitter
                             @log.log "(...sending with #{@@login-delay}ms delay)"
 
 
-                            @trigger \login, session.permissions
+                            @trigger \login, session
                             <~ sleep @@login-delay
                             @trigger \to-client, do
                                 auth:
@@ -132,7 +132,7 @@ export class AuthHandler extends EventEmitter
                         # this is a valid session token
                         found-session = @session-cache.get(msg.auth.token)
                         @log.log bg-cyan "User \"#{found-session.user}\" has been logged in with token."
-                        @trigger \login, found-session.permissions
+                        @trigger \login, found-session
                         <~ sleep @@login-delay
                         @trigger \to-client, do
                             auth:

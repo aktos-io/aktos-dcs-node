@@ -36,10 +36,16 @@ export class ProxyClient extends Actor
             ..on \login, (permissions) ~>
                 @permissions-rw = flatten [permissions.rw]
                 unless empty @permissions-rw
-                    @log.log "logged in succesfully. subscribing to: "
+                    @log.log "logged in succesfully. RW permissions on the remote:"
                     for @permissions-rw
                         @log.log "+++ #{..}"
-                    @subscribe @permissions-rw
+                    # subscribe only the messages that we have write permissions
+                    # on the remote site (subscribing RO messages in the DCS
+                    # network would be meaningless since they will be dropped
+                    # on the remote even if we forward them.)
+                    @subscriptions = @permissions-rw
+
+                    # request update messages that we interested in
                     @log.log "requesting update messages for subscribed topics"
                     for topic in @permissions-rw
                         {topic, +update}
@@ -49,6 +55,9 @@ export class ProxyClient extends Actor
                         |> @transport.write
                 else
                     @log.warn "logged in, but there is no rw permissions found."
+
+                @log.warn "client subscriptions so far: "
+                for @subscriptions => console.log "++ #{..}"
 
         # DCS interface
         @on do
@@ -61,7 +70,8 @@ export class ProxyClient extends Actor
                         "}
                     return
 
-                @log.log "            DCS > Transport: (topic : #{msg.topic})"
+                @log.log "Transport < DCS: (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                @log.log "... #{pack msg.payload}"
                 @transport.write (msg
                     |> @auth.add-token
                     |> pack)
@@ -88,7 +98,8 @@ export class ProxyClient extends Actor
                         #@log.log "received auth message, forwarding to AuthRequest."
                         @auth.trigger \from-server, msg
                     else
-                        @log.log "Transport > DCS (topic: #{msg.topic})"
+                        @log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                        @log.log "... #{pack msg.payload}"
                         @send-enveloped msg
 
     login: (credentials, callback) ->

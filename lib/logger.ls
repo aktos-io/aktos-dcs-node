@@ -49,14 +49,14 @@ class LogManager extends EventEmitter
 export class Logger extends EventEmitter
     (source-name, opts={}) ->
         super!
-        @source-name = source-name
+        @name = source-name
         @mgr = new LogManager!
 
     get-prefix: (color) ->
-        get-prefix @source-name, color
+        get-prefix @name, color
 
     log: (...args) ~>
-        prefix = get-prefix @source-name
+        prefix = get-prefix @name
         if IS_NODE
             console.log.call console, prefix, ...args
         else
