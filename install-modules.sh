@@ -63,5 +63,11 @@ while IFS='' read -r module || [[ -n "$module" ]]; do
     echo " *** Installing dependencies for: \"$module\"";
     echo
     cd "$DIR/$module"
+
+    # remove package-lock.json
+    echo "(removing package-lock.json)"
+    rm package-lock.json 2> /dev/null
+    echo "package-lock=false"  > .npmrc
+
     npm install
 done < "$DIR/$PREFERENCES"
