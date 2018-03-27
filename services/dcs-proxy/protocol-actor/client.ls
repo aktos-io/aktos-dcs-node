@@ -60,7 +60,8 @@ export class ProxyClient extends Actor
                 else
                     @log.warn "Logged in, but there is no rw permissions found."
 
-                @log.info "Remote RW subscriptions: ", @subscriptions.join(', ')
+                @log.info "Remote RW subscriptions: "
+                for flatten [@subscriptions] => @log.info "->  #{..}"
 
         # DCS interface
         @on do
