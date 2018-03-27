@@ -34,6 +34,10 @@ export class Actor extends EventEmitter
                 finished: no
 
         @mgr.register-actor this
+
+        # this context switch is important. if it is omitted, "action" method
+        # will NOT be overwritten within the parent class 
+        <~ sleep 0
         @action! if typeof! @action is \Function
 
     msg-template: (msg) ->
@@ -68,7 +72,7 @@ export class Actor extends EventEmitter
             if @debug => @log.log "sending #{pack enveloped}"
         catch
             @log.err "sending message failed. msg: ", payload, e
-            throw e 
+            throw e
 
     send-request: (_topic, payload, callback) ->
         /*
