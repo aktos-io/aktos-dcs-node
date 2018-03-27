@@ -1,6 +1,6 @@
 require! '../deps': {AuthHandler, pack, unpack, Actor}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-cyan}
-require! 'prelude-ls': {split, flatten, split-at}
+require! 'prelude-ls': {split, flatten, split-at, empty}
 require! './helpers': {MessageBinder}
 
 
@@ -28,16 +28,21 @@ export class ProxyHandler extends Actor
                 @transport.write pack @msg-template msg
 
             ..on \login, (ctx) ~>
-                @log.name = "#{ctx.user}/#{@log.name}"
+                @log.prefix = ctx.user
+                @subscriptions = []  # clear all subscriptions, especially public.**
+                unless empty (ctx.permissions.ro or [])
+                    @log.info "subscribing readonly: "
+                    for flatten [ctx.permissions.ro] => @log.info "->  #{..}"
+                    @subscribe ctx.permissions.ro
 
-                subscriptions = ctx.permissions
-                @log.info "subscribing readonly: ", subscriptions.ro.join(', ')
-                @subscribe subscriptions.ro
+                unless empty (ctx.permissions.rw or [])
+                    @log.info "subscribing read/write: "
+                    for flatten [ctx.permissions.rw] => @log.info "->  #{..}"
+                    @subscribe ctx.permissions.rw
 
-                @log.info "subscribing read/write: ", subscriptions.rw.join(', ')
-                @subscribe subscriptions.rw
-
-                @log.info "Handler subscriptions: ", @subscriptions.join(', ')
+                # debug the subscriptions
+                #@log.info "TOTAL Subscriptions", @subscriptions.length
+                #for @subscriptions => @log.info "___  #{..}"
 
             ..on \logout, ~>
                 # logout is specific to browser like environments, where user

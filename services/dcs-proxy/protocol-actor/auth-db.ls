@@ -24,3 +24,25 @@ export class AuthDB
     get-permissions: (callback) ->
         <~ sleep 200ms
         callback err=null, @permissions-db
+
+export as-docs = (obj) ->
+    # convert object to couchdb like documents
+    """
+        foo:
+            bar: 'baz'
+        foo2:
+            fizz: 'buzz'
+
+    as-docs:
+
+        [
+            {_id: 'foo', bar: 'baz'},
+            {_id: 'foo2', fizz: 'buzz'}
+        ]
+
+    """
+    docs = []
+    for id, doc of obj
+        doc._id = id
+        docs.push doc
+    return docs

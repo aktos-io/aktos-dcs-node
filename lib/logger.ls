@@ -51,9 +51,10 @@ export class Logger extends EventEmitter
         super!
         @name = source-name
         @mgr = new LogManager!
+        @prefix = null
 
     get-prefix: (color) ->
-        get-prefix @name, color
+        get-prefix ("#{if @prefix => "#{@prefix}/" else ''}#{@name}"), color
 
     log: (...args) ~>
         prefix = get-prefix @name
