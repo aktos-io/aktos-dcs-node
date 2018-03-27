@@ -11,14 +11,16 @@ class DataSourceSimulator extends Actor
     action: ->
         @log.log "Simulator started..."
         x = no
+        jitter = Math.random! * 3
+        console.log "jitter is: ", jitter
+        <~ sleep jitter
         do ~>
             <~ :lo(op) ~>
                 @log.log "sending: " , x
-                @send "#{@opts.name}.write", {write: {bit: 0, val: x}}
+                @send "#{@opts.name}.write", {write: addr: "C100.#{@opts.bit}", val: x}
                 x := not x
-                <~ sleep 2000ms
+                <~ sleep 1000ms
                 lo(op)
 
-
-new DataSourceSimulator {name: \io.my1}
+new DataSourceSimulator {name: \io.my1, bit: 1}
 new OmronFinsClient {name: \io.my1}
