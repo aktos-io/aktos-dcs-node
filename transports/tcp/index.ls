@@ -53,6 +53,14 @@ export class TcpTransport extends EventEmitter
             ..on \data, (data) ~>
                 @trigger \data, data
 
+            ..on \end, ~>
+                console.log "----------======= fired end"
+                @trigger \disconnect
+
+            ..on \error, (err) ~>
+                console.log "------------------------- fired error:", err
+                @trigger \error, err
+
         unless opts.manual-start
             # start automatically
             @start!
@@ -65,8 +73,12 @@ export class TcpTransport extends EventEmitter
         callback = (->) unless typeof! callback is \Function
 
         if @connected
-            @socket.write data, ~>
-                callback err=null
+            try
+                @socket.write data, ~>
+                    callback err=null
+            catch
+                console.log "there is error again: ", e
+                throw 
         else
             callback do
                 message: 'not connected'
