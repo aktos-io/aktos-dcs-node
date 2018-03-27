@@ -13,7 +13,7 @@ require! './services/couch-dcs/server': {CouchDcsServer}
 # Dcs Proxy
 require! './services/dcs-proxy/tcp/client': {DcsTcpClient}
 require! './services/dcs-proxy/tcp/server': {DcsTcpServer}
-require! './services/dcs-proxy/protocol-actor/auth-db': {AuthDB}
+require! './services/dcs-proxy/protocol-actor/auth-db': {AuthDB, as-docs}
 
 require! './lib': {
     EventEmitter, Logger, sleep, merge
@@ -23,7 +23,7 @@ require! './lib': {
 module.exports = {
     Actor, FpsExec, Signal
     CouchDcsClient, CouchDcsServer,
-    DcsTcpClient, DcsTcpServer, AuthDB
+    DcsTcpClient, DcsTcpServer, AuthDB, as-docs
     EventEmitter, Logger, sleep, merge
     pack, unpack, clone, diff
 }
