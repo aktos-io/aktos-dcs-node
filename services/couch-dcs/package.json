@@ -1,0 +1,15 @@
+{
+  "name": "couch-dcs",
+  "version": "1.0.0",
+  "description": "This server and client libraries are created to be able to use CouchDB over DCS network.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cloudant-follow": "^0.14.0",
+    "nano": "^6.4.0"
+  }
+}

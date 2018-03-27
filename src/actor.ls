@@ -1,26 +1,32 @@
-require! 'aea': {sleep, pack}
-require! './actor-base': {ActorBase}
+require! '../lib': {sleep, pack, EventEmitter, Logger}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
-require! 'prelude-ls': {
-    split, flatten, keys, unique
-}
+require! 'prelude-ls': {split, flatten, keys, unique}
+require! uuid4
+require! './topic-match': {topic-match}
 
-context-switch = sleep 0
+export class TopicTypeError extends Error
+    (@message, @topic) ->
+        super ...
+        Error.captureStackTrace(this, TopicTypeError)
+        @type = \DiffError
 
-export class Actor extends ActorBase
+
+
+export class Actor extends EventEmitter
     (name, opts={}) ->
-        super name
+        super!
         @mgr = new ActorManager!
-        #@log.log "actor \"#{@name}\" created with id: #{@id}"
+        @id = uuid4!
+        @name = name or @id
+        @log = new Logger @name
         @debug = opts.debug
 
         @msg-seq = 0
         @subscriptions = [] # subscribe all topics by default.
-        # if you want to unsubscribe from all topics, do teh following:
-        # @subscriptions = void
 
         @request-queue = {}
+        @this-actor-is-a-proxy = no
 
         @_state =
             kill:
@@ -28,7 +34,23 @@ export class Actor extends ActorBase
                 finished: no
 
         @mgr.register-actor this
+
+        # this context switch is important. if it is omitted, "action" method
+        # will NOT be overwritten within the parent class 
+        <~ sleep 0
         @action! if typeof! @action is \Function
+
+    msg-template: (msg) ->
+        msg-raw =
+            sender: null
+            timestamp: Date.now! / 1000
+            msg_id: @msg-seq++
+            token: null
+
+        if msg
+            return msg-raw <<<< msg
+        else
+            return msg-raw
 
     subscribe: (topics) ->
         for topic in unique flatten [topics]
@@ -38,22 +60,19 @@ export class Actor extends ActorBase
         @subscriptions.splice (@subscriptions.index-of topic), 1
 
     send: (topic, payload) ~>
-        if typeof! payload isnt \Object
-            # swap the parameters
-            [payload, topic] = [topic, payload]
-
         if typeof! topic isnt \String
-            @log.warn "Topic is not string? topic: #{topic}"
+            throw new TopicTypeError "Topic is not a string?", topic
 
-        debugger if @debug
+        if @debug => debugger
         enveloped = @msg-template! <<< do
             topic: topic
             payload: payload
         try
             @send-enveloped enveloped
-            @log.log "sending #{pack enveloped}" if @debug
+            if @debug => @log.log "sending #{pack enveloped}"
         catch
             @log.err "sending message failed. msg: ", payload, e
+            throw e
 
     send-request: (_topic, payload, callback) ->
         /*
@@ -74,7 +93,7 @@ export class Actor extends ActorBase
                 id: @id
                 seq: enveloped.msg_id
 
-        @log.log "sending request: ", enveloped if @debug
+        if @debug => @log.log "sending request: ", enveloped
         @subscribe topic
         response-signal = new Signal!
         @request-queue[enveloped.req.seq] = response-signal
@@ -99,30 +118,52 @@ export class Actor extends ActorBase
 
     _inbox: (msg) ->
         # process one message at a time
-        try
-            if \res of msg
-                if msg.res.id is @id
-                    if msg.res.seq of @request-queue
-                        @request-queue[msg.res.seq].go msg
-                        delete @request-queue[msg.res.seq]
-                        return
+        #@log.log "Got message to inbox:", msg.payload
+        <~ sleep 0  # IMPORTANT: this fixes message sequences
+        if \res of msg
+            if msg.res.id is @id
+                if msg.res.seq of @request-queue
+                    #@log.log "...and triggered request queue:", msg.payload
+                    @request-queue[msg.res.seq].go msg
+                    delete @request-queue[msg.res.seq]
+                    return
+            unless @this-actor-is-a-proxy
+                #@log.warn "Not my response, simply dropping the msg: ", msg.payload
+                return
+        if \update of msg
+            @trigger \update, msg
+        if \payload of msg
+            @trigger \data, msg
+        # deliver every message to receive-handlers
 
-            if \update of msg
-                @trigger \update, msg
-            if \payload of msg
-                @trigger \data, msg
-            # deliver every message to receive-handlers
-            @trigger \receive, msg
-        catch
-            debugger
-            @log.err "problem in handler: ", e
+        #@log.log "...and triggered to 'receive':", msg.payload
+        @trigger \receive, msg
+
+    on-topic: (topic, handler) ->
+        return unless topic
+
+        @subscribe topic unless topic in @subscriptions
+
+        @on \data, (msg) ~>
+            if msg.topic `topic-match` topic
+                handler msg
+
+    once-topic: (topic, handler) ->
+        @subscribe topic unless topic in @subscriptions
+
+        @once \data, (msg) ~>
+            if msg.topic `topic-match` topic
+                handler msg
+                @unsubscribe topic
 
     send-enveloped: (msg) ->
         msg.sender = @id
         if not msg.topic and not (\auth of msg)
             @log.err "send-enveloped: Message has no topic. Not sending."
+            debugger
             return
-        @log.log "sending message: ", msg if @debug
+        <~ sleep 0
+        if @debug => @log.log "sending message: ", msg
         @mgr.distribute msg
 
     kill: (...reason) ->
@@ -133,9 +174,9 @@ export class Actor extends ActorBase
             @_state.kill.finished = yes
 
     request-update: ->
-        <~ context-switch
         #@log.log "requesting update!"
-        for topic in @subscriptions
+        for let topic in @subscriptions
+            debugger unless topic
             @send-enveloped @msg-template do
                 update: yes
                 topic: topic

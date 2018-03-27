@@ -1,12 +1,38 @@
-require! 'aea': {sleep}
-require! 'aea/debug-log': {logger}
+require! '../lib': {sleep, Logger}
 require! 'uuid4'
 require! 'prelude-ls': {is-it-NaN}
 
+'''
+
+# Methods
+
+signal.wait [timeout:int::milliseconds,] callback
+---------------------------------------------------------
+Waits for `signal.go` to call the `callback`.
+
+`callback` signature: (err[, value:any[, value2:any, ...]])
+If `timeout` is defined, err is set to a truthy value at the
+end of the timeout.
+
+signal.go [value:any[, value2:any, ...]]
+---------------------------------------------------------
+'''
+
 export class Signal
     ->
-        @name = uuid4!
+        @name = arguments.callee.caller.name
+        @log = new Logger @name
         @reset!
+
+    reset: ->
+        # clear everything like the object is
+        # initialized for the first time
+        @callbacks = []
+        @should-run = no
+        @waiting = no
+        try clear-timeout @timer
+        @timer = void
+        @skip-next = no
 
     fire: (event, ...args) ->
         #@log.log "trying to fire..."
@@ -39,7 +65,7 @@ export class Signal
         unless is-it-NaN timeout
             if timeout > 0
                 @timeout = timeout
-                @reset-timeout!
+                @heartbeat!
 
         # try to run signal if it is set as `go` before reaching "wait" line
         @fire!
@@ -57,22 +83,20 @@ export class Signal
 
         #@log.log "called 'go!'"
         @should-run = yes
-        @fire.apply this, ([null] ++ args)
+        @fire.call this, null, ...args
 
-    reset: ->
-        @callbacks = []
-        @should-run = no
-        @waiting = no
-        try clear-timeout @timer
-        @timer = void
-        @skip-next = no
 
-    reset-timeout: (duration) ->
+    heartbeat: (duration) ->
         @timeout = duration if duration > 0
         try clear-timeout @timer
         @timer = sleep @timeout, ~>
             @should-run = yes
             @fire {reason: \timeout}
 
-    heartbeat: (x) ->
-        @reset-timeout x
+
+    # -------------------
+    # Deprecated methods
+    # -------------------
+    reset-timeout: (duration) ->
+        @log.warn "reset-timeout method is deprecated, use heartbeat instead."
+        @heartbeat duration

@@ -1,0 +1,11 @@
+#!/bin/bash
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+. "$(dirname $(readlink $0))/find-root.sh"
+
+lsFile="$1"
+set-pane-title () {
+    printf "\033k$1\033\\"
+}
+set-pane-title ${lsFile%.ls}
+lsc $lsFile
+
