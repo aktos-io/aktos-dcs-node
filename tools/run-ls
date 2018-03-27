@@ -4,7 +4,14 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 lsFile="$1"
 set-pane-title () {
-    printf "\033k$1\033\\"
+    title="$1"
+    if { [ "$TERM" = "screen" ] && [ -n "$TMUX" ]; } then
+        # we are in a tmux session
+        printf "\033k$title\033\\"
+    else
+        # normal terminal session
+        echo -e '\033]2;'$title'\007'
+    fi
 }
 set-pane-title ${lsFile%.ls}
 lsc $lsFile
