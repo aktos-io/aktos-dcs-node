@@ -21,41 +21,11 @@ DCS Message API:
 
 '''
 
-parse-addr = (addr) ->
-    /* return type:
-
-        {
-            addr: Array
-            value: WRITE value or amount of words to READ
-        }
-    */
-    if typeof! addr is \Array
-        # like ["C0100", 5]
-        return do
-            type: \bool
-            addr: addr
-    if typeof! addr is \String
-        [addr, bit] = addr.split '.'
-        if bit?
-            # like "C0100.05", bool
-            return do
-                type: \bool
-                addr: [addr, parse-int bit]
-        else
-            # like "C0100", word
-            return do
-                type: \word
-                addr: addr
-    else
-        console.log "Typeof addr: ", (typeof! addr), addr
-
 
 
 export class OmronFinsClient extends Actor
     (@opts={}) ->
-        @name = @opts.name or throw 'Fins Client need a name to be subscribed with'
-        super @name
-        @subscribe "#{@name}.**"
+        super @opts.name or 'OmronFinsClient'
 
         @target = {port: 9600, host: '192.168.250.1'} <<< @opts
         @log.log bg-yellow "Using #{@target.host}:#{@target.port}"
@@ -77,12 +47,13 @@ export class OmronFinsClient extends Actor
         # for debugging purposes
         #@debug-test!
 
+        @subscribe "#{@name}.**"
         @on \data, (msg) ~>
             for command, value of msg.payload
                 try
-                    {addr, type} = parse-addr value.addr
-                    #console.log "command: ", command, "addr", addr,
-                    # "type:" , type, "value: ", value.val
+                    {addr, type} = @parse-addr value.addr
+                    console.log "command: ", command, "addr", addr
+                        , "type:" , type, "value: ", value.val
                     switch command
                     | \write =>
                         if type is \bool
@@ -117,6 +88,9 @@ export class OmronFinsClient extends Actor
             lo(op)
 
     write-bit: (addr, value, callback) ->
+        # --------------------------------------------------------------
+        # TODO: https://github.com/patrick--/node-omron-fins/issues/13
+        # --------------------------------------------------------------
         # addr = [WORD_ADDR, BIT_NUM]
         # -------------------------------
         # set BIT_NUMth bit to `value`,
@@ -128,6 +102,10 @@ export class OmronFinsClient extends Actor
         #console.log "curr", curr-value
         new-value = bit-write curr-value, BIT_NUM, value
         err, res <~ @write-byte WORD_ADDR, new-value
+        if err => return callback err
+        err, res <~ @read-byte WORD_ADDR
+        if res.values.0 isnt new-value
+            return callback "Value does not match with written one"
         callback err, res
 
     read-bit: (addr, callback) ->
@@ -140,6 +118,7 @@ export class OmronFinsClient extends Actor
         callback err, bit-value
 
     write-byte: (addr, value, callback) ->
+        # TODO: https://github.com/patrick--/node-omron-fins/issues/13
         err, bytes <~ @client.write addr, value
         err, msg <~ @write-signal.wait @timeout
         #console.log "write message response: #{pack msg}"
@@ -152,3 +131,32 @@ export class OmronFinsClient extends Actor
         err, bytes <~ @client.read addr, count
         err, msg <~ @read-signal.wait @timeout
         callback err, msg
+
+
+    parse-addr: (addr) ->
+        /* return type:
+
+            {
+                addr: Array
+                value: WRITE value or amount of words to READ
+            }
+        */
+        if typeof! addr is \Array
+            # like ["C0100", 5]
+            return do
+                type: \bool
+                addr: addr
+        if typeof! addr is \String
+            [addr, bit] = addr.split '.'
+            if bit?
+                # like "C0100.05", bool
+                return do
+                    type: \bool
+                    addr: [addr, parse-int bit]
+            else
+                # like "C0100", word
+                return do
+                    type: \word
+                    addr: addr
+        else
+            console.log "Typeof addr: ", (typeof! addr), addr
