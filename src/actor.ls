@@ -36,9 +36,13 @@ export class Actor extends EventEmitter
         @mgr.register-actor this
 
         # this context switch is important. if it is omitted, "action" method
-        # will NOT be overwritten within the parent class 
+        # will NOT be overwritten within the parent class
         <~ sleep 0
         @action! if typeof! @action is \Function
+
+    set-name: (name) ->
+        @name = name
+        @log.name = name 
 
     msg-template: (msg) ->
         msg-raw =
