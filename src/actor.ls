@@ -36,8 +36,8 @@ export class Actor extends EventEmitter
         @mgr.register-actor this
 
         # this context switch is important. if it is omitted, "action" method
-        # will NOT be overwritten within the parent class 
-        <~ sleep 0
+        # will NOT be overwritten within the parent class
+        #<~ sleep 0
         @action! if typeof! @action is \Function
 
     msg-template: (msg) ->
@@ -130,13 +130,24 @@ export class Actor extends EventEmitter
             unless @this-actor-is-a-proxy
                 #@log.warn "Not my response, simply dropping the msg: ", msg.payload
                 return
-        if \update of msg
-            @trigger \update, msg
+
         if \payload of msg
             @trigger \data, msg
-        # deliver every message to receive-handlers
 
-        #@log.log "...and triggered to 'receive':", msg.payload
+        if \request-update of msg
+            /* usage:
+
+            ..on 'request-update', (topic, respond) ->
+                # use topic if necessary
+                respond {my: 'response'}
+
+            */
+            # TODO: filter requests with an acceptable FPS
+            @trigger \request-update, msg.topic, (response) ~>
+                @log.log "Responding to update request for topic: ", msg.topic
+                @send msg.topic, response
+
+        # also deliver messages to 'receive' handlers
         @trigger \receive, msg
 
     on-topic: (topic, handler) ->
@@ -174,9 +185,9 @@ export class Actor extends EventEmitter
             @_state.kill.finished = yes
 
     request-update: ->
-        #@log.log "requesting update!"
-        for let topic in @subscriptions
+        @log.log "requesting update for ", @subscriptions.join(', ')
+        for let topic in unique @subscriptions
             debugger unless topic
             @send-enveloped @msg-template do
-                update: yes
+                'request-update': yes
                 topic: topic
