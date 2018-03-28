@@ -37,7 +37,7 @@ export class Actor extends EventEmitter
 
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
-        # < ~ sleep 0 <= really no need for this? 
+        # < ~ sleep 0 <= really no need for this?
         @action! if typeof! @action is \Function
 
     set-name: (name) ->
@@ -141,13 +141,13 @@ export class Actor extends EventEmitter
         if \request-update of msg
             /* usage:
 
-            ..on 'request-update', (topic, respond) ->
-                # use topic if necessary
+            ..on 'request-update', (msg, respond) ->
+                # use msg (msg.payload/msg.topic) if necessary
                 respond {my: 'response'}
 
             */
             # TODO: filter requests with an acceptable FPS
-            @trigger \request-update, msg.topic, (response) ~>
+            @trigger \request-update, msg, (response) ~>
                 @log.log "Responding to update request for topic: ", msg.topic
                 @send msg.topic, response
 
@@ -188,10 +188,11 @@ export class Actor extends EventEmitter
             @trigger \kill, ...reason
             @_state.kill.finished = yes
 
-    request-update: ->
+    request-update: (payload) ->
         @log.log "requesting update for ", @subscriptions.join(', ')
         for let topic in unique @subscriptions
             debugger unless topic
             @send-enveloped @msg-template do
                 'request-update': yes
                 topic: topic
+                payload: payload
