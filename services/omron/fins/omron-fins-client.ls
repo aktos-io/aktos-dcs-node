@@ -4,6 +4,7 @@ require! 'prelude-ls': {chars, reverse}
 require! 'colors': {bg-yellow}
 require! 'dcs/lib/memory-map': {bit-write, bit-test}
 
+
 '''
 DCS Message API:
 --------------------------
@@ -28,11 +29,15 @@ export class OmronFinsClient extends Actor
         super @opts.name or 'OmronFinsClient'
 
         @target = {port: 9600, host: '192.168.250.1'} <<< @opts
-        @log.log bg-yellow "Using #{@target.host}:#{@target.port}"
-        @client = fins.FinsClient @target.port, @target.host
         @read-signal = new Signal!
         @write-signal = new Signal!
         @timeout = 5000ms
+
+        @client = null
+        @on \reconnect, ~>
+            @log.log bg-yellow "Using #{@target.host}:#{@target.port}"
+            @client := fins.FinsClient @target.port, @target.host
+        @trigger \reconnect
 
         @client.on \reply, (msg) ~>
             if msg.command is \0101
@@ -41,36 +46,62 @@ export class OmronFinsClient extends Actor
                 @write-signal.go msg
             else
                 @log.log "unknown msg.command: #{msg.command}"
-                console.log "reply: ", pack msg
+                #console.log "reply: ", pack msg
 
     action: ->
         # for debugging purposes
         #@debug-test!
+        ...
 
         @subscribe "#{@name}.**"
         @on \data, (msg) ~>
-            for command, value of msg.payload
-                try
-                    {addr, type} = @parse-addr value.addr
-                    console.log "command: ", command, "addr", addr
-                        , "type:" , type, "value: ", value.val
-                    switch command
-                    | \write =>
-                        if type is \bool
-                            #console.log "writing bit: ", addr.0, addr.1, "val: ", value.val
-                            err, res <~ @write-bit addr, value.val
-                            @send-response msg, {err, res}
-                        else
-                            #console.log "writing byte: ", addr.addr, "val: ", value.val
-                            err, res <~ @write-byte addr, value.val
-                            @send-response msg, {err, res}
-                    | \read =>
-                        if type is \bool
-                            err, res <~ @read-bit addr, value.val
-                            @send-response msg, {err, res}
-                        else
-                            err, res <~ @read-byte addr, value.val
-                            @send-response msg, {err, res}
+            ...
+            # exec-command here
+
+    exec-command: (command, address, value, callback) ->
+        /* ***********************************************
+
+        command:
+            * read
+            * write
+
+        address:
+            either "WORD_ADDR" or "WORD_ADDR.BIT_NUM" format
+
+        value:
+            if command is 'write' =>
+                value to write to
+                * single (write to the address)
+                * array (write starting from the address)
+            if command is 'read'  =>
+                if bitwise => ignored
+                if word => number of addresses to read
+
+        *****************************************************/
+        try
+            {addr, type} = @parse-addr address
+            #console.log "command: ", command, "addr", addr
+            #    , "type:" , type, "value: ", value
+            switch command
+            | \write =>
+                if type is \bool
+                    #console.log "writing bit: ", addr.0, addr.1, "val: ", value.val
+                    err, res <~ @write-bit addr, value
+                    callback {err, res}
+                else
+                    #console.log "writing byte: ", addr.addr, "val: ", value.val
+                    err, res <~ @write-byte addr, value
+                    callback {err, res}
+            | \read =>
+                if type is \bool
+                    err, res <~ @read-bit addr
+                    callback {err, res}
+                else
+                    amount = value
+                    err, res <~ @read-byte addr, amount
+                    callback {err, res}
+        catch
+            throw e
 
     debug-test: ->
         /* Test process  */
@@ -98,13 +129,24 @@ export class OmronFinsClient extends Actor
         [WORD_ADDR, BIT_NUM] = addr
         err, res <~ @read-byte WORD_ADDR
         if err => return callback err
-        curr-value = res.values.0
+        try
+            curr-value = res.values.0
+        catch
+            @trigger \reconnect
+            return callback {res, message: e, stage: "First read value"}
         #console.log "curr", curr-value
         new-value = bit-write curr-value, BIT_NUM, value
         err, res <~ @write-byte WORD_ADDR, new-value
         if err => return callback err
+        console.log "Write response: ", res 
         err, res <~ @read-byte WORD_ADDR
-        if res.values.0 isnt new-value
+        try
+            _curr = res.values.0
+        catch
+            @trigger \reconnect
+            return callback {res, message: e, stage: "Read back value"}
+        if _curr isnt new-value
+            @trigger \reconnect
             return callback "Value does not match with written one"
         callback err, res
 
@@ -120,6 +162,7 @@ export class OmronFinsClient extends Actor
     write-byte: (addr, value, callback) ->
         # TODO: https://github.com/patrick--/node-omron-fins/issues/13
         err, bytes <~ @client.write addr, value
+        if err => ...
         err, msg <~ @write-signal.wait @timeout
         #console.log "write message response: #{pack msg}"
         callback err, msg
@@ -129,6 +172,7 @@ export class OmronFinsClient extends Actor
             callback = count
             count = 1
         err, bytes <~ @client.read addr, count
+        if err => ...
         err, msg <~ @read-signal.wait @timeout
         callback err, msg
 
