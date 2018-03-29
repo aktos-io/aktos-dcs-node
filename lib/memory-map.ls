@@ -1,4 +1,5 @@
 require! 'prelude-ls': {split}
+require! './keypath': {get-keypath}
 ``
 function hex2float (a) {return (a & 0x7fffff | 0x800000) * 1.0 / Math.pow(2,23) * Math.pow(2,  ((a>>23 & 0xff) - 127))}
 
@@ -71,3 +72,23 @@ export class MemoryMap
         for io of @table when io.addr is addr
             return do
                 value: data-types[io.type] value
+
+    address-of: (name) ->
+        get-keypath @table, name .address
+
+    get-tags: (namespace) ->
+        \TODO
+
+/* tests
+----------------------------
+export io-map = new MemoryMap do
+    io:
+        plc1:
+            motor1:
+                address: 'C100.01'
+                dir: \out
+                type: \bool
+
+# io-map.address-of 'motor1' # => "C100.01"
+console.log "address of io.plc1.motor1:", io-map.address-of 'io.plc1.motor1'
+*/
