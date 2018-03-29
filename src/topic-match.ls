@@ -37,9 +37,10 @@ export topic-match = (topics, keypaths, opts={}) ->
                             throw
                         continue
 
-                    if undefined in [keypath-part, topic-part]
-                        console.log "returning false because there is no command to look for match" if opts.debug
-                        throw
+                    unless '**' in [keypath-part, topic-part]
+                        if undefined in [keypath-part, topic-part]
+                            console.log "returning false because there is no command to look for match" if opts.debug
+                            throw
 
                     if '**' in [keypath-part, topic-part]
                         console.log "returning true because '**' will match with anything." if opts.debug
@@ -59,6 +60,11 @@ do test-topic-match = ->
 
     # format:
     # message.command.command.command....
+    /*
+
+    ** will match with anything, including null
+
+    */
 
     examples =
         # simple matches
@@ -76,9 +82,11 @@ do test-topic-match = ->
         # that are only one level deep.
         * topic: "foo.*.bar", keypath: "foo.*", expected: false
 
+        * topic: "foo.**", keypath: "foo", expected: true
+
         # first: any foo messages that contains two or more commands
         * topic: "foo.*.**", keypath: "foo.bar.baz", expected: true
-        * topic: "foo.*.**", keypath: "foo.bar", expected: false
+        * topic: "foo.*.**", keypath: "foo.bar", expected: true
         * topic: "foo.*.**", keypath: "foo.bar.baz.qux", expected: true
 
         * topic: "foo.**", keypath: "foo.bar.baz.qux", expected: true
