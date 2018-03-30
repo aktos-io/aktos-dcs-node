@@ -7,7 +7,7 @@ require! 'colors': {
     bg-red, bg-yellow, bg-green
     bg-cyan
 }
-require! './auth-helpers': {hash-passwd}
+require! './auth-helpers': {hash-passwd, AuthError}
 require! './topic-match': {topic-match}
 
 class SessionCache
@@ -36,8 +36,7 @@ export class AuthHandler extends EventEmitter
     @i = 0
     (db, name) ->
         super!
-        name = "AuthHandler.#{@@i++}" unless name
-        @log = new Logger name
+        @log = new Logger (name or "AuthHandler.#{@@i++}")
         @session-cache = new SessionCache!
 
         unless db
@@ -62,7 +61,7 @@ export class AuthHandler extends EventEmitter
                 @log.log "(...sending with #{@@login-delay}ms delay)"
 
 
-                @trigger \login, session.permissions
+                @trigger \login, session
                 <~ sleep @@login-delay
                 @trigger \to-client, do
                     auth:
@@ -99,7 +98,7 @@ export class AuthHandler extends EventEmitter
                             @log.log "(...sending with #{@@login-delay}ms delay)"
 
 
-                            @trigger \login, session.permissions
+                            @trigger \login, session
                             <~ sleep @@login-delay
                             @trigger \to-client, do
                                 auth:
@@ -133,7 +132,7 @@ export class AuthHandler extends EventEmitter
                         # this is a valid session token
                         found-session = @session-cache.get(msg.auth.token)
                         @log.log bg-cyan "User \"#{found-session.user}\" has been logged in with token."
-                        @trigger \login, found-session.permissions
+                        @trigger \login, found-session
                         <~ sleep @@login-delay
                         @trigger \to-client, do
                             auth:
@@ -169,4 +168,4 @@ export class AuthHandler extends EventEmitter
             return msg
         else
             @log.err (bg-red "filter-incoming dropping unauthorized message!"),
-            throw 'unauthorized message'
+            throw new AuthError 'unauthorized message'

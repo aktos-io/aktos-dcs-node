@@ -1,0 +1,18 @@
+#!/bin/bash
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+. "$(dirname $(readlink $0))/find-root.sh"
+
+lsFile="$1"
+set-pane-title () {
+    title="$1"
+    if { [ "$TERM" = "screen" ] && [ -n "$TMUX" ]; } then
+        # we are in a tmux session
+        printf "\033k$title\033\\"
+    else
+        # normal terminal session
+        echo -e '\033]2;'$title'\007'
+    fi
+}
+set-pane-title ${lsFile%.ls}
+lsc $lsFile
+

@@ -2,5 +2,8 @@
 	path = aktos-dcs
 	url = https://github.com/aktos-io/aktos-dcs-design
 [submodule "protocols/siemens/nodeS7"]
-	path = connectors/siemens/nodeS7
+	path = services/siemens/nodeS7
 	url = https://github.com/ceremcem/nodeS7
+[submodule "tools/service-runner"]
+	path = tools/service-runner
+	url = https://github.com/aktos-io/service-runner

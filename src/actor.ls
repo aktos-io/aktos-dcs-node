@@ -5,6 +5,13 @@ require! 'prelude-ls': {split, flatten, keys, unique}
 require! uuid4
 require! './topic-match': {topic-match}
 
+export class TopicTypeError extends Error
+    (@message, @topic) ->
+        super ...
+        Error.captureStackTrace(this, TopicTypeError)
+        @type = \DiffError
+
+
 
 export class Actor extends EventEmitter
     (name, opts={}) ->
@@ -19,6 +26,7 @@ export class Actor extends EventEmitter
         @subscriptions = [] # subscribe all topics by default.
 
         @request-queue = {}
+        @this-actor-is-a-proxy = no
 
         @_state =
             kill:
@@ -26,7 +34,15 @@ export class Actor extends EventEmitter
                 finished: no
 
         @mgr.register-actor this
+
+        # this context switch is important. if it is omitted, "action" method
+        # will NOT be overwritten within the parent class
+        # < ~ sleep 0 <= really no need for this?
         @action! if typeof! @action is \Function
+
+    set-name: (name) ->
+        @name = name
+        @log.name = name
 
     msg-template: (msg) ->
         msg-raw =
@@ -49,7 +65,7 @@ export class Actor extends EventEmitter
 
     send: (topic, payload) ~>
         if typeof! topic isnt \String
-            throw "Topic is not string? topic: #{topic}"
+            throw new TopicTypeError "Topic is not a string?", topic
 
         if @debug => debugger
         enveloped = @msg-template! <<< do
@@ -60,6 +76,7 @@ export class Actor extends EventEmitter
             if @debug => @log.log "sending #{pack enveloped}"
         catch
             @log.err "sending message failed. msg: ", payload, e
+            throw e
 
     send-request: (_topic, payload, callback) ->
         /*
@@ -105,18 +122,36 @@ export class Actor extends EventEmitter
 
     _inbox: (msg) ->
         # process one message at a time
+        #@log.log "Got message to inbox:", msg.payload
+        <~ sleep 0  # IMPORTANT: this fixes message sequences
         if \res of msg
             if msg.res.id is @id
                 if msg.res.seq of @request-queue
+                    #@log.log "...and triggered request queue:", msg.payload
                     @request-queue[msg.res.seq].go msg
                     delete @request-queue[msg.res.seq]
                     return
-            return unless @proxy
-        if \update of msg
-            @trigger \update, msg
+            unless @this-actor-is-a-proxy
+                #@log.warn "Not my response, simply dropping the msg: ", msg.payload
+                return
+
         if \payload of msg
             @trigger \data, msg
-        # deliver every message to receive-handlers
+
+        if \request-update of msg
+            /* usage:
+
+            ..on 'request-update', (msg, respond) ->
+                # use msg (msg.payload/msg.topic) if necessary
+                respond {my: 'response'}
+
+            */
+            # TODO: filter requests with an acceptable FPS
+            @trigger \request-update, msg, (response) ~>
+                @log.log "Responding to update request for topic: ", msg.topic
+                @send msg.topic, response
+
+        # also deliver messages to 'receive' handlers
         @trigger \receive, msg
 
     on-topic: (topic, handler) ->
@@ -142,6 +177,7 @@ export class Actor extends EventEmitter
             @log.err "send-enveloped: Message has no topic. Not sending."
             debugger
             return
+        <~ sleep 0
         if @debug => @log.log "sending message: ", msg
         @mgr.distribute msg
 
@@ -152,10 +188,11 @@ export class Actor extends EventEmitter
             @trigger \kill, ...reason
             @_state.kill.finished = yes
 
-    request-update: ->
-        #@log.log "requesting update!"
-        for let topic in @subscriptions
+    request-update: (payload) ->
+        @log.log "requesting update for ", @subscriptions.join(', ')
+        for let topic in unique @subscriptions
             debugger unless topic
             @send-enveloped @msg-template do
-                update: yes
+                'request-update': yes
                 topic: topic
+                payload: payload

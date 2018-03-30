@@ -1,5 +1,5 @@
 # for debugging purposes
-require! colors: {green, gray, yellow, bg-red, bg-yellow}
+require! colors: {green, gray, yellow, bg-red, bg-yellow, cyan, bg-cyan}
 require! moment
 require! 'prelude-ls': {map}
 require! './event-emitter': {EventEmitter}
@@ -49,14 +49,15 @@ class LogManager extends EventEmitter
 export class Logger extends EventEmitter
     (source-name, opts={}) ->
         super!
-        @source-name = source-name
+        @name = source-name
         @mgr = new LogManager!
+        @prefix = null
 
     get-prefix: (color) ->
-        get-prefix @source-name, color
+        get-prefix ("#{if @prefix => "#{@prefix}/" else ''}#{@name}"), color
 
     log: (...args) ~>
-        prefix = get-prefix @source-name
+        prefix = get-prefix @name
         if IS_NODE
             console.log.call console, prefix, ...args
         else
@@ -89,3 +90,6 @@ export class Logger extends EventEmitter
 
     warn: (...args) ~>
         console.warn.apply console, [@get-prefix(bg-yellow), yellow('[WARNING]')] ++ args
+
+    info: (...args) ~>
+        console.info.apply console, [@get-prefix!, cyan('[INFO]')] ++ args

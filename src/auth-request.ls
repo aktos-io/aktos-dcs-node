@@ -9,9 +9,9 @@ require! 'prelude-ls': {keys, join}
 
 export class AuthRequest extends EventEmitter
     @i = 0
-    ->
+    (name) ->
         super!
-        @log = new Logger "AuthRequest.#{@@i++}"
+        @log = new Logger (name or "AuthRequest.#{@@i++}")
         @reply-signal = new Signal!
 
         @on \from-server, (msg) ->
