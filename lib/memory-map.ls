@@ -1,4 +1,4 @@
-require! 'prelude-ls': {split}
+require! 'prelude-ls': {split, keys, map}
 require! './keypath': {get-keypath}
 ``
 function hex2float (a) {return (a & 0x7fffff | 0x800000) * 1.0 / Math.pow(2,23) * Math.pow(2,  ((a>>23 & 0xff) - 127))}
@@ -77,7 +77,10 @@ export class MemoryMap
         get-keypath @table, name .address
 
     get-tags: (namespace) ->
-        \TODO
+        get-keypath @table, namespace
+        |> keys
+        |> map ("#{namespace}." +)
+
 
 /* tests
 ----------------------------
