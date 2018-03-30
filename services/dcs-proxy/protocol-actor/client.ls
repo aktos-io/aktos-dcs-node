@@ -16,6 +16,10 @@ This is a Protocol Actor: A Connector without transport
     * Protocol: AuthRequest
 
 Takes a transport, transparently connects two DCS networks with each other.
+
+
+on login: emit "app.logged-in"
+
 """
 export class ProxyClient extends Actor
     (@transport, @opts) ->
@@ -62,6 +66,9 @@ export class ProxyClient extends Actor
 
                 @log.info "Remote RW subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
+
+                @log.info "Emitting app.logged-in"
+                @send 'app.logged-in', {}
 
         # DCS interface
         @on do
