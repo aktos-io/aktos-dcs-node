@@ -243,7 +243,7 @@ export class CouchNano extends EventEmitter
             db: @db-name
             doc: doc-id
             qs: opts
-            att: attName
+            att: encodeURI attName
             encoding: null
             dontParse: true
             , callback
