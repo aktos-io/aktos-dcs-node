@@ -12,6 +12,9 @@ export class TcpHandlerTransport extends EventEmitter
             ..on \end, ~>
                 @trigger \disconnect
 
+            ..on \error, ~>
+                @trigger \disconnect
+
             ..on \data, (data) ~>
                 @trigger \data, data
 
