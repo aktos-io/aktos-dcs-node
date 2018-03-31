@@ -52,6 +52,8 @@ export class CouchDcsServer extends Actor
                             @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
                             @send topic, change
 
+            ..start-heartbeat!
+
         get-next-id = (template, callback) ~>
             # returns the next available `_id`
             # if template format is applicable for autoincrementing, return the incremented id
