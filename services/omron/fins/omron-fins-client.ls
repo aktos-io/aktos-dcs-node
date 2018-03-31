@@ -1,6 +1,6 @@
 require! 'dcs': {Actor, Signal, sleep, pack}
 require! 'omron-fins': fins
-require! 'prelude-ls': {chars, reverse}
+require! 'prelude-ls': {chars, empty, reverse}
 require! 'colors': {bg-yellow}
 require! 'dcs/lib/memory-map': {bit-write, bit-test}
 
@@ -11,17 +11,13 @@ DCS Message API:
 
 ### Write to a block:
 
-    write:
-        addr: (see parse-addr)
-        val: value to write
+    {{topic}}.write, payload: {val: value-to-write}
 
 ### Read a block:
 
-    read:
-        addr: (see parse-addr)
+    {{topic}}.read, payload: null
 
 '''
-
 
 
 export class OmronFinsClient extends Actor
@@ -87,11 +83,11 @@ export class OmronFinsClient extends Actor
                 if type is \bool
                     #console.log "writing bit: ", addr.0, addr.1, "val: ", value.val
                     err, res <~ @write-bit addr, value
-                    callback {err, res}
+                    callback {err, res: (unless err => value)}
                 else
                     #console.log "writing byte: ", addr.addr, "val: ", value.val
                     err, res <~ @write-byte addr, value
-                    callback {err, res}
+                    callback {err, res: (unless err => value)}
             | \read =>
                 if type is \bool
                     err, res <~ @read-bit addr
@@ -138,7 +134,7 @@ export class OmronFinsClient extends Actor
         new-value = bit-write curr-value, BIT_NUM, value
         err, res <~ @write-byte WORD_ADDR, new-value
         if err => return callback err
-        console.log "Write response: ", res 
+        console.log "Write response: ", res
         err, res <~ @read-byte WORD_ADDR
         try
             _curr = res.values.0
@@ -154,7 +150,10 @@ export class OmronFinsClient extends Actor
         [WORD_ADDR, BIT_NUM] = addr
         err, res <~ @read-byte WORD_ADDR
         if err => return callback err
-        curr-value = res.values.0
+        try
+            curr-value = res.values.0
+        catch
+            return callback {res, message: e, stage: "Read Bit Stage"}
         #console.log "curr", curr-value
         bit-value = bit-test curr-value, BIT_NUM
         callback err, bit-value
