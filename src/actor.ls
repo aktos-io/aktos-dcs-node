@@ -37,12 +37,12 @@ export class Actor extends EventEmitter
 
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
-        <~ sleep 0
+        # < ~ sleep 0 <= really no need for this?
         @action! if typeof! @action is \Function
 
     set-name: (name) ->
         @name = name
-        @log.name = name 
+        @log.name = name
 
     msg-template: (msg) ->
         msg-raw =
@@ -134,13 +134,24 @@ export class Actor extends EventEmitter
             unless @this-actor-is-a-proxy
                 #@log.warn "Not my response, simply dropping the msg: ", msg.payload
                 return
-        if \update of msg
-            @trigger \update, msg
+
         if \payload of msg
             @trigger \data, msg
-        # deliver every message to receive-handlers
 
-        #@log.log "...and triggered to 'receive':", msg.payload
+        if \request-update of msg
+            /* usage:
+
+            ..on 'request-update', (msg, respond) ->
+                # use msg (msg.payload/msg.topic) if necessary
+                respond {my: 'response'}
+
+            */
+            # TODO: filter requests with an acceptable FPS
+            @trigger \request-update, msg, (response) ~>
+                @log.log "Responding to update request for topic: ", msg.topic
+                @send msg.topic, response
+
+        # also deliver messages to 'receive' handlers
         @trigger \receive, msg
 
     on-topic: (topic, handler) ->
@@ -177,10 +188,11 @@ export class Actor extends EventEmitter
             @trigger \kill, ...reason
             @_state.kill.finished = yes
 
-    request-update: ->
-        #@log.log "requesting update!"
-        for let topic in @subscriptions
+    request-update: (payload) ->
+        @log.log "requesting update for ", @subscriptions.join(', ')
+        for let topic in unique @subscriptions
             debugger unless topic
             @send-enveloped @msg-template do
-                update: yes
+                'request-update': yes
                 topic: topic
+                payload: payload

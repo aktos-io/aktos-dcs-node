@@ -81,6 +81,27 @@ export class CouchNano extends EventEmitter
                 @trigger \refresh-cookie
         callback err, res, headers
 
+    get-db-info: (callback) ->
+        if typeof! callback isnt \Function
+            callback = (err, res) ~>
+                if err
+                    @log.err "Connection failed:", err
+                else
+                    @log.info "Connection to #{res.db_name} is successful, disk_size
+                        : #{parse-int res.disk_size / 1024}K"
+
+        err, res <~ @get null
+        if err => return callback err
+        callback err, res
+
+    start-heartbeat: ->
+        # periodically poll the db so ensure that the cookie stays valid
+        # all the time
+        <~ :lo(op) ~>
+            @get-db-info!
+            <~ sleep 1000ms_per_s * 60s_per_min * 1min
+            lo(op)
+
     connect: (callback) ->
         if typeof! callback isnt \Function then callback = (->)
         err, res <~ @get null
@@ -244,7 +265,7 @@ export class CouchNano extends EventEmitter
             db: @db-name
             doc: doc-id
             qs: opts
-            att: attName
+            att: encodeURI attName
             encoding: null
             dontParse: true
             , callback
