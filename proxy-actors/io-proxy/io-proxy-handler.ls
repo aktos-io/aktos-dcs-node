@@ -8,22 +8,33 @@ class SingularDriver
         @busy = no
         @log = new Logger \sing.
         @queue = []
+        @max-busy = 100ms
 
-    run: (method, ...args, callback) ->
+    run: (method, ...args, callback) !->
         if @busy
-            @log.info "busy! adding to queue."
+            #@log.info "busy! adding to queue."
             @queue.push [method, args, callback]
             return
-        @log.log "we are now going busy, args: ", ...args
+        #@log.log "we are now going busy, args: ", ...args
         @busy = yes
+        x = sleep @max-busy, ~>
+            @log.warn "FORCE RUNNNING NEXT!"
+            @next!
         @driver[method] ...args, (...ret) ~>
-            callback.call callback, ...ret
-            @log.log "we are free, ret is: ", ...ret
-            @busy = no
-            if @queue.length > 0
-                @log.info "Running from queue"
-                next = @queue.shift!
-                @run next.0, ...next.1, next.2
+            if x
+                clear-timeout x
+                callback ...ret
+                #@log.log "we are free"
+                @next!
+            else
+                @log.err "what happened here?"
+
+    next: ->
+        @busy = no
+        if @queue.length > 0
+            #@log.info "Running from queue"
+            next = @queue.shift!
+            @run next.0, ...next.1, next.2
 
     read: (...args, callback) ->
         @run \read, ...args, callback
@@ -35,10 +46,10 @@ class LineUp
     @drivers = []
     (driver) ->
         if find (.driver is driver), @@drivers
-            console.log "Returning exitsting singular driver for: ", driver
+            #console.log "Returning exitsting singular driver for: ", driver
             return that.singular
         else
-            console.log "Initialized new Lined up driver for: ", driver
+            #console.log "Initialized new Lined up driver for: ", driver
             singular = new SingularDriver driver
             @@drivers.push {driver, singular}
             return singular
@@ -109,17 +120,14 @@ export class IoProxyHandler extends Actor
 
         @on-topic "#{@name}.update", (msg) ~>
             # send response directly to requester
-            #<~ sleep (Math.random! * 200ms)   # WORKAROUND instead of OneByOne class
             #@log.warn "triggering 'read' because update requested."
             @trigger \read, handle, response-value(msg)
 
         @on-topic "app.logged-in", (msg) ~>
             # broadcast the status
-            #<~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
             #@log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \read, handle, broadcast-value
 
         # broadcast update on "power up"
         #@log.warn "triggering broadcast 'read' because we are initialized now."
-        #<~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
         @trigger \read, handle, broadcast-value

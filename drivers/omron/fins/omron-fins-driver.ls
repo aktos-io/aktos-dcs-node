@@ -51,7 +51,7 @@ export class OmronFinsDriver extends EventEmitter
         #console.log "read address, type: ", addr, type
         if type is \bool
             err, res <~ @read-bit addr
-            console.log "read result of bit: err:", err, "res: ", res
+            #console.log "read result of bit: err:", err, "res: ", res
             callback err, res
         else
             @read-byte addr, amount, callback
