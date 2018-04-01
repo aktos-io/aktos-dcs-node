@@ -28,6 +28,8 @@ export class Actor extends EventEmitter
         @request-queue = {}
         @this-actor-is-a-proxy = no
 
+        @trigger-topic = {}
+
         @_state =
             kill:
                 started: no
@@ -156,9 +158,10 @@ export class Actor extends EventEmitter
 
     on-topic: (topic, handler) ->
         return unless topic
-
+        # subscribe this topic
         @subscribe topic unless topic in @subscriptions
 
+        @trigger-topic[topic] = handler
         @on \data, (msg) ~>
             if msg.topic `topic-match` topic
                 handler msg
@@ -189,10 +192,9 @@ export class Actor extends EventEmitter
             @_state.kill.finished = yes
 
     request-update: (payload) ->
-        @log.log "requesting update for ", @subscriptions.join(', ')
         for let topic in unique @subscriptions
             unless topic `topic-match` "app.**"
-                debugger unless topic
+                #@log.log "requesting update for ", topic
                 @send-enveloped @msg-template do
                     'request-update': yes
                     topic: topic
