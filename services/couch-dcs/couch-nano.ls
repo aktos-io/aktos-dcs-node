@@ -98,8 +98,13 @@ export class CouchNano extends EventEmitter
         # periodically poll the db so ensure that the cookie stays valid
         # all the time
         <~ :lo(op) ~>
-            @get-db-info!
-            <~ sleep 1000ms_per_s * 60s_per_min * 1min
+            err, res <~ @get-db-info
+            if err
+                @log.err "Heartbeat failed: ", err
+            else
+                @log.info "Heartbeat OK: #{res.db_name} is successful, disk_size
+                    : #{parse-int res.disk_size / 1024}K"
+            <~ sleep 1000ms_per_s * 60s_per_min * 2min
             lo(op)
 
     connect: (callback) ->
