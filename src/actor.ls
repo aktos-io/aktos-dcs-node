@@ -138,19 +138,6 @@ export class Actor extends EventEmitter
         if \payload of msg
             @trigger \data, msg
 
-        if \request-update of msg
-            /* usage:
-
-            ..on 'request-update', (msg, respond) ->
-                # use msg (msg.payload/msg.topic) if necessary
-                respond {my: 'response'}
-
-            */
-            # TODO: filter requests with an acceptable FPS
-            @trigger \request-update, msg, (response) ~>
-                @log.log "Responding to update request for topic: ", msg.topic
-                @send msg.topic, response
-
         # also deliver messages to 'receive' handlers
         @trigger \receive, msg
 
@@ -187,12 +174,3 @@ export class Actor extends EventEmitter
             @mgr.deregister-actor this
             @trigger \kill, ...reason
             @_state.kill.finished = yes
-
-    request-update: (payload) ->
-        @log.log "requesting update for ", @subscriptions.join(', ')
-        for let topic in unique @subscriptions
-            debugger unless topic
-            @send-enveloped @msg-template do
-                'request-update': yes
-                topic: topic
-                payload: payload
