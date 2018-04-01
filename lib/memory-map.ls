@@ -64,22 +64,29 @@ example-memory-map =
         addr: \MD85
         type: \hexf
 
+export class IoHandle
+    (opts={})->
+        @topic = opts.topic
+        @address = opts.address
+        @type = null
+
+    get-actual: (value) ->
+        unless @type
+            ...
+        data-types[@type] value
 
 export class MemoryMap
-    (@table) ->
+    (opts) ->
+        @table = opts.table or throw "Io Table is required."
+        @namespace = opts.namespace or throw "Namespace required."
+        @handles = []
+        for io, params of get-keypath @table, @namespace
+            @handles.push new IoHandle do
+                topic: "#{@namespace}.#{io}"
+                address: params.address
 
-    get-actual: (addr, value) ->
-        for io of @table when io.addr is addr
-            return do
-                value: data-types[io.type] value
-
-    address-of: (name) ->
-        get-keypath @table, name .address
-
-    get-tags: (namespace) ->
-        get-keypath @table, namespace
-        |> keys
-        |> map ("#{namespace}." +)
+    get-handles: ->
+        @handles
 
 
 /* tests

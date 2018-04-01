@@ -2,7 +2,7 @@ require! 'dcs/lib/memory-map': {MemoryMap}
 require! './io-proxy-handler': {IoProxyHandler}
 require! './simulator-protocol': {IoSimulatorProtocol}
 
-mmap = new MemoryMap do
+io-table =
     io:
         plc1:
             motor1:
@@ -12,11 +12,12 @@ mmap = new MemoryMap do
             conveyor1:
                 address: 'C100.03'
 
-
 export class PhysicalTargetSimulator
     ->
         simulator-protocol = new IoSimulatorProtocol!
+        plc1 = new MemoryMap do
+            table: io-table
+            namespace: \io.plc1
 
-        new IoProxyHandler \io.plc1.motor1, simulator-protocol
-        new IoProxyHandler \io.plc1.motor2, simulator-protocol
-        new IoProxyHandler \io.plc1.conveyor1, simulator-protocol
+        for let handle in plc1.get-handles!
+            new IoProxyHandler handle, simulator-protocol

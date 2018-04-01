@@ -40,7 +40,11 @@ require! 'dcs': {EventEmitter, Actor}
 require! './errors': {CodingError}
 
 export class IoProxyHandler extends Actor
-    (topic, protocol) ->
+    (handle, protocol) ->
+        unless handle.constructor.name is \IoHandle
+            throw new CodingError "handle should be an instance of IoHandle class"
+
+        topic = handle.topic
         topic or throw new CodingError "A topic MUST be provided to IoProxyHandler."
         super topic
 
@@ -61,10 +65,6 @@ export class IoProxyHandler extends Actor
         @subscribe "#{@name}.**"
         @subscribe "app.logged-in"
 
-        handle = {
-            address: @name
-        }
-
         prev = null
         curr = null
         RESPONSE_FORMAT = (err, curr) ->
@@ -72,26 +72,26 @@ export class IoProxyHandler extends Actor
 
         broadcast-value = (err, value) ~>
             @send "#{@name}.read", RESPONSE_FORMAT(err, value)
-            if not err and value isnt prev
-                @log.log "Store previous value (from #{prev} to #{curr})"
+            if not err and value isnt curr
+                #@log.log "Store previous (broadcast) value (from #{prev} to #{curr})"
                 prev := curr
                 curr := value
 
         response-value = (msg) ~>
             (err, value) ~>
                 @send-response msg, RESPONSE_FORMAT(err, value)
-                if not err and value isnt prev
-                    @log.log "Store previous value (from #{prev} to #{curr})"
+                if not err and value isnt curr
+                    #@log.log "Store previous (resp.) value (from #{prev} to #{curr})"
                     prev := curr
                     curr := value
 
         @on-topic "#{@name}.read", (msg) ~>
             # send response directly to requester
-            @log.todo "triggering response 'read'."
+            #@log.warn "triggering response 'read'."
             @trigger \read, handle, response-value(msg)
 
         @on-topic "#{@name}.write", (msg) ~>
-            @log.warn "triggering 'write'."
+            #@log.warn "triggering 'write'."
             new-value = msg.payload.val
             @trigger \write, handle, new-value, (err) ~>
                 if err
@@ -103,14 +103,14 @@ export class IoProxyHandler extends Actor
 
         @on-topic "#{@name}.update", (msg) ~>
             # send response directly to requester
-            @log.warn "triggering 'read' because update requested."
+            #@log.warn "triggering 'read' because update requested."
             @trigger \read, handle, response-value(msg)
 
         @on-topic "app.logged-in", (msg) ~>
             # broadcast the status
-            @log.warn "triggering broadcast 'read' because we are logged in."
+            #@log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \read, handle, broadcast-value
 
         # broadcast update on "power up"
-        @log.warn "triggering broadcast 'read' because we are initialized now."
+        #@log.warn "triggering broadcast 'read' because we are initialized now."
         @trigger \read, handle, broadcast-value
