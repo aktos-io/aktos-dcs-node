@@ -40,7 +40,7 @@ export class ProxyClient extends Actor
         # ------------------------------------------------------
 
         # Authentication protocol
-        @auth = new AuthRequest!
+        @auth = new AuthRequest @name
             ..on \to-server, (msg) ~>
                 @transport.write pack msg
 
