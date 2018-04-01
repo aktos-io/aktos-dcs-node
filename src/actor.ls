@@ -28,7 +28,7 @@ export class Actor extends EventEmitter
         @request-queue = {}
         @this-actor-is-a-proxy = no
 
-        @trigger-topic = {}
+        @_topic_handlers = {}
 
         @_state =
             kill:
@@ -148,10 +148,14 @@ export class Actor extends EventEmitter
         # subscribe this topic
         @subscribe topic unless topic in @subscriptions
 
-        @trigger-topic[topic] = handler
+        @_topic_handlers[topic] = handler
         @on \data, (msg) ~>
             if msg.topic `topic-match` topic
                 handler msg
+
+
+    trigger-topic: (topic, ...args) ->
+        @_topic_handlers[topic] ...args 
 
     once-topic: (topic, handler) ->
         @subscribe topic unless topic in @subscriptions
