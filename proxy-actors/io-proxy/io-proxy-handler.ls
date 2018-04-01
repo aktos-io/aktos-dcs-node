@@ -1,55 +1,48 @@
-/*-------------------------------------
+require! 'dcs': {EventEmitter, Actor, sleep, Logger}
+require! './errors': {CodingError}
 
-# IoProxyHandler
-----------------
+require! 'prelude-ls': {find}
 
-## Events:
+class SingularDriver
+    (@driver) ->
+        @busy = no
+        @log = new Logger \sing.
+        @queue = []
 
-    read handle, respond(err, value)
+    run: (method, ...args, callback) ->
+        if @busy
+            @log.info "busy! adding to queue."
+            @queue.push [method, args, callback]
+            return
+        @log.log "we are now going busy, args: ", ...args
+        @busy = yes
+        @driver[method] ...args, (...ret) ~>
+            callback.call callback, ...ret
+            @log.log "we are free, ret is: ", ...ret
+            @busy = no
+            if @queue.length > 0
+                @log.info "Running from queue"
+                next = @queue.shift!
+                @run next.0, ...next.1, next.2
 
-    write handle, value, respond(err)
+    read: (...args, callback) ->
+        @run \read, ...args, callback
 
-handle Object:
-
-    address: Original address representation
-    type: bool, int, ...
-
-## Request Message Format
-
-    ..write:
-        payload: {val: newValue}
-
-    ..read:
-        payload: null
-
-## Response Message Format:
-
-    ..read
-        err: error if there are any
-        res:
-            curr: current value
-            prev: previous value
-
-    ..write (see read response)
-
-## Example: (see PhysicalTargetSimulator)
-
-*/
+    write: (...args, callback) ->
+        @run \write, ...args, callback
 
 class LineUp
-    @driver = null
-    @instance = null
+    @drivers = []
     (driver) ->
-        if @@driver is driver
-            console.log "We have an instance with the same driver."
+        if find (.driver is driver), @@drivers
+            console.log "Returning exitsting singular driver for: ", driver
+            return that.singular
+        else
+            console.log "Initialized new Lined up driver for: ", driver
+            singular = new SingularDriver driver
+            @@drivers.push {driver, singular}
+            return singular
 
-        @@instance = this
-
-
-
-
-require! 'dcs': {EventEmitter, Actor, sleep}
-require! './errors': {CodingError}
 
 export class IoProxyHandler extends Actor
     (handle, driver) ->
@@ -61,16 +54,17 @@ export class IoProxyHandler extends Actor
         super topic
 
         if driver?
+            safe-driver = new LineUp driver
             # assign handlers internally
             @on \read, (handle, respond) ~>
                 #console.log "requested read!"
-                err, value <~ driver.read handle.address, handle.amount
+                err, value <~ safe-driver.read handle.address, handle.amount
                 #console.log "responding read value: ", err, value
                 respond err, value
 
             @on \write, (handle, value, respond) ~>
                 #console.log "requested write for #{handle.address}, value: ", value
-                err <~ driver.write handle.address, value
+                err <~ safe-driver.write handle.address, value
                 #console.log "write error status: ", err
                 respond err
 
@@ -115,17 +109,17 @@ export class IoProxyHandler extends Actor
 
         @on-topic "#{@name}.update", (msg) ~>
             # send response directly to requester
-            <~ sleep (Math.random! * 200ms)   # WORKAROUND instead of OneByOne class
+            #<~ sleep (Math.random! * 200ms)   # WORKAROUND instead of OneByOne class
             #@log.warn "triggering 'read' because update requested."
             @trigger \read, handle, response-value(msg)
 
         @on-topic "app.logged-in", (msg) ~>
             # broadcast the status
-            <~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
+            #<~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
             #@log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \read, handle, broadcast-value
 
         # broadcast update on "power up"
         #@log.warn "triggering broadcast 'read' because we are initialized now."
-        <~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
+        #<~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
         @trigger \read, handle, broadcast-value
