@@ -9,7 +9,7 @@ export class TopicTypeError extends Error
     (@message, @topic) ->
         super ...
         Error.captureStackTrace(this, TopicTypeError)
-        @type = \DiffError
+        @type = \TopicTypeError
 
 
 
@@ -140,19 +140,6 @@ export class Actor extends EventEmitter
         if \payload of msg
             @trigger \data, msg
 
-        if \request-update of msg
-            /* usage:
-
-            ..on 'request-update', (msg, respond) ->
-                # use msg (msg.payload/msg.topic) if necessary
-                respond {my: 'response'}
-
-            */
-            # TODO: filter requests with an acceptable FPS
-            @trigger \request-update, msg, (response) ~>
-                @log.log "Responding to update request for topic: ", msg.topic
-                @send msg.topic, response
-
         # also deliver messages to 'receive' handlers
         @trigger \receive, msg
 
@@ -190,12 +177,3 @@ export class Actor extends EventEmitter
             @mgr.deregister-actor this
             @trigger \kill, ...reason
             @_state.kill.finished = yes
-
-    request-update: (payload) ->
-        for let topic in unique @subscriptions
-            unless topic `topic-match` "app.**"
-                #@log.log "requesting update for ", topic
-                @send-enveloped @msg-template do
-                    'request-update': yes
-                    topic: topic
-                    payload: payload
