@@ -67,26 +67,27 @@ export class ProxyClient extends Actor
                 @log.info "Remote RW subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
 
-                @log.info "Emitting app.logged-in"
-                @send 'app.logged-in', {}
-
         # DCS interface
-        @on do
-            receive: (msg) ~>
-                unless msg.topic `topic-match` @permissions-rw
-                    @log.warn "We don't have permission for: ", msg
-                    @send-response msg, {err: "
-                        How come the ProxyClient is subscribed a topic
-                        that it has no rights to send? This is a DCS malfunction.
-                        "}
-                    return
+        @on \receive, (msg) ~>
+            unless msg.topic `topic-match` @permissions-rw
+                @log.warn "We don't have permission for: ", msg
+                @send-response msg, {err: "
+                    How come the ProxyClient is subscribed a topic
+                    that it has no rights to send? This is a DCS malfunction.
+                    "}
+                return
 
-                # debug
-                #@log.log "Transport < DCS: (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                #@log.log "... #{pack msg.payload}"
-                @transport.write (msg
-                    |> @auth.add-token
-                    |> pack)
+            # debug
+            #@log.log "Transport < DCS: (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+            #@log.log "... #{pack msg.payload}"
+            @transport.write (msg
+                |> @auth.add-token
+                |> pack)
+
+        @on \logged-in, ~>
+            @log.info "Emitting app.logged-in"
+            @send 'app.logged-in', {}
+
 
         # transport interface
         @m = new MessageBinder!

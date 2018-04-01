@@ -191,8 +191,9 @@ export class Actor extends EventEmitter
     request-update: (payload) ->
         @log.log "requesting update for ", @subscriptions.join(', ')
         for let topic in unique @subscriptions
-            debugger unless topic
-            @send-enveloped @msg-template do
-                'request-update': yes
-                topic: topic
-                payload: payload
+            unless topic `topic-match` "app.**"
+                debugger unless topic
+                @send-enveloped @msg-template do
+                    'request-update': yes
+                    topic: topic
+                    payload: payload
