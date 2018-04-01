@@ -59,14 +59,14 @@ export class OmronFinsProtocol extends EventEmitter
     write: (address, value, callback) ->
         {addr, type} = @parse-addr address
         if type is \bool
-            console.log "writing bit: word: ", addr.0, "bit" addr.1, "val: ", value
+            #console.log "writing bit: word: ", addr.0, "bit" addr.1, "val: ", value
             err, res <~ @write-bit addr, value
-            console.log "write output: err, res: ", err, res
+            #console.log "write output: err, res: ", err, res
             callback err
         else
-            console.log "writing byte: ", addr, "val: ", value
+            #console.log "writing byte: ", addr, "val: ", value
             err, res <~ @write-byte addr, value
-            console.log "write output: err, res: ", err, res
+            #console.log "write output: err, res: ", err, res
             callback err
 
 
@@ -113,7 +113,7 @@ export class OmronFinsProtocol extends EventEmitter
         new-value = bit-write res, BIT_NUM, value
         err, res <~ @write-byte WORD_ADDR, new-value
         if err => return callback err
-        console.log "Write response: ", res
+        #console.log "Write response: ", res
         err, res <~ @read-byte WORD_ADDR
         if err => return callback err
         if res isnt new-value

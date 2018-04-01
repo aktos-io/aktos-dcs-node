@@ -110,7 +110,7 @@ export class IoProxyHandler extends Actor
         @on-topic "app.logged-in", (msg) ~>
             # broadcast the status
             <~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
-            @log.warn "triggering broadcast 'read' because we are logged in."
+            #@log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \read, handle, broadcast-value
 
         # broadcast update on "power up"
