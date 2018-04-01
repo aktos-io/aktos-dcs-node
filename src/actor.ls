@@ -90,6 +90,10 @@ export class Actor extends EventEmitter
             when \String => [topic, timeout] = [_topic, 0]
             when \Object => [topic, timeout] = [_topic.topic, _topic.timeout]
 
+        if typeof! payload is \Function
+            callback = payload
+            payload = null 
+
         enveloped = @msg-template! <<< do
             topic: topic
             payload: payload
@@ -155,7 +159,7 @@ export class Actor extends EventEmitter
 
 
     trigger-topic: (topic, ...args) ->
-        @_topic_handlers[topic] ...args 
+        @_topic_handlers[topic] ...args
 
     once-topic: (topic, handler) ->
         @subscribe topic unless topic in @subscriptions
