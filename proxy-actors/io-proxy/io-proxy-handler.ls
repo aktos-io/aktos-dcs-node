@@ -36,11 +36,23 @@ handle Object:
 
 */
 
+class LineUp
+    @driver = null
+    @instance = null
+    (driver) ->
+        if @@driver is driver
+            console.log "We have an instance with the same driver."
+
+        @@instance = this
+
+
+
+
 require! 'dcs': {EventEmitter, Actor, sleep}
 require! './errors': {CodingError}
 
 export class IoProxyHandler extends Actor
-    (handle, protocol) ->
+    (handle, driver) ->
         unless handle.constructor.name is \IoHandle
             throw new CodingError "handle should be an instance of IoHandle class"
 
@@ -48,17 +60,17 @@ export class IoProxyHandler extends Actor
         topic or throw new CodingError "A topic MUST be provided to IoProxyHandler."
         super topic
 
-        if protocol?
+        if driver?
             # assign handlers internally
             @on \read, (handle, respond) ~>
                 #console.log "requested read!"
-                err, value <~ protocol.read handle.address, handle.amount
+                err, value <~ driver.read handle.address, handle.amount
                 #console.log "responding read value: ", err, value
                 respond err, value
 
             @on \write, (handle, value, respond) ~>
                 #console.log "requested write for #{handle.address}, value: ", value
-                err <~ protocol.write handle.address, value
+                err <~ driver.write handle.address, value
                 #console.log "write error status: ", err
                 respond err
 

@@ -24,7 +24,7 @@ value:
 
 *****************************************************/
 
-export class OmronFinsProtocol extends EventEmitter
+export class OmronFinsDriver extends EventEmitter
     (@opts={}) ->
         super!
         @target = {port: 9600, host: '192.168.250.1'} <<< @opts
