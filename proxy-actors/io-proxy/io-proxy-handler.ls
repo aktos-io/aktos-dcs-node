@@ -36,7 +36,7 @@ handle Object:
 
 */
 
-require! 'dcs': {EventEmitter, Actor}
+require! 'dcs': {EventEmitter, Actor, sleep}
 require! './errors': {CodingError}
 
 export class IoProxyHandler extends Actor
@@ -103,14 +103,17 @@ export class IoProxyHandler extends Actor
 
         @on-topic "#{@name}.update", (msg) ~>
             # send response directly to requester
+            <~ sleep (Math.random! * 200ms)   # WORKAROUND instead of OneByOne class
             #@log.warn "triggering 'read' because update requested."
             @trigger \read, handle, response-value(msg)
 
         @on-topic "app.logged-in", (msg) ~>
             # broadcast the status
-            #@log.warn "triggering broadcast 'read' because we are logged in."
+            <~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
+            @log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \read, handle, broadcast-value
 
         # broadcast update on "power up"
         #@log.warn "triggering broadcast 'read' because we are initialized now."
+        <~ sleep (Math.random! * 200ms)    # WORKAROUND instead of OneByOne class
         @trigger \read, handle, broadcast-value
