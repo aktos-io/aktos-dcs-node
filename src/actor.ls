@@ -9,7 +9,7 @@ export class TopicTypeError extends Error
     (@message, @topic) ->
         super ...
         Error.captureStackTrace(this, TopicTypeError)
-        @type = \DiffError
+        @type = \TopicTypeError
 
 
 
