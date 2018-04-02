@@ -114,10 +114,6 @@ export class OmronFinsDriver extends EventEmitter
         err, res <~ @write-byte WORD_ADDR, new-value
         if err => return callback err
         #console.log "Write response: ", res
-        err, res <~ @read-byte WORD_ADDR
-        if err => return callback err
-        if res isnt new-value
-            return callback {message: "Value does not match with written one"}
         callback err, res
 
     read-bit: (addr, callback) ->
