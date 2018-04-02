@@ -64,21 +64,6 @@ export class IoProxyHandler extends Actor
         topic or throw new CodingError "A topic MUST be provided to IoProxyHandler."
         super topic
 
-        if driver?
-            safe-driver = new LineUp driver
-            # assign handlers internally
-            @on \read, (handle, respond) ~>
-                #console.log "requested read!"
-                err, value <~ safe-driver.read handle.address, handle.amount
-                #console.log "responding read value: ", err, value
-                respond err, value
-
-            @on \write, (handle, value, respond) ~>
-                #console.log "requested write for #{handle.address}, value: ", value
-                err <~ safe-driver.write handle.address, value
-                #console.log "write error status: ", err
-                respond err
-
         @subscribe "#{@name}.**"
         @subscribe "app.logged-in"
 
@@ -101,6 +86,34 @@ export class IoProxyHandler extends Actor
                     #@log.log "Store previous (resp.) value (from #{prev} to #{curr})"
                     prev := curr
                     curr := value
+
+        if driver?
+            safe-driver = new LineUp driver
+            # assign handlers internally
+            @on \read, (handle, respond) ~>
+                #console.log "requested read!"
+                err, value <~ safe-driver.read handle.address, handle.amount
+                #console.log "responding read value: ", err, value
+                respond err, value
+
+            @on \write, (handle, value, respond) ~>
+                #console.log "requested write for #{handle.address}, value: ", value
+                err <~ safe-driver.write handle.address, value
+                #console.log "write error status: ", err
+                respond err
+
+            console.log "checking if we need to poll"
+            if driver.poll
+                console.log "Watching changes..."
+                do
+                    i = 0
+                    <~ :lo(op) ~>
+                        #console.log "...polling changes: ", handle.address
+                        err, value <~ safe-driver.read handle.address, handle.amount
+                        #console.log ":::: polled: ", err, value
+                        broadcast-value err, value 
+                        <~ sleep driver.poll
+                        lo(op)
 
         @on-topic "#{@name}.read", (msg) ~>
             # send response directly to requester
