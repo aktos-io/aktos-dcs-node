@@ -102,17 +102,16 @@ export class IoProxyHandler extends Actor
                 #console.log "write error status: ", err
                 respond err
 
-            console.log "checking if we need to poll"
-            if driver.poll
-                console.log "Watching changes..."
+            if handle.poll
+                console.log "Watching changes for #{@name}"
                 do
                     i = 0
                     <~ :lo(op) ~>
-                        #console.log "...polling changes: ", handle.address
+                        #console.log "...polling changes: ", handle
                         err, value <~ safe-driver.read handle.address, handle.amount
                         #console.log ":::: polled: ", err, value
-                        broadcast-value err, value 
-                        <~ sleep driver.poll
+                        broadcast-value err, value
+                        <~ sleep handle.poll
                         lo(op)
 
         @on-topic "#{@name}.read", (msg) ~>
