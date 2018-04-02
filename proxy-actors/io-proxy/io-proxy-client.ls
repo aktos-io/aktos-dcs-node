@@ -1,6 +1,7 @@
 require! '../../src/actor': {Actor}
 require! '../../src/signal': {Signal}
 require! '../../lib/sleep': {sleep}
+require! '../../src/filters': {FpsExec}
 
 
 export class IoProxyClient extends Actor
@@ -8,7 +9,7 @@ export class IoProxyClient extends Actor
         @topic = opts.topic or throw "Topic is required."
         @timeout = opts.timeout or 1000ms
         super @topic
-
+        @fps = new FpsExec (opts.fps or 20fps), this
         @reply-signal = new Signal \reply-signal
 
         # handle realtime events
@@ -54,7 +55,10 @@ export class IoProxyClient extends Actor
                 @trigger-topic "#{@topic}.read", msg
 
 
-    write: (value, callback) ->
+    write: (...args) ->
+        @fps.exec @filtered-write, ...args
+
+    filtered-write: (value, callback) ->
         acceptable-delay = 100ms
         x = sleep acceptable-delay, ~>
             # do not show "doing" state for if all request-response
