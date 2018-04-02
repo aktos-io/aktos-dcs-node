@@ -68,6 +68,7 @@ export class IoHandle
     (opts={})->
         @topic = opts.topic
         @address = opts.address
+        @poll = opts.poll
         @type = null
 
     get-actual: (value) ->
@@ -81,9 +82,8 @@ export class MemoryMap
         @namespace = opts.namespace or throw "Namespace required."
         @handles = []
         for io, params of get-keypath @table, @namespace
-            @handles.push new IoHandle do
-                topic: "#{@namespace}.#{io}"
-                address: params.address
+            props = {topic: "#{@namespace}.#{io}"} <<< params
+            @handles.push new IoHandle props
 
     get-handles: ->
         @handles
