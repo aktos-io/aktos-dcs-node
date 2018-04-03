@@ -1,5 +1,5 @@
 require! 'dcs': {EventEmitter, Actor, sleep, Logger}
-require! './errors': {CodingError}
+require! '../../src/errors': {CodingError}
 
 require! 'prelude-ls': {find}
 
@@ -59,13 +59,17 @@ export class IoProxyHandler extends Actor
     (handle, driver) ->
         unless handle.constructor.name is \IoHandle
             throw new CodingError "handle should be an instance of IoHandle class"
-
         topic = handle.topic
         topic or throw new CodingError "A topic MUST be provided to IoProxyHandler."
         super topic
-
+        #@log.info "Initializing #{handle.topic}"
         @subscribe "#{@name}.**"
         @subscribe "app.logged-in"
+
+        /*
+        @on \kill, (reason) ~>
+            @log.log "KILLING ACTOR!!!"
+        */
 
         prev = null
         curr = null
@@ -92,27 +96,21 @@ export class IoProxyHandler extends Actor
             # assign handlers internally
             @on \read, (handle, respond) ~>
                 #console.log "requested read!"
-                err, value <~ safe-driver.read handle.address, handle.amount
+                err, value <~ safe-driver.read handle
                 #console.log "responding read value: ", err, value
                 respond err, value
 
             @on \write, (handle, value, respond) ~>
                 #console.log "requested write for #{handle.address}, value: ", value
-                err <~ safe-driver.write handle.address, value
+                err <~ safe-driver.write handle, value
                 #console.log "write error status: ", err
                 respond err
 
-            if handle.poll
-                console.log "Watching changes for #{@name}"
-                do
-                    i = 0
-                    <~ :lo(op) ~>
-                        #console.log "...polling changes: ", handle
-                        err, value <~ safe-driver.read handle.address, handle.amount
-                        #console.log ":::: polled: ", err, value
-                        broadcast-value err, value
-                        <~ sleep handle.poll
-                        lo(op)
+            # driver decides whether to watch changes of this handle or not.
+            if handle.watch
+                console.log "Watching #{handle.topic}"
+                driver.watch-changes handle, broadcast-value
+
 
         @on-topic "#{@name}.read", (msg) ~>
             # send response directly to requester

@@ -24,9 +24,8 @@ value:
 
 *****************************************************/
 
-export class OmronFinsDriver extends EventEmitter
+export class OmronFinsDriver
     (@opts={}) ->
-        super!
         @target = {port: 9600, host: '192.168.250.1'} <<< @opts
         @read-signal = new Signal!
         @write-signal = new Signal!
@@ -46,18 +45,18 @@ export class OmronFinsDriver extends EventEmitter
                 console.log "unknown msg.command: #{msg.command}"
                 #console.log "reply: ", pack msg
 
-    read: (address, amount, callback) ->
-        {addr, type} = @parse-addr address
+    read: (handle, callback) ->
+        {addr, type} = @parse-addr handle.address
         #console.log "read address, type: ", addr, type
         if type is \bool
             err, res <~ @read-bit addr
             #console.log "read result of bit: err:", err, "res: ", res
             callback err, res
         else
-            @read-byte addr, amount, callback
+            @read-byte addr, (handle.amount or 1), callback
 
-    write: (address, value, callback) ->
-        {addr, type} = @parse-addr address
+    write: (handle, value, callback) ->
+        {addr, type} = @parse-addr handle.address
         if type is \bool
             #console.log "writing bit: word: ", addr.0, "bit" addr.1, "val: ", value
             err, res <~ @write-bit addr, value

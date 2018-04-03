@@ -1,5 +1,7 @@
 require! 'prelude-ls': {split, keys, map}
 require! './keypath': {get-keypath}
+require! '../src/errors': {CodingError}
+
 ``
 function hex2float (a) {return (a & 0x7fffff | 0x800000) * 1.0 / Math.pow(2,23) * Math.pow(2,  ((a>>23 & 0xff) - 127))}
 
@@ -55,50 +57,15 @@ data-types =
     #bool: ...
 
 
-example-memory-map =
-    'test-level-1':
-        addr: \MD84
-        type: \hexf
-
-    'test-level-2'
-        addr: \MD85
-        type: \hexf
-
 export class IoHandle
-    (opts={})->
-        @topic = opts.topic
-        @address = opts.address
-        @poll = opts.poll
-        @type = null
+    (opts={}, topic)->
+        # add all properties as if they exists in IoHandle
+        for k, v of opts
+            this[k] = v
+        @topic = topic
+
 
     get-actual: (value) ->
         unless @type
             ...
         data-types[@type] value
-
-export class MemoryMap
-    (opts) ->
-        @table = opts.table or throw "Io Table is required."
-        @namespace = opts.namespace or throw "Namespace required."
-        @handles = []
-        for io, params of get-keypath @table, @namespace
-            props = {topic: "#{@namespace}.#{io}"} <<< params
-            @handles.push new IoHandle props
-
-    get-handles: ->
-        @handles
-
-
-/* tests
-----------------------------
-export io-map = new MemoryMap do
-    io:
-        plc1:
-            motor1:
-                address: 'C100.01'
-                dir: \out
-                type: \bool
-
-# io-map.address-of 'motor1' # => "C100.01"
-console.log "address of io.plc1.motor1:", io-map.address-of 'io.plc1.motor1'
-*/

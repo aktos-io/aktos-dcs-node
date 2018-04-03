@@ -1,12 +1,15 @@
-export class IoSimulatorDriver
+require! '../driver-abstract': {DriverAbstract}
+
+export class IoSimulatorDriver extends DriverAbstract
     ->
+        super!
         @memory = {}
 
-    read: (address, amount, callback) ->
+    read: (handle, callback) ->
         #console.log "IoSimulatorDriver: read from address: ", address, "amount: ", amount
-        callback err=null, (@memory[address] or false)
+        callback err=null, (@memory[handle.topic] or false)
 
-    write: (address, value, callback) ->
-        @memory[address] = value
-        console.log "IoSimulatorDriver: write to address: ", address, "value: ", value
+    write: (handle, value, callback) ->
+        @memory[handle.topic] = value
+        console.log "IoSimulatorDriver: write to address: ", handle.topic, "value: ", value
         callback err=null
