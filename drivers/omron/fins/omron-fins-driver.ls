@@ -137,7 +137,7 @@ export class OmronFinsDriver
             callback = count
             count = 1
         #console.log "Reading byte: addr: ", addr, "count: ", count
-        _err, bytes <~ @client.read addr, count
+        _err, bytes <~ @client.read addr, (count or 1)
         if _err
             console.log "read failed : ", _err
             return callback _err
