@@ -64,7 +64,7 @@ export class SiemensS7Driver extends DriverAbstract
                     {handle, callback} = @watches[addr]
                     value = handle.get-meaningful _value
                     #@log.log "value: ", handle.topic, handle.address, value
-                    if handle.prev? and abs(handle.prev - value) / value < (handle.treshold or 0.001)
+                    if handle.prev? and abs(handle.prev - value) / value < (handle.threshold or 0.001)
                         #@log.info "Considered No-change: #{handle.prev} -> #{value}"
                         null
                     else

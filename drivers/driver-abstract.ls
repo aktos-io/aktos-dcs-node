@@ -1,5 +1,8 @@
-export class DriverAbstract
+require! '../lib/event-emitter': {EventEmitter}
+
+export class DriverAbstract extends EventEmitter
     ->
+        super!
     write: (handle, value, callback) ->
         ...
 

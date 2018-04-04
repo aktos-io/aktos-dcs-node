@@ -72,24 +72,22 @@ export class IoProxyHandler extends Actor
         */
 
         prev = null
-        curr = null
         RESPONSE_FORMAT = (err, curr) ->
             {err, res: {curr, prev}}
 
         broadcast-value = (err, value) ~>
+            #@log.log "Broadcasting err: ", err , "value: ", value
             @send "#{@name}.read", RESPONSE_FORMAT(err, value)
-            if not err and value isnt curr
+            if not err and value isnt prev
                 #@log.log "Store previous (broadcast) value (from #{prev} to #{curr})"
-                prev := curr
-                curr := value
+                prev := value
 
         response-value = (msg) ~>
             (err, value) ~>
                 @send-response msg, RESPONSE_FORMAT(err, value)
-                if not err and value isnt curr
+                if not err and value isnt prev
                     #@log.log "Store previous (resp.) value (from #{prev} to #{curr})"
-                    prev := curr
-                    curr := value
+                    prev := value
 
         if driver?
             safe-driver = new LineUp driver
@@ -108,7 +106,7 @@ export class IoProxyHandler extends Actor
 
             # driver decides whether to watch changes of this handle or not.
             if handle.watch
-                @log.log "Watching #{handle.topic}"
+                @log.info "Watching for changes."
                 driver.watch-changes handle, broadcast-value
 
 
@@ -137,6 +135,15 @@ export class IoProxyHandler extends Actor
             # broadcast the status
             #@log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \read, handle, broadcast-value
+
+
+        driver.on \connect, ~>
+            @log.info "Driver is connected, broadcasting current status"
+            @trigger \read, handle, broadcast-value
+
+        driver.on \disconnect, ~>
+            @log.info "Driver is disconnected, publish the error"
+            broadcast-value err="Target is disconnected."
 
         # broadcast update on "power up"
         #@log.warn "triggering broadcast 'read' because we are initialized now."
