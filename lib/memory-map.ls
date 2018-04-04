@@ -65,7 +65,7 @@ export class IoHandle
         @topic = topic
 
 
-    get-actual: (value) ->
+    get-meaningful: (value) ->
         unless @type
             ...
         data-types[@type] value

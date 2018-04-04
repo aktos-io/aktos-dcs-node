@@ -2,72 +2,79 @@ require! 'nodes7': NodeS7
 require! 'dcs': {EventEmitter, Logger, sleep, pack}
 require! 'dcs/lib/memory-map': {bit-write, bit-test}
 require! '../../driver-abstract': {DriverAbstract}
+require! 'prelude-ls': {abs}
+require! 'colors': {bg-green}
 
 
 export class SiemensS7Driver extends DriverAbstract
     (@opts) ->
         super!
+        @target = @opts.target
         @log = new Logger \SiemensS7Driver
-        # S7 client
         @conn = new NodeS7 {+silent}
-        @log.log "S7 Actor is created: ", @opts.target, @opts.name
+        @log.log "S7 Actor is created: #{@target.host}:#{@target.port}"
+        @watches = {}
         @start!
+        @log.todo "When do we stop?"
+
+    prepare-one-read: (address) ->
+        @conn.removeItems!  # remove all items to prepare one reading
+        @conn.addItems address
+
+    done-one-read: ->
+        @conn.removeItems!
+        @conn.addItems [address for address of @watches]  # re-add all items
 
     read: (handle, callback) ->
-        console.log "trying to read #{handle.topic}"
-        callback!
+        @prepare-one-read handle.address
+        err, data <~ @conn.readAllItems
+        @done-one-read!
+        value = data[handle.address] unless err
+        callback err, handle.get-meaningful value
 
     write: (handle, value, callback) ->
-        console.log "trying to write #{handle.topic}"
-        callback!
-        return
-
         if @opts.readonly
-            @log.log (yellow "READONLY, not writing the following:"), "#{io-addr}: #{msg.payload}"
-            return
-        @log.log "Writing: ", msg.payload, "(#{typeof! msg.payload}) to: ", io-addr
-
-        return @log.log "DEBUG, NOT WRITING!"
-        err <~ @conn.writeItems io-addr, msg.payload
-        @log.err "something went wrong while writing: ", err if err
-
+            error = "READONLY, not writing the following: #{handle.address} <= #{value}"
+            @log.warn error
+            return callback err
+        err <~ @conn.writeItems handle.address, value
+        callback err
 
     start: ->
-        @conn.initiateConnection @opts.target, (err) ~>
+        @conn.initiateConnection @target, (err) ~>
             if err => return @log.log "we have an error: ", err
+            @log.info bg-green "Connection is successful"
+            @start-read-poll!
 
     stop: ->
         @log.log "Closing the connection"
         <~ @conn.dropConnection
         @log.log "Connection closed"
 
-
-    start-read-poll: ->
+    start-read-poll: !->
         @log.log "started read-poll"
         @prev-data = {}
         <~ :lo(op) ~>
             err, data <~ @conn.readAllItems
             if err
                 @log.log "something went wrong while reading values"
-                @first-read-done = no
-            for prev-io-addr, prev-io-val of @prev-data
-                for io-addr, io-val of data when io-addr is prev-io-addr
-                    if io-val isnt prev-io-val
-                        x = @io-map.get-meaningful io-addr, io-val
-                        if not @first-read-done or @debug
-                            @first-read-done = yes
-                            @log.log (yellow '[ DEBUG (first read)]'), "Read: #{x.name} (#{io-addr}) = #{x.value}"
-
-                        @send x.value, "#{@topic-prefix}.#{x.name}"
-
-            @prev-data = data
-            <~ sleep (@opts.period or 500ms)
+            else
+                # detect and send changes
+                for addr, _value of data
+                    {handle, callback} = @watches[addr]
+                    value = handle.get-meaningful _value
+                    #@log.log "value: ", handle.topic, handle.address, value
+                    if handle.prev? and abs(handle.prev - value) / value < (handle.treshold or 0.001)
+                        #@log.info "Considered No-change: #{handle.prev} -> #{value}"
+                        null
+                    else
+                        #@log.log "#{handle.topic}  is changed: -> #{value}"
+                        callback err=null, value
+                        handle.prev = value
+            <~ sleep (@opts.period or 1500ms)
             lo(op)
 
-
-    add-to-read-poll: (addr) ->
-        @log.log "Adding address of #{addr} to the read poll."
-        @conn.addItems addr
-
     watch-changes: (handle, callback) ->
-        @log.warn "not watching #{handle.topic}"
+        @log.log "Adding address of #{handle.topic} (#{handle.address}) to the read poll."
+        @watches[handle.address] = {handle, callback}
+        @conn.addItems handle.address
