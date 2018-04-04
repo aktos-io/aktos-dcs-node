@@ -3,6 +3,7 @@ require! 'omron-fins': fins
 require! 'prelude-ls': {chars, empty, reverse, unique}
 require! 'colors': {bg-yellow}
 require! 'dcs/lib/memory-map': {bit-write, bit-test}
+require! '../../driver-abstract': {DriverAbstract}
 
 /* ***********************************************
 
@@ -24,14 +25,24 @@ value:
 
 *****************************************************/
 
-export class OmronFinsDriver
+export class OmronFinsDriver extends DriverAbstract
     (@opts={}) ->
+        super!
         @log = new Logger \OmronFinsDriver
         @target = {port: 9600, host: '192.168.250.1'} <<< @opts
         @read-signal = new Signal!
         @write-signal = new Signal!
         @timeout = 500ms
         @watches = {}
+
+        @connected = no
+        @on \disconnect, ~>
+            @log.info "Driver says we are disconnected"
+            @connected := no
+
+        @on \connect, ~>
+            @log.info "Driver says: we are connected."
+            @connected := yes
 
         @log.log bg-yellow "Using #{@target.host}:#{@target.port}"
         @client = fins.FinsClient @target.port, @target.host
@@ -197,6 +208,8 @@ export class OmronFinsDriver
 
         #@log.warn "Reduced areas (before unique): ", reduced-areas
         #@log.warn "Reduced areas (after unique): ", unique reduced-areas
+        if empty reduced-areas
+            reduced-areas.push \C0  # to be used for heartbeating purposes
         reduced-areas = unique reduced-areas
         index = 0
         <~ :lo(op) ~>
@@ -204,9 +217,12 @@ export class OmronFinsDriver
             #@log.log "Reading memory: #{area}"
             err, res <~ @read-byte area, 1
             if err
-                @log.err "Something went wrong while reading #{area}"
-                <~ sleep 1000ms
-                return lo(op)  # => continue
+                #@log.err "Something went wrong while reading #{area}"
+                if @connected => @trigger \disconnect, err
+                return sleep 1000ms, ~>
+                    lo(op)  # => continue
+
+            unless @connected => @trigger \connect
 
             for name, watch of @watches
                 handle = watch.handle

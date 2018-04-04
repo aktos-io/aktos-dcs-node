@@ -76,6 +76,7 @@ export class IoProxyHandler extends Actor
             {err, res: {curr, prev}}
 
         broadcast-value = (err, value) ~>
+            #@log.log "Broadcasting err: ", err , "value: ", value
             @send "#{@name}.read", RESPONSE_FORMAT(err, value)
             if not err and value isnt prev
                 #@log.log "Store previous (broadcast) value (from #{prev} to #{curr})"
@@ -134,6 +135,15 @@ export class IoProxyHandler extends Actor
             # broadcast the status
             #@log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \read, handle, broadcast-value
+
+
+        driver.on \connect, ~>
+            @log.info "Driver is connected, broadcasting current status"
+            @trigger \read, handle, broadcast-value
+
+        driver.on \disconnect, ~>
+            @log.info "Driver is disconnected, publish the error"
+            broadcast-value err="Target is disconnected."
 
         # broadcast update on "power up"
         #@log.warn "triggering broadcast 'read' because we are initialized now."
