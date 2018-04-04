@@ -1,16 +1,19 @@
 require! '../../drivers'
 require! 'prelude-ls': {keys, first, compact, join}
 require! '../../lib/memory-map': {IoHandle}
+require! '../../lib/logger': {Logger}
 require! './io-proxy-handler': {IoProxyHandler}
 require! './io-proxy-client': {IoProxyClient}
 
 export create-io-proxies = (opts) ->
+    log = new Logger \IoProxyCreator
+
     get-devices = (io-table, namespace='') ->
         device-list = []
         if typeof! io-table is \Object
             for key, sub-table of io-table
                 curr-namespace = [namespace, key] |> compact |> join '.'
-                #console.log "Key: ", key, "namespace is: ", curr-namespace
+                #log.log "Key: ", key, "namespace is: ", curr-namespace
                 if \driver of sub-table
                     # this is a device description
                     switch typeof! sub-table.driver
@@ -30,7 +33,7 @@ export create-io-proxies = (opts) ->
                         throw new CodingError "Driver is required."
                         null
 
-                    #console.log "using driver: ", DeviceDriver.constructor.name
+                    #log.log "using driver: ", DeviceDriver.constructor.name
                     device =
                         driver: new DeviceDriver driver-opts
                         io-handles: [(new IoHandle params, "#{curr-namespace}.#{io}") for io, params of sub-table.handles]
@@ -41,11 +44,11 @@ export create-io-proxies = (opts) ->
         return device-list
 
     devices = get-devices opts.devices
-    #console.log "devices: ", devices
+    #log.log "devices: ", devices
     for let device in devices
-        console.log "========================> Initializing #{device.driver.constructor.name}"
+        log.log "==> Initializing #{device.driver.constructor.name}"
         for let handle in device.io-handles
-            #console.log "handle is: ", handle
+            #log.log "handle is: ", handle
             new IoProxyHandler handle, device.driver
 
 ## Example Usage

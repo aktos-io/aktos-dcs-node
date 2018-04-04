@@ -12,7 +12,7 @@ export class SiemensS7Driver extends DriverAbstract
         @target = @opts.target
         @log = new Logger \SiemensS7Driver
         @conn = new NodeS7 {+silent}
-        @log.log "S7 Actor is created: #{@target.host}:#{@target.port}"
+        #@log.log "S7 Actor is created: #{@target.host}:#{@target.port}"
         @watches = {}
         @start!
         @log.todo "When do we stop?"
@@ -43,7 +43,7 @@ export class SiemensS7Driver extends DriverAbstract
     start: ->
         @conn.initiateConnection @target, (err) ~>
             if err => return @log.log "we have an error: ", err
-            @log.info bg-green "Connection is successful"
+            @log.info bg-green "Connection is successful to: #{@target.host}:#{@target.port}"
             @start-read-poll!
 
     stop: ->

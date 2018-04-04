@@ -108,7 +108,7 @@ export class IoProxyHandler extends Actor
 
             # driver decides whether to watch changes of this handle or not.
             if handle.watch
-                console.log "Watching #{handle.topic}"
+                @log.log "Watching #{handle.topic}"
                 driver.watch-changes handle, broadcast-value
 
 
