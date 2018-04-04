@@ -16,7 +16,7 @@ export class IoProxyClient extends Actor
         #@actor = new RactiveActor this, name=topic
 
         @on-topic "#{@topic}.read", (msg) ~>
-            #@c-log "#{topic}.read received: ", msg
+            #@log.log "#{@topic}.read received: ", msg
             if @reply-signal.waiting
                 #@c-log "...is redirected to reply-signal..."
                 @reply-signal.go msg.payload
@@ -28,7 +28,6 @@ export class IoProxyClient extends Actor
                     # FIXME: this shouldn't receive the other actors'
                     # update messages in the first place.
                     '''
-                    #@c-log "...is used directly to set visual"
                     if msg.payload.err
                         @trigger \error, {message: that}
                     else
