@@ -4,22 +4,20 @@ export class FpsExec
     (fps=20fps, @context) ~>
         @period = fps.period or 1000ms / fps
         @timer = null
-        @last-sent = 0
+        @last-exec = 0
 
     now: ->
         new Date! .get-time!
 
     exec: (func, ...args) ->
         # do not send repetative messages in the time window
-        if @now! > @last-sent + @period
-            @last-sent = @now!
-            # ready to send
-            # drop previous arrangements
-
-        time-to-exec = @period - (@now! - @last-sent)
+        time-to-exec = @period - (@now! - @last-exec)
+        if time-to-exec < 0
+            time-to-exec = 0 
         try clear-timeout @timer
         @timer = sleep time-to-exec, ~>
             func.call @context, ...args
+            @last-exec = @now!
 
 
 /*

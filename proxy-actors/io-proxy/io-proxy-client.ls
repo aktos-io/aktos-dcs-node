@@ -56,7 +56,7 @@ export class IoProxyClient extends Actor
 
 
     write: (...args) ->
-        @fps.exec @filtered-write, ...args
+        @fps.exec ~> @filtered-write ...args
 
     filtered-write: (value, callback) ->
         acceptable-delay = 100ms
