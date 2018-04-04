@@ -21,7 +21,6 @@ export class AuthRequest extends EventEmitter
         # credentials might be one of the following:
         # 1. {username: ..., password: ...}
         # 2. {token: ...}
-        # 3. undefined (used for public message exchange)
 
         credentials = clone _credentials
         if credentials.password
@@ -36,9 +35,6 @@ export class AuthRequest extends EventEmitter
                 @trigger \logout
                 callback err, null
                 return
-        else
-            # public
-            credentials = {user: 'public', password: null}
 
         @log.log "Trying to authenticate with", keys credentials
 

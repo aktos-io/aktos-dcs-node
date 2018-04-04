@@ -1,3 +1,4 @@
+require! '../../../lib/sleep': {sleep}
 require! 'dcs/transports/socket-io': {SocketIOTransport}
 require! '../protocol-actor/client': {ProxyClient}
 
@@ -13,8 +14,17 @@ export class DcsSocketIOBrowser extends ProxyClient
             name: \SocketIOBrowser
             forget-password: yes
 
-        @on \connected, ~>
+        @on \connect, ~>
             @log.log "Info: Connected to server with id: ", socket.io.engine.id
 
         @on \disconnect, ~>
             @log.log "Info: Disconnected."
+
+        # try public login
+        auto = sleep 2000ms, ~>
+            @log.log "Not logged-in in 2 seconds, triggering public login"
+            @login {user: 'public', password: 'public'}
+
+        @on \logged-in, ~>
+            @log.log "Seems logged in, cancelling public login"
+            try clear-timeout auto

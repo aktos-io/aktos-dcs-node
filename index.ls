@@ -22,6 +22,7 @@ require! './lib': {
 
 require! './proxy-actors/io-proxy/io-proxy-client': {IoProxyClient}
 
+require! './drivers/driver-abstract': {DriverAbstract}
 
 module.exports = {
     Actor, FpsExec, Signal
@@ -30,4 +31,5 @@ module.exports = {
     EventEmitter, Logger, sleep, merge
     pack, unpack, clone, diff
     IoProxyClient
+    DriverAbstract
 }
