@@ -2,10 +2,9 @@ require! '../lib': {sleep}
 
 export class FpsExec
     (fps=20fps, @context) ~>
-        @period = 1000ms / fps
+        @period = fps.period or 1000ms / fps
         @timer = null
         @last-sent = 0
-        @immediate = yes
 
     now: ->
         new Date! .get-time!
@@ -15,11 +14,39 @@ export class FpsExec
         if @now! > @last-sent + @period
             @last-sent = @now!
             # ready to send
-        else
-            # wasn't ready to send as we received a new execution,
-            # drop the previous one
-            @immediate = no
-            try clear-timeout @timer
-        @timer = sleep (if @immediate => 0 else @period), ~>
-            @immediate = yes
+            # drop previous arrangements
+
+        time-to-exec = @period - (@now! - @last-sent)
+        try clear-timeout @timer
+        @timer = sleep time-to-exec, ~>
             func.call @context, ...args
+
+
+/*
+### Example Output:
+
+[13:39:26.587] DbLogger        : Read something:  10487
+[13:39:27.089] DbLogger        : Read something:  10488
+[13:39:27.590] DbLogger        : Read something:  10489
+[13:39:28.087] DbLogger        : This is going to be recorded:  10489
+[13:39:28.091] DbLogger        : Read something:  10490
+[13:39:28.591] DbLogger        : Read something:  10491
+[13:39:29.092] DbLogger        : Read something:  10492
+[13:39:29.593] DbLogger        : Read something:  10493
+[13:39:30.091] DbLogger        : This is going to be recorded:  10493
+[13:39:30.093] DbLogger        : Read something:  10494
+[13:39:30.594] DbLogger        : Read something:  10495
+[13:39:31.094] DbLogger        : Read something:  10496
+[13:39:31.593] DbLogger        : Read something:  10497
+[13:39:32.093] DbLogger        : This is going to be recorded:  10497
+[13:39:32.096] DbLogger        : Read something:  10498
+[13:39:32.597] DbLogger        : Read something:  10499
+[13:39:33.098] DbLogger        : Read something:  10500
+[13:39:33.598] DbLogger        : Read something:  10501
+[13:39:34.096] DbLogger        : This is going to be recorded:  10501
+[13:39:34.099] DbLogger        : Read something:  10502
+[13:39:34.599] DbLogger        : Read something:  10503
+[13:39:35.100] DbLogger        : Read something:  10504
+[13:39:35.601] DbLogger        : Read something:  10505
+[13:39:36.099] DbLogger        : This is going to be recorded:  10505
+*/
