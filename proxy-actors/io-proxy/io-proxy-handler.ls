@@ -72,24 +72,21 @@ export class IoProxyHandler extends Actor
         */
 
         prev = null
-        curr = null
         RESPONSE_FORMAT = (err, curr) ->
             {err, res: {curr, prev}}
 
         broadcast-value = (err, value) ~>
             @send "#{@name}.read", RESPONSE_FORMAT(err, value)
-            if not err and value isnt curr
+            if not err and value isnt prev
                 #@log.log "Store previous (broadcast) value (from #{prev} to #{curr})"
-                prev := curr
-                curr := value
+                prev := value
 
         response-value = (msg) ~>
             (err, value) ~>
                 @send-response msg, RESPONSE_FORMAT(err, value)
-                if not err and value isnt curr
+                if not err and value isnt prev
                     #@log.log "Store previous (resp.) value (from #{prev} to #{curr})"
-                    prev := curr
-                    curr := value
+                    prev := value
 
         if driver?
             safe-driver = new LineUp driver
@@ -108,7 +105,7 @@ export class IoProxyHandler extends Actor
 
             # driver decides whether to watch changes of this handle or not.
             if handle.watch
-                @log.log "Watching #{handle.topic}"
+                @log.info "Watching for changes."
                 driver.watch-changes handle, broadcast-value
 
 
