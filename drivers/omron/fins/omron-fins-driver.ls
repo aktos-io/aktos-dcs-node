@@ -44,11 +44,42 @@ export class OmronFinsDriver
                 #@log.log "....got write reply: ", msg
                 @write-signal.go msg
             else
-                @log.log "unknown msg.command: #{msg.command}"
+                @log.warn "unknown msg.command: #{msg.command}"
                 #@log.log "reply: ", pack msg
 
         sleep 1000ms, ~>
             @start-polling!
+
+        @busy = no
+        @queue = []
+        @max-busy = 300ms
+
+    run: (method, ...args, callback) !->
+        if @busy
+            #@log.info "busy! adding to queue."
+            @queue.push [method, args, callback]
+            return
+        #@log.log "we are now going busy, args: ", ...args
+        @busy = yes
+        x = sleep @max-busy, ~>
+            @log.warn "FORCE RUNNNING NEXT!"
+            callback err="Forcing running next."
+            @next!
+        @[method] ...args, (...ret) ~>
+            if x
+                clear-timeout x
+                callback ...ret
+                #@log.log "we are free"
+                @next!
+            else
+                @log.err "what happened here?"
+
+    next: ->
+        @busy = no
+        if @queue.length > 0
+            #@log.info "Running from queue"
+            next = @queue.shift!
+            @run next.0, ...next.1, next.2
 
     read: (handle, callback) ->
         {addr, type} = @parse-addr handle.address
@@ -72,19 +103,6 @@ export class OmronFinsDriver
             err, res <~ @write-byte addr, value
             #@log.log "write output: err, res: ", err, res
             callback err
-
-
-    debug-read: ->
-        /* Test process  */
-        @log.log "started debug-read."
-        address = "C100.2"
-        x = false
-        <~ :lo(op) ~>
-            err, res <~ @read address, 1
-            @log.log "read value is: ", res
-            x := not x
-            <~ sleep 1500ms
-            lo(op)
 
 
     debug: ->
@@ -137,10 +155,14 @@ export class OmronFinsDriver
         #@log.log "write message response: #{pack msg}"
         callback err, msg
 
-    read-byte: (addr, count, callback) ->
+    read-byte: (...args, callback) ->
+        @run \_readByte, ...args, callback
+
+    _read-byte: (addr, count, callback) ->
         unless callback
             callback = count
             count = 1
+
         #@log.log "Reading byte: addr: ", addr, "count: ", count
         _err, bytes <~ @client.read addr, (count or 1)
         if _err
@@ -197,7 +219,7 @@ export class OmronFinsDriver
                             #@log.log "no change (bit)...", bit-value
                             null
                         else
-                            @log.log "...bit value is: ", bit-value
+                            #@log.log "...bit value is: ", bit-value
                             watch.callback err=null, bit-value
                             handle.prev = bit-value
                     else
@@ -205,14 +227,14 @@ export class OmronFinsDriver
                             #@log.log "no change (word)...", res
                             null
                         else
-                            @log.log "...word value is: ", res
+                            #@log.log "...word value is: ", res
                             watch.callback err=null, res
                             handle.prev = res
             index++
             if index is reduced-areas.length
                 # start from beginning
                 index := 0
-            <~ sleep 500ms  # WARNING: Do not set a too short timeout! (as a Workaround)
+            <~ sleep 100ms  # WARNING: Do not set a too short timeout! (as a Workaround)
             lo(op)
 
 
