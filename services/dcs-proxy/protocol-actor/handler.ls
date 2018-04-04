@@ -12,7 +12,6 @@ export class ProxyHandler extends Actor
             db: auth-db instance
         """
         super opts.name
-        @subscribe "public.**"
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
         # ------------------------------------------------------
         # ------------------------------------------------------
@@ -29,7 +28,7 @@ export class ProxyHandler extends Actor
 
             ..on \login, (ctx) ~>
                 @log.prefix = ctx.user
-                @subscriptions = []  # clear all subscriptions, especially public.**
+                @subscriptions = []  # renew all subscriptions
                 unless empty (ctx.permissions.ro or [])
                     @log.info "subscribing readonly: "
                     for flatten [ctx.permissions.ro] => @log.info "->  #{..}"

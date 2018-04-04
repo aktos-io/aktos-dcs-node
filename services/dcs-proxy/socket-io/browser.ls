@@ -13,8 +13,11 @@ export class DcsSocketIOBrowser extends ProxyClient
             name: \SocketIOBrowser
             forget-password: yes
 
-        @on \connected, ~>
+        @on \connect, ~>
             @log.log "Info: Connected to server with id: ", socket.io.engine.id
 
         @on \disconnect, ~>
             @log.log "Info: Disconnected."
+
+        # try public login 
+        @login {user: 'public', password: 'public'}

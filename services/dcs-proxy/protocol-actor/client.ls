@@ -87,12 +87,13 @@ export class ProxyClient extends Actor
                 @connected = yes
                 @log.log bg-green "My transport is connected."
                 @transport-ready = yes
+                @trigger \connect
                 err, res <~ @trigger \_login, {forget-password: @opts.forget-password}  # triggering procedures on (re)login
-                @subscribe "public.**"
 
             ..on \disconnect, ~>
                 @connected = no
                 @log.log bg-yellow "My transport is disconnected."
+                @trigger \disconnect
 
             ..on "data", (data) ~>
                 for msg in @m.append data
