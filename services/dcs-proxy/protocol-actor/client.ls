@@ -16,6 +16,10 @@ This is a Protocol Actor: A Connector without transport
     * Protocol: AuthRequest
 
 Takes a transport, transparently connects two DCS networks with each other.
+
+
+on login: emit "app.logged-in"
+
 """
 export class ProxyClient extends Actor
     (@transport, @opts) ->
@@ -36,7 +40,7 @@ export class ProxyClient extends Actor
         # ------------------------------------------------------
 
         # Authentication protocol
-        @auth = new AuthRequest!
+        @auth = new AuthRequest @name
             ..on \to-server, (msg) ~>
                 @transport.write pack msg
 
@@ -48,15 +52,6 @@ export class ProxyClient extends Actor
                     # network would be meaningless since they will be dropped
                     # on the remote even if we forward them.)
                     @subscriptions = @permissions-rw
-
-                    # request update messages that we interested in
-                    @log.log "requesting update messages for subscribed topics"
-                    for topic in @permissions-rw
-                        {topic, +update}
-                        |> @msg-template
-                        |> @auth.add-token
-                        |> pack
-                        |> @transport.write
                 else
                     @log.warn "Logged in, but there is no rw permissions found."
 
@@ -64,22 +59,26 @@ export class ProxyClient extends Actor
                 for flatten [@subscriptions] => @log.info "->  #{..}"
 
         # DCS interface
-        @on do
-            receive: (msg) ~>
-                unless msg.topic `topic-match` @permissions-rw
-                    @log.warn "We don't have permission for: ", msg
-                    @send-response msg, {err: "
-                        How come the ProxyClient is subscribed a topic
-                        that it has no rights to send? This is a DCS malfunction.
-                        "}
-                    return
+        @on \receive, (msg) ~>
+            unless msg.topic `topic-match` @permissions-rw
+                @log.warn "We don't have permission for: ", msg
+                @send-response msg, {err: "
+                    How come the ProxyClient is subscribed a topic
+                    that it has no rights to send? This is a DCS malfunction.
+                    "}
+                return
 
-                # debug
-                #@log.log "Transport < DCS: (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                #@log.log "... #{pack msg.payload}"
-                @transport.write (msg
-                    |> @auth.add-token
-                    |> pack)
+            # debug
+            #@log.log "Transport < DCS: (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+            #@log.log "... #{pack msg.payload}"
+            @transport.write (msg
+                |> @auth.add-token
+                |> pack)
+
+        @on \logged-in, ~>
+            @log.info "Emitting app.logged-in"
+            @send 'app.logged-in', {}
+
 
         # transport interface
         @m = new MessageBinder!

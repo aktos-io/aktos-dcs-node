@@ -9,7 +9,7 @@ export class TopicTypeError extends Error
     (@message, @topic) ->
         super ...
         Error.captureStackTrace(this, TopicTypeError)
-        @type = \DiffError
+        @type = \TopicTypeError
 
 
 
@@ -28,6 +28,8 @@ export class Actor extends EventEmitter
         @request-queue = {}
         @this-actor-is-a-proxy = no
 
+        @_topic_handlers = {}
+
         @_state =
             kill:
                 started: no
@@ -36,9 +38,13 @@ export class Actor extends EventEmitter
         @mgr.register-actor this
 
         # this context switch is important. if it is omitted, "action" method
-        # will NOT be overwritten within the parent class 
-        <~ sleep 0
+        # will NOT be overwritten within the parent class
+        # < ~ sleep 0 <= really no need for this?
         @action! if typeof! @action is \Function
+
+    set-name: (name) ->
+        @name = name
+        @log.name = name
 
     msg-template: (msg) ->
         msg-raw =
@@ -83,6 +89,10 @@ export class Actor extends EventEmitter
         switch typeof! _topic
             when \String => [topic, timeout] = [_topic, 0]
             when \Object => [topic, timeout] = [_topic.topic, _topic.timeout]
+
+        if typeof! payload is \Function
+            callback = payload
+            payload = null 
 
         enveloped = @msg-template! <<< do
             topic: topic
@@ -130,23 +140,26 @@ export class Actor extends EventEmitter
             unless @this-actor-is-a-proxy
                 #@log.warn "Not my response, simply dropping the msg: ", msg.payload
                 return
-        if \update of msg
-            @trigger \update, msg
+
         if \payload of msg
             @trigger \data, msg
-        # deliver every message to receive-handlers
 
-        #@log.log "...and triggered to 'receive':", msg.payload
+        # also deliver messages to 'receive' handlers
         @trigger \receive, msg
 
     on-topic: (topic, handler) ->
         return unless topic
-
+        # subscribe this topic
         @subscribe topic unless topic in @subscriptions
 
+        @_topic_handlers[topic] = handler
         @on \data, (msg) ~>
             if msg.topic `topic-match` topic
                 handler msg
+
+
+    trigger-topic: (topic, ...args) ->
+        @_topic_handlers[topic] ...args
 
     once-topic: (topic, handler) ->
         @subscribe topic unless topic in @subscriptions
@@ -172,11 +185,3 @@ export class Actor extends EventEmitter
             @mgr.deregister-actor this
             @trigger \kill, ...reason
             @_state.kill.finished = yes
-
-    request-update: ->
-        #@log.log "requesting update!"
-        for let topic in @subscriptions
-            debugger unless topic
-            @send-enveloped @msg-template do
-                update: yes
-                topic: topic

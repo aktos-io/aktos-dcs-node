@@ -20,10 +20,14 @@ require! './lib': {
     pack, unpack, clone, diff
 }
 
+require! './proxy-actors/io-proxy/io-proxy-client': {IoProxyClient}
+
+
 module.exports = {
     Actor, FpsExec, Signal
     CouchDcsClient, CouchDcsServer,
     DcsTcpClient, DcsTcpServer, AuthDB, as-docs
     EventEmitter, Logger, sleep, merge
     pack, unpack, clone, diff
+    IoProxyClient
 }

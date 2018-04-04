@@ -1,4 +1,7 @@
-require! 'prelude-ls': {split}
+require! 'prelude-ls': {split, keys, map}
+require! './keypath': {get-keypath}
+require! '../src/errors': {CodingError}
+
 ``
 function hex2float (a) {return (a & 0x7fffff | 0x800000) * 1.0 / Math.pow(2,23) * Math.pow(2,  ((a>>23 & 0xff) - 127))}
 
@@ -54,20 +57,15 @@ data-types =
     #bool: ...
 
 
-example-memory-map =
-    'test-level-1':
-        addr: \MD84
-        type: \hexf
-
-    'test-level-2'
-        addr: \MD85
-        type: \hexf
+export class IoHandle
+    (opts={}, topic)->
+        # add all properties as if they exists in IoHandle
+        for k, v of opts
+            this[k] = v
+        @topic = topic
 
 
-export class MemoryMap
-    (@table) ->
-
-    get-actual: (addr, value) ->
-        for io of @table when io.addr is addr
-            return do
-                value: data-types[io.type] value
+    get-meaningful: (value) ->
+        unless @type
+            ...
+        data-types[@type] value

@@ -12,6 +12,9 @@ export class TcpHandlerTransport extends EventEmitter
             ..on \end, ~>
                 @trigger \disconnect
 
+            ..on \error, ~>
+                @trigger \disconnect
+
             ..on \data, (data) ~>
                 @trigger \data, data
 
@@ -54,12 +57,14 @@ export class TcpTransport extends EventEmitter
                 @trigger \data, data
 
             ..on \end, ~>
-                console.log "----------======= fired end"
-                @trigger \disconnect
+                if @connected
+                    @connected = no
+                    @trigger \disconnect
 
             ..on \error, (err) ~>
-                console.log "------------------------- fired error:", err
-                @trigger \error, err
+                if @connected
+                    @connected = no
+                    @trigger \disconnect
 
         unless opts.manual-start
             # start automatically
@@ -78,7 +83,7 @@ export class TcpTransport extends EventEmitter
                     callback err=null
             catch
                 console.log "there is error again: ", e
-                throw 
+                throw
         else
             callback do
                 message: 'not connected'
