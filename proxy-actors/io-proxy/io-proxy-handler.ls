@@ -138,11 +138,11 @@ export class IoProxyHandler extends Actor
 
 
         driver.on \connect, ~>
-            @log.info "Driver is connected, broadcasting current status"
+            #@log.info "Driver is connected, broadcasting current status"
             @trigger \read, handle, broadcast-value
 
         driver.on \disconnect, ~>
-            @log.info "Driver is disconnected, publish the error"
+            #@log.info "Driver is disconnected, publish the error"
             broadcast-value err="Target is disconnected."
 
         # broadcast update on "power up"
