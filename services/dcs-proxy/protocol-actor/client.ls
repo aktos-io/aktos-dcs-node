@@ -52,15 +52,6 @@ export class ProxyClient extends Actor
                     # network would be meaningless since they will be dropped
                     # on the remote even if we forward them.)
                     @subscriptions = @permissions-rw
-
-                    # request update messages that we interested in
-                    @log.log "requesting update messages for subscribed topics"
-                    for topic in @permissions-rw
-                        {topic, +update}
-                        |> @msg-template
-                        |> @auth.add-token
-                        |> pack
-                        |> @transport.write
                 else
                     @log.warn "Logged in, but there is no rw permissions found."
 
