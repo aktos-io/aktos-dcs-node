@@ -217,7 +217,7 @@ export class OmronFinsDriver extends DriverAbstract
             #@log.log "Reading memory: #{area}"
             err, res <~ @read-byte area, 1
             if err
-                #@log.err "Something went wrong while reading #{area}"
+                @log.err "Something went wrong while reading #{area}", err
                 if @connected => @trigger \disconnect, err
                 return sleep 1000ms, ~>
                     lo(op)  # => continue
@@ -250,7 +250,7 @@ export class OmronFinsDriver extends DriverAbstract
             if index is reduced-areas.length
                 # start from beginning
                 index := 0
-            <~ sleep 100ms  # WARNING: Do not set a too short timeout! (as a Workaround)
+            <~ sleep 200ms  # WARNING: Do not set a too short timeout! (as a Workaround)
             lo(op)
 
 
