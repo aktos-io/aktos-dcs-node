@@ -43,6 +43,7 @@ export class OmronFinsDriver extends DriverAbstract
         @on \connect, ~>
             @log.info "Driver says: we are connected."
             @connected := yes
+            @start-polling!
 
         @log.log bg-yellow "Using #{@target.host}:#{@target.port}"
         @client = fins.FinsClient @target.port, @target.host
@@ -59,11 +60,12 @@ export class OmronFinsDriver extends DriverAbstract
                 #@log.log "reply: ", pack msg
 
         sleep 1000ms, ~>
-            @start-polling!
+            @log.info "Starting initial heartbeating."
+            @check-heartbeating!
 
         @busy = no
         @queue = []
-        @max-busy = 300ms
+        @max-busy = 5300ms
 
     run: (method, ...args, callback) !->
         if @busy
@@ -159,9 +161,10 @@ export class OmronFinsDriver extends DriverAbstract
 
     write-byte: (addr, value, callback) ->
         # TODO: https://github.com/patrick--/node-omron-fins/issues/13
-        err, bytes <~ @client.write addr, value
-        if err => ...
-        @write-signal.clear!
+        @write-signal.reset!
+        do
+            err, bytes <~ @client.write addr, value
+            if err => ...
         err, msg <~ @write-signal.wait @timeout
         #@log.log "write message response: #{pack msg}"
         callback err, msg
@@ -175,14 +178,15 @@ export class OmronFinsDriver extends DriverAbstract
             count = 1
 
         #@log.log "Reading byte: addr: ", addr, "count: ", count
+        @read-signal.reset!
         _err, bytes <~ @client.read addr, (count or 1)
         if _err
-            @log.log "read failed : ", _err
+            @log.log "read request failed : ", _err
             return callback _err
         #@log.log "Waiting for read signal. timeout: ", @timeout
-        @read-signal.clear!
         _err, msg <~ @read-signal.wait @timeout
         #@log.log "read reply: ", _err, msg
+        value = null
         unless _err
             try
                 value = if count is 1
@@ -200,7 +204,7 @@ export class OmronFinsDriver extends DriverAbstract
         @watches[handle.address] = {handle, callback}
 
     start-polling: ->
-        @log.info "Started watching changes."
+        @log.info "Started watching changes: Polling"
         reduced-areas = []
         for name, watch of @watches
             {memory} = @parse-addr watch.handle.address
@@ -219,10 +223,7 @@ export class OmronFinsDriver extends DriverAbstract
             if err
                 @log.err "Something went wrong while reading #{area}", err
                 if @connected => @trigger \disconnect, err
-                return sleep 1000ms, ~>
-                    lo(op)  # => continue
-
-            unless @connected => @trigger \connect
+                return op! # => break
 
             for name, watch of @watches
                 handle = watch.handle
@@ -252,7 +253,21 @@ export class OmronFinsDriver extends DriverAbstract
                 index := 0
             <~ sleep 200ms  # WARNING: Do not set a too short timeout! (as a Workaround)
             lo(op)
+        @log.warn "Stopping polling, starting to check only heartbeating"
+        @check-heartbeating!
 
+    check-heartbeating: ->
+        @log.log "Checking heartbeat with PLC"
+        <~ :lo(op) ~>
+            err, res <~ @_read-byte \C0, 1
+            @log.log "Response of heartbeat: ", err, res
+            unless err
+                return op!
+            @log.log "Retrying in 5000ms"
+            <~ sleep 5000ms
+            lo(op)
+        @log.log "Heartbeating says: connected!"
+        @trigger \connect
 
     parse-addr: (addr) ->
         /* return type:

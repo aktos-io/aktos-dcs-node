@@ -47,12 +47,12 @@ class LineUp
     (driver) ->
         if find (.driver is driver), @@drivers
             #console.log "Returning exitsting singular driver for: ", driver
-            return that.singular
+            return that.driver
         else
             #console.log "Initialized new Lined up driver for: ", driver
-            singular = new SingularDriver driver
-            @@drivers.push {driver, singular}
-            return singular
+            #singular = new SingularDriver driver
+            @@drivers.push {driver}
+            return driver
 
 
 export class IoProxyHandler extends Actor
@@ -147,4 +147,4 @@ export class IoProxyHandler extends Actor
 
         # broadcast update on "power up"
         #@log.warn "triggering broadcast 'read' because we are initialized now."
-        @trigger \read, handle, broadcast-value
+        #@trigger \read, handle, broadcast-value
