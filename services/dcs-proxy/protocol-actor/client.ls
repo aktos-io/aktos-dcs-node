@@ -135,7 +135,11 @@ export class ProxyClient extends Actor
                     null
             unless err
                 @trigger \logged-in
-
+            else
+                @log.info "ProxyClient will try to reconnect."
+                if @connected 
+                    <~ sleep 3000ms
+                    @trigger \_login, {forget-password: @opts.forget-password}
             callback err, res
 
         if @connected
