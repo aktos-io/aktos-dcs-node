@@ -65,7 +65,7 @@ export class OmronFinsDriver extends DriverAbstract
 
         @busy = no
         @queue = []
-        @max-busy = 5300ms
+        @max-busy = 300ms
 
     run: (method, ...args, callback) !->
         if @busy
@@ -95,6 +95,19 @@ export class OmronFinsDriver extends DriverAbstract
             @run next.0, ...next.1, next.2
 
     read: (handle, callback) ->
+        retry = 3
+        <~ :lo(op) ~>
+            err, res <~ @__read handle
+            unless err
+                return callback err, res
+            if retry-- is 0
+                return op!
+            @log.log "retrying read: left #{retry}"
+            lo(op)
+        @log.err "All retries are failed!"
+        callback err="retry failed"
+
+    __read: (handle, callback) ->
         {addr, type} = @parse-addr handle.address
         #@log.log "read address, type: ", addr, type
         if type is \bool
@@ -102,7 +115,8 @@ export class OmronFinsDriver extends DriverAbstract
             #@log.log "read result of bit: err:", err, "res: ", res
             callback err, res
         else
-            @read-byte addr, (handle.amount or 1), callback
+            err, res <~ @read-byte addr, (handle.amount or 1)
+            callback err, res
 
     write: (handle, value, callback) ->
         {addr, type} = @parse-addr handle.address
@@ -181,11 +195,12 @@ export class OmronFinsDriver extends DriverAbstract
         @read-signal.reset!
         _err, bytes <~ @client.read addr, (count or 1)
         if _err
-            @log.log "read request failed : ", _err
+            @log.err "read request failed : ", _err
             return callback _err
         #@log.log "Waiting for read signal. timeout: ", @timeout
         _err, msg <~ @read-signal.wait @timeout
-        #@log.log "read reply: ", _err, msg
+        if _err
+            @log.err "read reply: ", _err, msg
         value = null
         unless _err
             try
@@ -219,10 +234,9 @@ export class OmronFinsDriver extends DriverAbstract
         <~ :lo(op) ~>
             area = reduced-areas[index]
             #@log.log "Reading memory: #{area}"
-            err, res <~ @read-byte area, 1
+            err, res <~ @read {address: area}
             if err
                 @log.err "Something went wrong while reading #{area}", err
-                if @connected => @trigger \disconnect, err
                 return op! # => break
 
             for name, watch of @watches
@@ -254,6 +268,7 @@ export class OmronFinsDriver extends DriverAbstract
             <~ sleep 200ms  # WARNING: Do not set a too short timeout! (as a Workaround)
             lo(op)
         @log.warn "Stopping polling, starting to check only heartbeating"
+        @trigger \disconnect
         @check-heartbeating!
 
     check-heartbeating: ->
