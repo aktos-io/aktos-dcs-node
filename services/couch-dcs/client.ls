@@ -15,14 +15,14 @@ unless err
 
 export class CouchDcsClient extends Actor
     (opts) ->
-        super "CouchDcs #{opts.name or 'Client'}"
+        super if opts.name => "CouchDcs #{opts.name}" else "CouchDcsClient"
         if opts.topic
             @topic = that
         else if opts.prefix
             @topic = that
         else
             throw 'CouchDcsClient: No default topic is given.'
-
+        @log.log "Initialized with topic: #{@topic}"
 
 
     get: (doc-id, opts, callback) ->
@@ -36,7 +36,7 @@ export class CouchDcsClient extends Actor
         res = msg?.payload.res
         err = err or msg?.payload.err
         if err
-            err.message = "#{err.key}: #{err.error}" 
+            err.message = "#{err.key}: #{err.error}"
         callback err, res
 
     all-docs: (opts, callback) ->
