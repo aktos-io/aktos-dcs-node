@@ -92,7 +92,7 @@ export class Actor extends EventEmitter
 
         if typeof! payload is \Function
             callback = payload
-            payload = null 
+            payload = null
 
         enveloped = @msg-template! <<< do
             topic: topic
@@ -109,9 +109,10 @@ export class Actor extends EventEmitter
         @request-queue[enveloped.req.seq] = response-signal
 
         do
-            timeout, msg <~ response-signal.wait timeout
+            timeout = timeout or 1000ms
+            err, msg <~ response-signal.wait timeout
             @unsubscribe topic
-            callback timeout, msg
+            callback err, msg
 
         @send-enveloped enveloped
 
