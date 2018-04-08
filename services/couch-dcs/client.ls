@@ -15,15 +15,14 @@ unless err
 
 export class CouchDcsClient extends Actor
     (opts) ->
-        super "CouchDcs #{opts.name or 'Client'}"
+        super if opts.name => "CouchDcs #{opts.name}" else "CouchDcsClient"
         if opts.topic
             @topic = that
         else if opts.prefix
             @topic = that
         else
             throw 'CouchDcsClient: No default topic is given.'
-
-
+        @log.log "Initialized with topic: #{@topic}"
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
@@ -31,12 +30,12 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-
-        err, msg <~ @send-request "#{@topic}.get", {get: doc-id, opts: opts}
+        timeout = opts.timeout or 5000ms
+        err, msg <~ @send-request {topic: "#{@topic}.get", timeout}, {get: doc-id, opts: opts}
         res = msg?.payload.res
         err = err or msg?.payload.err
         if err
-            err.message = "#{err.key}: #{err.error}" 
+            err.message = "#{err.key}: #{err.error}"
         callback err, res
 
     all-docs: (opts, callback) ->
@@ -45,8 +44,9 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
+        timeout = opts.timeout or 15000ms
 
-        err, msg <~ @send-request "#{@topic}.allDocs", {allDocs: opts}
+        err, msg <~ @send-request {topic: "#{@topic}.allDocs", timeout}, {allDocs: opts}
         callback (err or msg?.payload.err), msg?.payload.res
 
     put: (doc, opts, callback) ->
@@ -68,8 +68,8 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-
-        err, msg <~ @send-request "#{@topic}.view", {view: viewName, opts: opts}
+        timeout = opts.timeout or 10_000ms
+        err, msg <~ @send-request {topic: "#{@topic}.view", timeout}, {view: viewName, opts: opts}
         callback (err or msg?.payload.err), msg?.payload.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->
