@@ -68,8 +68,8 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-
-        err, msg <~ @send-request "#{@topic}.view", {view: viewName, opts: opts}
+        timeout = opts.timeout or 10_000ms
+        err, msg <~ @send-request {topic: "#{@topic}.view", timeout}, {view: viewName, opts: opts}
         callback (err or msg?.payload.err), msg?.payload.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->
