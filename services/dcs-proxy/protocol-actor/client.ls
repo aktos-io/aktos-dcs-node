@@ -6,10 +6,10 @@ require! 'colors': {bg-red, red, bg-yellow, green, bg-green}
 require! 'prelude-ls': {split, flatten, split-at, empty}
 require! './helpers': {MessageBinder}
 
-"""
+'''
 Description
 -------------
-This is a Protocol Actor: A Connector without transport
+This is a Protocol Actor: A service without transport
 
     * Message format: Transparent,
     * Has Actor,
@@ -17,10 +17,11 @@ This is a Protocol Actor: A Connector without transport
 
 Takes a transport, transparently connects two DCS networks with each other.
 
+## Events:
 
-on login: emit "app.logged-in"
+on login: emit "app.logged-in" message.
 
-"""
+'''
 export class ProxyClient extends Actor
     (@transport, @opts) ->
         super (@opts.name  or \ProxyClient)
@@ -133,14 +134,16 @@ export class ProxyClient extends Actor
                     res.auth.session.token
                 catch
                     null
-            unless err
+
+            error = err or res?auth?error
+            unless error
                 @trigger \logged-in
             else
                 @log.info "ProxyClient will try to reconnect."
-                if @connected 
+                if @connected
                     <~ sleep 3000ms
                     @trigger \_login, {forget-password: @opts.forget-password}
-            callback err, res
+            callback error, res
 
         if @connected
             @trigger \_login, {forget-password: @opts.forget-password}
