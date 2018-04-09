@@ -30,6 +30,7 @@ export class ProxyClient extends Actor
         # actor behaviours
         @role = \client
         @connected = no
+        @logged-in = no
         @permissions-rw = []
         # ------------------------------------------------------
         # ------------------------------------------------------
@@ -53,11 +54,20 @@ export class ProxyClient extends Actor
                     # network would be meaningless since they will be dropped
                     # on the remote even if we forward them.)
                     @subscriptions = @permissions-rw
+
+                    # as we clear the @subscriptions, we should re-add the update handler
+                    @on-topic \app.logged-in.update, (msg) ~>
+                        @send-response msg, @logged-in
+
                 else
                     @log.warn "Logged in, but there is no rw permissions found."
 
                 @log.info "Remote RW subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
+
+            ..on \logout, ~>
+                @log.info "Logged out."
+                @logged-in = false
 
         # DCS interface
         @on \receive, (msg) ~>
@@ -79,7 +89,10 @@ export class ProxyClient extends Actor
         @on \logged-in, ~>
             @log.info "Emitting app.logged-in"
             @send 'app.logged-in', {}
+            @logged-in = yes
 
+        @on-topic \app.logged-in.update, (msg) ~>
+            @send-response msg, @logged-in
 
         # transport interface
         @m = new MessageBinder!

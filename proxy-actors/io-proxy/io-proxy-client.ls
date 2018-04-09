@@ -37,7 +37,6 @@ export class IoProxyClient extends Actor
                             @trigger \error, {message: e}
 
         @on-topic "app.logged-in", ~>
-            #@request-update!
             @send-request {topic: "#{@topic}.update", timeout: @timeout}, (err, msg) ~>
                 if err
                     @trigger \error, {message: err}
@@ -45,26 +44,20 @@ export class IoProxyClient extends Actor
                     #console.warn "received update topic: ", msg
                     @trigger-topic "#{@topic}.read", msg
 
-
-        @send-request {topic: "#{@topic}.update", timeout: @timeout}, (err, msg) ~>
-            if err
-                @trigger \error, {message: err}
-            else
-                #console.warn "received update topic: ", msg
-                @trigger-topic "#{@topic}.read", msg
+        # check if app is logged in
+        <~ sleep ((Math.random! * 200ms) + 100ms )
+        err, msg <~ @send-request "app.logged-in.update"
+        unless err
+            if msg.payload is yes
+                @log.log "triggering app.logged-in on render."
+                @trigger-topic 'app.logged-in'
 
 
     write: (...args) ->
         @fps.exec ~> @filtered-write ...args
 
     filtered-write: (value, callback) ->
-        acceptable-delay = 100ms
-        x = sleep acceptable-delay, ~>
-            # do not show "doing" state for if all request-response
-            # finishes within the acceptable delay
-            #@set 'check-state', \doing
         topic = "#{@topic}.write"
-        #@c-log "sending: ", topic
         @send topic, {val: value}
         @reply-signal.clear!
         _err, data <~ @reply-signal.wait @timeout
