@@ -47,12 +47,12 @@ class LineUp
     (driver) ->
         if find (.driver is driver), @@drivers
             #console.log "Returning exitsting singular driver for: ", driver
-            return that.singular
+            return that.driver
         else
             #console.log "Initialized new Lined up driver for: ", driver
-            singular = new SingularDriver driver
-            @@drivers.push {driver, singular}
-            return singular
+            #singular = new SingularDriver driver
+            @@drivers.push {driver}
+            return driver
 
 
 export class IoProxyHandler extends Actor
@@ -63,13 +63,6 @@ export class IoProxyHandler extends Actor
         topic or throw new CodingError "A topic MUST be provided to IoProxyHandler."
         super topic
         #@log.info "Initializing #{handle.topic}"
-        @subscribe "#{@name}.**"
-        @subscribe "app.logged-in"
-
-        /*
-        @on \kill, (reason) ~>
-            @log.log "KILLING ACTOR!!!"
-        */
 
         prev = null
         RESPONSE_FORMAT = (err, curr) ->
@@ -134,17 +127,24 @@ export class IoProxyHandler extends Actor
         @on-topic "app.logged-in", (msg) ~>
             # broadcast the status
             #@log.warn "triggering broadcast 'read' because we are logged in."
-            @trigger \read, handle, broadcast-value
-
+            @trigger \_try_broadcast_state
 
         driver.on \connect, ~>
             #@log.info "Driver is connected, broadcasting current status"
-            @trigger \read, handle, broadcast-value
+            @trigger \_try_broadcast_state
+
 
         driver.on \disconnect, ~>
             #@log.info "Driver is disconnected, publish the error"
             broadcast-value err="Target is disconnected."
 
+        @on '_try_broadcast_state', ~>
+            if driver.connected
+                @trigger \read, handle, broadcast-value
+            else
+                @log.info "Driver is not connected, skipping broadcasting."
+
+
         # broadcast update on "power up"
         #@log.warn "triggering broadcast 'read' because we are initialized now."
-        @trigger \read, handle, broadcast-value
+        #@trigger \read, handle, broadcast-value
