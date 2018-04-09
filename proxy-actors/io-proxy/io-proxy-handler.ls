@@ -63,13 +63,6 @@ export class IoProxyHandler extends Actor
         topic or throw new CodingError "A topic MUST be provided to IoProxyHandler."
         super topic
         #@log.info "Initializing #{handle.topic}"
-        @subscribe "#{@name}.**"
-        @subscribe "app.logged-in"
-
-        /*
-        @on \kill, (reason) ~>
-            @log.log "KILLING ACTOR!!!"
-        */
 
         prev = null
         RESPONSE_FORMAT = (err, curr) ->
@@ -134,16 +127,23 @@ export class IoProxyHandler extends Actor
         @on-topic "app.logged-in", (msg) ~>
             # broadcast the status
             #@log.warn "triggering broadcast 'read' because we are logged in."
-            @trigger \read, handle, broadcast-value
-
+            @trigger \_try_broadcast_state
 
         driver.on \connect, ~>
             #@log.info "Driver is connected, broadcasting current status"
-            @trigger \read, handle, broadcast-value
+            @trigger \_try_broadcast_state
+
 
         driver.on \disconnect, ~>
             #@log.info "Driver is disconnected, publish the error"
             broadcast-value err="Target is disconnected."
+
+        @on '_try_broadcast_state', ~>
+            if driver.connected
+                @trigger \read, handle, broadcast-value
+            else
+                @log.info "Driver is not connected, skipping broadcasting."
+
 
         # broadcast update on "power up"
         #@log.warn "triggering broadcast 'read' because we are initialized now."
