@@ -26,8 +26,8 @@ export create-io-proxies = (opts) ->
 
                     DeviceDriver = if driver-name of drivers
                         drivers[driver-name]
-                    else if driver-name of opts.extra-drivers
-                        opts.extra-drivers[driver-name]
+                    else if driver-name of opts.drivers
+                        opts.drivers[driver-name]
                     else
                         #drivers['IoSimulatorDriver']
                         throw new CodingError "Driver is required."
@@ -54,7 +54,7 @@ export create-io-proxies = (opts) ->
 ## Example Usage
 ->
     create-io-proxies do
-        extra-drivers: {TankSimulatorDriver}
+        drivers: {TankSimulatorDriver}
         devices:
             io:
                 'tank-simulator':
