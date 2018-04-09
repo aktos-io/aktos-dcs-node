@@ -241,7 +241,7 @@ export class OmronFinsDriver extends DriverAbstract
             if index is reduced-areas.length
                 # start from beginning
                 index := 0
-            <~ sleep 300ms
+            <~ sleep 200ms
             lo(op)
         @log.warn "Stopping polling, starting to check only heartbeating"
         @trigger \disconnect
