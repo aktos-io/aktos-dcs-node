@@ -36,7 +36,7 @@ export class SiemensS7Driver extends DriverAbstract
         if @opts.readonly
             error = "READONLY, not writing the following: #{handle.address} <= #{value}"
             @log.warn error
-            return callback err
+            return callback error
         err <~ @conn.writeItems handle.address, value
         callback err
 
