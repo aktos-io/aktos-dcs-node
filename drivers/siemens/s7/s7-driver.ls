@@ -16,6 +16,12 @@ export class SiemensS7Driver extends DriverAbstract
         @watches = {}
         @start!
         @log.todo "When do we stop?"
+        @connected = no
+        @on \connect, ~>
+            @connected = yes
+
+        @on \disconnect, ~>
+            @connected = no
 
     prepare-one-read: (address) ->
         @conn.removeItems!  # remove all items to prepare one reading
@@ -58,7 +64,10 @@ export class SiemensS7Driver extends DriverAbstract
             err, data <~ @conn.readAllItems
             if err
                 @log.log "something went wrong while reading values"
+                if @connected => @trigger \disconnect
             else
+                @log.info "Read some data: ", data 
+                unless @connected => @trigger \connect
                 # detect and send changes
                 for addr, _value of data
                     {handle, callback} = @watches[addr]
