@@ -1,10 +1,12 @@
 require! './': {bind-server-to-local}
 require! 'dcs': {sleep}
 
+#args = process.argv.slice(2)
+dcs-port = process.argv.2 or 5588
 
 config = 
-    server-port: 5588
-    local-port: 5588
+    server-port: dcs-port
+    local-port: dcs-port
 
 
 pfx = "server:#{config.server-port} -> localhost:#{config.local-port}"
