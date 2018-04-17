@@ -37,7 +37,7 @@ export class AuthRequest extends EventEmitter
                 callback err="Not a valid token", null
                 return
 
-        @log.log "Trying to authenticate with", keys credentials
+        @log.log "Trying to authenticate with", (keys credentials .join ', ')
 
         if keys credentials .length is 0
             @log.warn "Credentials empty! (why? is server restarted?)"
