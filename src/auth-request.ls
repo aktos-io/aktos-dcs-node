@@ -66,7 +66,7 @@ export class AuthRequest extends EventEmitter
         if not err and msg.auth.logout is \ok
             @log.log "clearing token from AuthRequest cache"
             @token = null
-
+        @trigger \logout 
         callback err, msg
 
     add-token: (msg) ->
