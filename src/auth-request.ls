@@ -28,15 +28,21 @@ export class AuthRequest extends EventEmitter
             credentials.password = hash-passwd credentials.password
 
         else if credentials.token?
+            @log.info "token is: ", credentials
             # token
             if credentials.token.length < 10
                 err = "Token seems empty, not attempting to login."
                 @log.log err
                 @trigger \logout
-                callback err, null
+                callback err="Not a valid token", null
                 return
 
         @log.log "Trying to authenticate with", keys credentials
+
+        if keys credentials .length is 0
+            @log.warn "Credentials empty! (why? is server restarted?)"
+            callback err="EMPTY_CREDENTIALS"
+            return
 
         @trigger \to-server, {auth: credentials}
 
@@ -46,14 +52,16 @@ export class AuthRequest extends EventEmitter
         try
             unless err
                 if res.auth.error
-                    @trigger \logout
+                    @log.log "AUTH_ERR: ", res.auth
+                    @trigger \logout, {code: "AUTH_ERR", res: res.auth}
                 else
                     if res.auth.session.token
                         # store token in order to use in every message
                         @token = that
                         @trigger \login, res.auth.session.permissions
                     else if res.auth.session.logout is \yes
-                        @trigger \logout
+                        @log.log "KICKED: ", res.auth
+                        @trigger \logout, {code: 'KICKED'}
         catch
             @log.err "something went wrong here: ex: ", e, "res: ", res, "err:", err
             err = e
@@ -66,7 +74,7 @@ export class AuthRequest extends EventEmitter
         if not err and msg.auth.logout is \ok
             @log.log "clearing token from AuthRequest cache"
             @token = null
-        @trigger \logout 
+        @trigger \logout, {code: 'GRACEFUL'}
         callback err, msg
 
     add-token: (msg) ->

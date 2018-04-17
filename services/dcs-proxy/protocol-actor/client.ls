@@ -65,7 +65,7 @@ export class ProxyClient extends Actor
                 @log.info "Remote RW subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
 
-            ..on \logout, ~>
+            ..on \logout, (reason) ~>
                 @log.info "Logged out."
                 @logged-in = false
                 @trigger \logged-out
@@ -150,14 +150,16 @@ export class ProxyClient extends Actor
                 catch
                     null
 
-            error = err or res?auth?error
+            error = err or res?auth?error or (res?auth?session?logout is \yes)
             unless error
+                @log.log "seems logged in: ", err, res
                 @trigger \logged-in
             else
-                @log.info "ProxyClient will try to reconnect."
-                if @connected
-                    <~ sleep 3000ms
-                    @trigger \_login, {forget-password: @opts.forget-password}
+                unless error is "EMPTY_CREDENTIALS"
+                    @log.info "ProxyClient will try to reconnect."
+                    if @connected
+                        <~ sleep 3000ms
+                        @trigger \_login, {forget-password: @opts.forget-password}
             callback error, res
 
         if @connected

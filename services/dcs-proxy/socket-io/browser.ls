@@ -29,8 +29,10 @@ export class DcsSocketIOBrowser extends ProxyClient
             @log.log "Seems logged in, cancelling public login"
             try clear-timeout auto
 
-        @on \logged-out, ~>
-            @log.log "Logged out, perform a public login in 1 second"
-            <~ sleep 1000ms
-            @log.log "...logging in..."
-            @login {user: 'public', password: 'public'}
+        @on \logged-out, (reason) ~>
+            if reason?.code is \GRACEFUL
+                debugger
+                @log.log "Logged out, perform a public login in 1 second"
+                <~ sleep 1000ms
+                @log.log "...logging in..."
+                @login {user: 'public', password: 'public'}
