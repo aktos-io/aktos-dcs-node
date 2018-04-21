@@ -88,9 +88,10 @@ export class CouchDcsServer extends Actor
             else
                 return callback err=no, template
 
-        transaction-count = (callback) ~>
-            transaction-timeout = 10_000ms
-            err, res <~ @db.view "transactions/ongoing", {startkey: Date.now! - transaction-timeout, endkey: {}}
+        transaction-count = (timeout, callback) ~>
+            # transaction count must be handled by
+            date-limit = Date.now! - timeout
+            err, res <~ @db.view "transactions/ongoing", {startkey: date-limit, endkey: {}}
             count = (try res.0.value) or 0
             @log.log "total ongoing transaction: ", count
             callback count
@@ -108,13 +109,18 @@ export class CouchDcsServer extends Actor
                   3. (Roundtrip 3) At this step, there should be only 1 ongoing transaction. Fail if there are more than 1 ongoing
                     transaction. (More than 1 ongoing transaction means more than one process checked and saw no
                     ongoing transaction at the same time, and then put their ongoing transaction files concurrently)
-                  4. (Roundtrip 4 - Rollback Case) Perform any business logic here. If any stuff can't be less than zero or something like that, fail.
-                    Mark the transaction document state as `failed` (or something like that) to clear it from ongoing transactions
-                    list (to prevent performance impact of waiting transaction timeouts). This step is optional and there is
-                    no problem if it fails.
-                  5. (Roundtrip 4 - Commit Case) If everything is okay, mark transaction document state as 'done'.
+                  4. (Roundtrip 4) Perform any business logic here. If any stuff can't be less than zero or something like that,
+                    make the transaction fail.
+                  5. (Roundtrip 5 - Commit or Rollback) Mark the transaction document state as `failed`
+                    (or something like that, other than "done" or "ongoing") to clear it from ongoing
+                    transactions list (which is for preventing performance impact of waiting
+                    transaction timeouts). If rollback is failed (or skipped), nothing bad will
+                    happen except for the remaining timeout delay for the next transactions.
 
-                This algorithm uses the following views:
+                    If everything is okay, mark transaction document state as 'done' to
+                    commit.
+
+                This algorithm uses the following view:
 
                         # _design/transactions
                         views:
@@ -125,68 +131,44 @@ export class CouchDcsServer extends Actor
 
                                 reduce: (keys, values) ->
                                     sum values
-
-                            balance:
-                                map: (doc) ->
-                                    if doc.type is \transaction and doc.state is \done
-                                        emit doc.from, (doc.amount * -1)
-                                        emit doc.to, doc.amount
-
-                                reduce: (keys, values) ->
-                                    sum values
                 '''
 
                 @log.log bg-yellow "Handling transaction..."
                 doc = msg.payload.put
 
-                # Check if transaction document format is correct
-                unless (doc.from and doc.to) or doc.transactions
-                    return @send-and-echo msg, {err: "Missing source or destination", res: null}
-                @log.log "transaction doc is: ", doc
-
-                # Check if there is any ongoing transaction (step 1)
-                count <~ transaction-count
+                # Step 1: Check if there is any ongoing transaction
+                transaction-timeout = 10_000ms
+                count <~ transaction-count transaction-timeout
                 if count > 0
-                    @log.err bg-red "There is an ongoing transaction, giving up"
-                    return @send-and-echo msg, {err: "Ongoing transaction exists", res: null}
+                    err = "There is an ongoing transaction already, aborting..."
+                    return @send-and-echo msg, {err}
 
-                # Put the ongoing transaction file to the db (step 2)
-                doc <<<< do
-                    state: \ongoing
-                    timestamp: Date.now!
-
+                # Step 2: Put the ongoing transaction file to the db
+                doc <<< {state: \ongoing, timestamp: Date.now!, owner: msg.ctx?.user or '_process'}
                 err, res <~ @db.put doc
-                if err
-                    return @send-and-echo msg, {err: err, res: res or null}
+                if err => return @send-and-echo msg, {err, res}
+                doc <<< {_id: res.id, _rev: res.rev}
 
-                # update the document
-                doc <<<< {_id: res.id, _rev: res.rev}
-
-                # Ensure that there is no concurrent ongoing transactions (step 3)
-                count <~ transaction-count
+                # Step 3: Ensure that there is no concurrent ongoing transactions
+                count <~ transaction-count transaction-timeout
                 if count > 1
-                    return @send-and-echo msg, {err: "There are more than one ongoing?", res: res or null}
+                    err = "There can't be more than one ongoing transaction."
+                    return @send-and-echo msg, {err}
 
-                # Perform the business logic, rollback actively if needed. (step 4)
-                <~ :lo(op) ~>
-                    if doc.from isnt \outside
-                        # stock can not be less than zero
-                        err, res <~ @db.view 'transactions/balance', {key: doc.from}
-                        curr-amount = (try res.0.value) or 0
-                        if doc.amount > curr-amount
-                            err = "#{doc.from} can not be < 0 (curr: #{curr-amount}, wanted: #{doc.amount})"
-                            @send-and-echo msg, {err, res: null}
-                            doc.state = \failed
-                            err, res <~ @db.put doc
-                            if err => @log.warn "Failed to actively rollback. This will cause performance impacts only."
-                            @log.log bg-yellow "Transaction ROLLED BACK."
-                            return
+                # Step 4: Perform the business logic here
+                err <~ @trigger \transaction, @db, doc
+
+                # Step 5: Commit or abort the transaction
+                if err
+                    @send-and-echo msg, {err}
+                    doc.state = \failed
+                    return @db.put doc, (err, res) ~>
+                        if err
+                            @log.info "Failed to actively rollback.
+                                This will cause performance impacts only."
                         else
-                            return op!
-                    else
-                        return op!
+                            @log.info "Transaction ROLLED BACK."
 
-                # Commit the transaction (step 5)
                 doc.state = \done
                 err, res <~ @db.put doc
                 unless err
