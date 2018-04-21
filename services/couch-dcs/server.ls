@@ -100,41 +100,17 @@ export class CouchDcsServer extends Actor
             #@log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
             if msg.payload.put?.type is \transaction
-                # handle the transaction
-                '''
-                Transaction follows this path:
-
-                  1. (Roundtrip 1) Check if there is an ongoing transaction. Fail if there is any.
-                  2. (Roundtrip 2) If there is no ongoing transaction, mark the transaction document as 'ongoing' and save
-                  3. (Roundtrip 3) At this step, there should be only 1 ongoing transaction. Fail if there are more than 1 ongoing
-                    transaction. (More than 1 ongoing transaction means more than one process checked and saw no
-                    ongoing transaction at the same time, and then put their ongoing transaction files concurrently)
-                  4. (Roundtrip 4) Perform any business logic here. If any stuff can't be less than zero or something like that,
-                    make the transaction fail.
-                  5. (Roundtrip 5 - Commit or Rollback) Mark the transaction document state as `failed`
-                    (or something like that, other than "done" or "ongoing") to clear it from ongoing
-                    transactions list (which is for preventing performance impact of waiting
-                    transaction timeouts). If rollback is failed (or skipped), nothing bad will
-                    happen except for the remaining timeout delay for the next transactions.
-
-                    If everything is okay, mark transaction document state as 'done' to
-                    commit.
-
-                This algorithm uses the following view:
-
-                        # _design/transactions
-                        views:
-                            ongoing:
-                                map: (doc) ->
-                                    if (doc.type is \transaction) and (doc.state is \ongoing)
-                                        emit doc.timestamp, 1
-
-                                reduce: (keys, values) ->
-                                    sum values
-                '''
+                # handle the transaction, see ./transactions.md
 
                 @log.log bg-yellow "Handling transaction..."
                 doc = msg.payload.put
+
+                # Assign proper doc id
+                err, next-id <~ get-next-id docs[i]._id
+                doc._id = next-id unless err
+                doc.timestamp = Date.now!
+                doc.owner = if msg.ctx => that.user else \_process
+
 
                 # Step 1: Check if there is any ongoing transaction
                 transaction-timeout = 10_000ms
@@ -144,7 +120,7 @@ export class CouchDcsServer extends Actor
                     return @send-and-echo msg, {err}
 
                 # Step 2: Put the ongoing transaction file to the db
-                doc <<< {state: \ongoing, timestamp: Date.now!, owner: msg.ctx?.user or '_process'}
+                doc.state = \ongoing
                 err, res <~ @db.put doc
                 if err => return @send-and-echo msg, {err, res}
                 doc <<< {_id: res.id, _rev: res.rev}
