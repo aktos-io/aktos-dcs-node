@@ -128,6 +128,9 @@ export class CouchDcsServer extends Actor
                 if err => return @send-and-echo msg, {err, res}
                 doc <<< {_id: res.id, _rev: res.rev}
 
+                if doc._deleted
+                    return @send-and-echo msg, {err, res}
+
                 # Step 3: Ensure that there is no concurrent ongoing transactions
                 count <~ transaction-count transaction-timeout
                 if count > 1
@@ -175,11 +178,11 @@ export class CouchDcsServer extends Actor
                     # FIXME: "Set unless null" strategy can be hacked in the client
                     # (client may set it to any value) but the original value is kept
                     # in the first revision . Fetch the first version on request.
-                    unless doc._rev
-                        doc.timestamp = Date.now!
-                        doc.owner = (try msg.ctx.user) or \_process
+                    unless docs[i]._rev
+                        docs[i].timestamp = Date.now!
+                        docs[i].owner = (try msg.ctx.user) or \_process
                     # End of FIXME
-                    doc.{}meta.modified = Date.now!
+                    docs[i].{}meta.modified = Date.now!
 
 
                     i++
