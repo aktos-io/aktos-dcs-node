@@ -1,4 +1,5 @@
 require! '../../src/actor': {Actor}
+require! '../../src/topic-match': {topic-match}
 
 '''
 usage:
@@ -23,6 +24,11 @@ export class CouchDcsClient extends Actor
         else
             throw 'CouchDcsClient: No default topic is given.'
         @log.log "Initialized with topic: #{@topic}"
+        @on-topic 'app.dcs.connect', (msg) ~>
+            rw = msg.payload.permissions.rw
+            #@log.info "Checking permissions in", rw
+            unless @topic `topic-match` rw
+                @log.err "We do not have correct permissions for #{@topic}"
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
