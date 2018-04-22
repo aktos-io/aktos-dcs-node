@@ -88,9 +88,11 @@ export class ProxyClient extends Actor
                     |> @auth.add-token
                     |> pack)
 
-        @on \logged-in, ~>
+        @on \logged-in, (session) ~>
             @log.info "Emitting app.logged-in"
             @send 'app.logged-in', {}
+            @log.warn "Deprecated: app.logged-in is deprecated, use app.dcs.connect instead."
+            @send 'app.dcs.connect', session
             @logged-in = yes
 
         @on-topic \app.logged-in.update, (msg) ~>
@@ -102,6 +104,7 @@ export class ProxyClient extends Actor
             ..on \connect, ~>
                 @connected = yes
                 @log.log bg-green "My transport is connected."
+                #@send \app.server.connect
                 @transport-ready = yes
                 @trigger \connect
                 err, res <~ @trigger \_login, {forget-password: @opts.forget-password}  # triggering procedures on (re)login
@@ -110,6 +113,7 @@ export class ProxyClient extends Actor
                 @connected = no
                 @log.log bg-yellow "My transport is disconnected."
                 @trigger \disconnect
+                @send 'app.dcs.disconnect'
 
             ..on "data", (data) ~>
                 for msg in @m.append data
@@ -153,7 +157,7 @@ export class ProxyClient extends Actor
             error = err or res?auth?error or (res?auth?session?logout is \yes)
             unless error
                 #@log.log "seems logged in: ", err, res
-                @trigger \logged-in
+                @trigger \logged-in, res.auth.session
             else
                 unless error is "EMPTY_CREDENTIALS"
                     @log.info "ProxyClient will try to reconnect."
