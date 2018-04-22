@@ -115,7 +115,9 @@ export class CouchDcsServer extends Actor
                 transaction-timeout = 10_000ms
                 count <~ transaction-count transaction-timeout
                 if count > 0
-                    err = "There is an ongoing transaction already, aborting..."
+                    err = "There is an ongoing transaction already, aborting...
+                        TODO: DO NOT FAIL IMMEDIATELY, ADD THIS TRANSACTION
+                        TO THE QUEUE."
                     return @send-and-echo msg, {err}
 
                 # Step 2: Put the ongoing transaction file to the db
