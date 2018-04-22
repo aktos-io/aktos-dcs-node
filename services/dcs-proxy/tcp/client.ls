@@ -12,7 +12,7 @@ export class DcsTcpClient extends ProxyClient
             name: \TcpDcsClient
             forget-password: no
 
-        @on \connected, ~>
+        @on \connect, ~>
             @log.log "Info: Connected to server..."
 
         @on \disconnect, ~>
