@@ -66,7 +66,12 @@ export class CouchDcsClient extends Actor
             topic: "#{@topic}.put"
             timeout: opts.timeout or 5_000ms}, {put: doc}
 
-        callback (err or msg?.payload.err), msg?.payload.res
+        error = err or msg?.payload.err
+        response = msg?.payload.res
+        unless error
+            doc._id = response.id
+            doc._rev = response.rev
+        callback error, response
 
     put-transaction: (doc, opts, callback) ->
         # normalize parameters
@@ -79,7 +84,12 @@ export class CouchDcsClient extends Actor
             topic: "#{@topic}.put"
             timeout: opts.timeout or 5_000ms}, {put: doc, +transaction}
 
-        callback (err or msg?.payload.err), msg?.payload.res
+        error = err or msg?.payload.err
+        response = msg?.payload.res
+        unless error
+            doc._id = response.id
+            doc._rev = response.rev
+        callback error, response
 
     view: (viewName, opts, callback) ->
         # normalize parameters
