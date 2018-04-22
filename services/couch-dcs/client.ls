@@ -62,6 +62,19 @@ export class CouchDcsClient extends Actor
 
         callback (err or msg?.payload.err), msg?.payload.res
 
+    put-transaction: (doc, opts, callback) ->
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = {}
+        # end of normalization
+
+        err, msg <~ @send-request {
+            topic: "#{@topic}.put"
+            timeout: opts.timeout or 5_000ms}, {put: doc, +transaction}
+
+        callback (err or msg?.payload.err), msg?.payload.res
+
     view: (viewName, opts, callback) ->
         # normalize parameters
         if typeof! opts is \Function

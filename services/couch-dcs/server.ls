@@ -99,14 +99,13 @@ export class CouchDcsServer extends Actor
         @on \data, (msg) ~>
             #@log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
             # `put` message
-            if msg.payload.put?.type is \transaction
+            if \put of msg.payload and msg.payload.transaction is yes
                 # handle the transaction, see ./transactions.md
-
                 @log.log bg-yellow "Handling transaction..."
                 doc = msg.payload.put
 
                 # Assign proper doc id
-                err, next-id <~ get-next-id docs[i]._id
+                err, next-id <~ get-next-id doc._id
                 doc._id = next-id unless err
                 doc.timestamp = Date.now!
                 doc.owner = if msg.ctx => that.user else \_process
@@ -120,7 +119,7 @@ export class CouchDcsServer extends Actor
                     return @send-and-echo msg, {err}
 
                 # Step 2: Put the ongoing transaction file to the db
-                doc.state = \ongoing
+                doc.transaction = \ongoing
                 err, res <~ @db.put doc
                 if err => return @send-and-echo msg, {err, res}
                 doc <<< {_id: res.id, _rev: res.rev}
@@ -137,7 +136,7 @@ export class CouchDcsServer extends Actor
                 # Step 5: Commit or abort the transaction
                 if err
                     @send-and-echo msg, {err}
-                    doc.state = \failed
+                    doc.transaction = \failed
                     return @db.put doc, (err, res) ~>
                         if err
                             @log.info "Failed to actively rollback.
@@ -145,7 +144,7 @@ export class CouchDcsServer extends Actor
                         else
                             @log.info "Transaction ROLLED BACK."
 
-                doc.state = \done
+                doc.transaction = \done
                 err, res <~ @db.put doc
                 unless err
                     @log.log bg-green "Transaction completed."
