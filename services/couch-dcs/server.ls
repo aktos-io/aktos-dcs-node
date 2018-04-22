@@ -106,9 +106,11 @@ export class CouchDcsServer extends Actor
 
                 # Assign proper doc id
                 err, next-id <~ get-next-id doc._id
-                doc._id = next-id unless err
-                doc.timestamp = Date.now!
-                doc.owner = if msg.ctx => that.user else \_process
+                unless err => doc._id = next-id
+                unless doc._rev
+                    doc.timestamp = Date.now!
+                    doc.owner = (try msg.ctx.user) or \_process
+                doc.{}meta.modified = Date.now!
 
 
                 # Step 1: Check if there is any ongoing transaction
@@ -163,9 +165,6 @@ export class CouchDcsServer extends Actor
 
                 # Apply server side attributes
                 # ---------------------------
-                # FIXME: "Set unless null" strategy can be hacked in the client
-                # (client may set it to any value) but the original value is kept
-                # in the first revision . Fetch the first version on request.
                 i = 0;
                 <~ :lo(op) ~>
                     return op! if i > (docs.length - 1)
@@ -173,10 +172,16 @@ export class CouchDcsServer extends Actor
                     unless err
                         docs[i]._id = next-id
 
-                    unless docs[i].timestamp
-                        docs[i].timestamp = Date.now!
-                    unless docs[i].owner
-                        docs[i].owner = if msg.ctx => that.user else \_process
+                    # FIXME: "Set unless null" strategy can be hacked in the client
+                    # (client may set it to any value) but the original value is kept
+                    # in the first revision . Fetch the first version on request.
+                    unless doc._rev
+                        doc.timestamp = Date.now!
+                        doc.owner = (try msg.ctx.user) or \_process
+                    # End of FIXME
+                    doc.{}meta.modified = Date.now!
+
+
                     i++
                     lo(op)
 
