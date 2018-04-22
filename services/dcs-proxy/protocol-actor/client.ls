@@ -156,7 +156,7 @@ export class ProxyClient extends Actor
 
             error = err or res?auth?error or (res?auth?session?logout is \yes)
             unless error
-                #@log.log "seems logged in: ", err, res
+                #@log.log "seems logged in: session:", res.auth.session
                 @trigger \logged-in, res.auth.session
             else
                 unless error is "EMPTY_CREDENTIALS"
