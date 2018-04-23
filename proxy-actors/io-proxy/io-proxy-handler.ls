@@ -145,6 +145,8 @@ export class IoProxyHandler extends Actor
                 @log.info "Driver is not connected, skipping broadcasting."
 
 
-        # broadcast update on "power up"
-        #@log.warn "triggering broadcast 'read' because we are initialized now."
-        #@trigger \read, handle, broadcast-value
+        # workaround till heartbeat implementation
+        <~ :lo(op) ~>
+            @trigger \read, handle, broadcast-value
+            <~ sleep 2000 + (Math.random! * 1000)  # wait between 2000ms and 3000ms
+            lo(op)
