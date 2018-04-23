@@ -112,10 +112,8 @@ export class IoProxyHandler extends Actor
             #@log.warn "triggering 'write'."
             new-value = msg.payload.val
             @trigger \write, handle, new-value, (err) ~>
-                if err
-                    # write failed, send response directly to the requester
-                    @send-response msg, {err: err}
-                else
+                @send-response msg, {err: err}
+                unless err
                     # write succeeded, broadcast the value
                     broadcast-value err=null, new-value
 
