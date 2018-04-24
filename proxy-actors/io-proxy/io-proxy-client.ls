@@ -11,9 +11,7 @@ export class IoProxyClient extends Actor
         super @topic
         @fps = new FpsExec (opts.fps or 20fps), this
         @reply-signal = new Signal \reply-signal
-
-        # handle realtime events
-        #@actor = new RactiveActor this, name=topic
+        @curr = undefined
 
         @on-topic "#{@topic}.read", (msg) ~>
             #@log.log "#{@topic}.read received: ", msg
@@ -21,20 +19,19 @@ export class IoProxyClient extends Actor
                 #@c-log "...is redirected to reply-signal..."
                 @reply-signal.go msg.payload
             else
-                if msg.payload?
-                    '''
-                    # if has no payload, then it probably comes from
-                    # another actor's request-update!
-                    # FIXME: this shouldn't receive the other actors'
-                    # update messages in the first place.
-                    '''
-                    if msg.payload.err
-                        @trigger \error, {message: that}
-                    else
-                        try
-                            @trigger \read, msg.payload.res
-                        catch
-                            @trigger \error, {message: e}
+                if msg.payload.err
+                    @trigger \error, {message: that}
+                else
+                    rec = msg.payload.res
+                    @trigger \read, rec
+                    # detect change
+                    if rec.curr isnt @curr
+                        @trigger \change, rec.curr
+                        if @curr is off and rec.curr is on
+                            @trigger \r-edge
+                        if @curr is on and rec.curr is off
+                            @trigger \f-edge
+                        @curr = rec.curr
 
         @on-topic "app.logged-in", ~>
             @send-request {topic: "#{@topic}.update", timeout: @timeout}, (err, msg) ~>
@@ -52,21 +49,18 @@ export class IoProxyClient extends Actor
                 @log.log "triggering app.logged-in on render."
                 @trigger-topic 'app.logged-in'
 
+    r-edge: (callback) ->
+        @once \r-edge, callback
 
-    write: (...args) ->
-        @fps.exec ~> @filtered-write ...args
+    f-edge: (callback) ->
+        @once \f-edge, callback
+
+    write: (value, callback) ->
+        @fps.exec ~> @filtered-write value, callback
 
     filtered-write: (value, callback) ->
         topic = "#{@topic}.write"
-        @send topic, {val: value}
-        @reply-signal.clear!
-        _err, data <~ @reply-signal.wait @timeout
-        err = _err or data?.err
-        unless err
-            try clear-timeout x
-            @trigger \read, {curr: value, prev: undefined}
-        else
-            @trigger \error, {message: err}
-
+        err, msg <~ @send-request {topic, timeout: @timeout}, {val: value}
+        error = err or msg?.payload.err
         if typeof! callback is \Function
-            callback err
+            callback error
