@@ -2,6 +2,7 @@ require! '../../src/actor': {Actor}
 require! '../../src/signal': {Signal}
 require! '../../lib/sleep': {sleep}
 require! '../../src/filters': {FpsExec}
+require! '../../src/topic-match': {topic-match}
 
 
 export class IoProxyClient extends Actor
@@ -33,7 +34,10 @@ export class IoProxyClient extends Actor
                             @trigger \f-edge
                         @curr = rec.curr
 
-        @on-topic "app.logged-in", ~>
+        @on-topic "app.dcs.connect", (msg) ~>
+            unless @topic `topic-match` msg.payload.permissions.rw
+                @log.warn "We don't have write permissions for #{@topic}"
+
             @send-request {topic: "#{@topic}.update", timeout: @timeout}, (err, msg) ~>
                 if err
                     @trigger \error, {message: err}
@@ -43,11 +47,11 @@ export class IoProxyClient extends Actor
 
         # check if app is logged in
         <~ sleep ((Math.random! * 200ms) + 100ms )
-        err, msg <~ @send-request "app.logged-in.update"
+        err, msg <~ @send-request "app.dcs.update"
         unless err
             if msg.payload is yes
-                @log.log "triggering app.logged-in on render."
-                @trigger-topic 'app.logged-in'
+                @log.log "triggering app.dcs.connect on initialization.",
+                @trigger-topic 'app.dcs.connect', msg
 
     r-edge: (callback) ->
         @once \r-edge, callback

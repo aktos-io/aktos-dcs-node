@@ -122,7 +122,7 @@ export class IoProxyHandler extends Actor
             #@log.warn "triggering 'read' because update requested."
             @trigger \read, handle, response-value(msg)
 
-        @on-topic "app.logged-in", (msg) ~>
+        @on-topic "app.dcs.connect", (msg) ~>
             # broadcast the status
             #@log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \_try_broadcast_state

@@ -19,7 +19,7 @@ Takes a transport, transparently connects two DCS networks with each other.
 
 ## Events:
 
-on login: emit "app.logged-in" message.
+on login: emit "app.dcs.connect" message.
 
 '''
 export class ProxyClient extends Actor
@@ -30,7 +30,7 @@ export class ProxyClient extends Actor
         # actor behaviours
         @role = \client
         @connected = no
-        @logged-in = no
+        @session = null
         @permissions-rw = []
         # ------------------------------------------------------
         # ------------------------------------------------------
@@ -56,8 +56,8 @@ export class ProxyClient extends Actor
                     @subscriptions = @permissions-rw
 
                     # as we clear the @subscriptions, we should re-add the update handler
-                    @on-topic \app.logged-in.update, (msg) ~>
-                        @send-response msg, @logged-in
+                    @on-topic \app.dcs.update, (msg) ~>
+                        @send-response msg, @session
 
                 else
                     @log.warn "Logged in, but there is no rw permissions found."
@@ -67,7 +67,7 @@ export class ProxyClient extends Actor
 
             ..on \logout, (reason) ~>
                 @log.info "Logged out."
-                @logged-in = false
+                @session = null
                 @trigger \logged-out
 
         # DCS interface
@@ -89,14 +89,12 @@ export class ProxyClient extends Actor
                     |> pack)
 
         @on \logged-in, (session) ~>
-            @log.info "Emitting app.logged-in"
-            @send 'app.logged-in', {}
-            @log.warn "Deprecated: app.logged-in is deprecated, use app.dcs.connect instead."
+            @log.info "Emitting app.dcs.connect"
             @send 'app.dcs.connect', session
-            @logged-in = yes
+            @session = session
 
-        @on-topic \app.logged-in.update, (msg) ~>
-            @send-response msg, @logged-in
+        @on-topic \app.dcs.update, (msg) ~>
+            @send-response msg, @session
 
         # transport interface
         @m = new MessageBinder!
