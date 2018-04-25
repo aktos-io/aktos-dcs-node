@@ -1,9 +1,12 @@
+require! 'prelude-ls': {reject}
+
+
 export class EventEmitter
     ->
         @_events = {}
         @_one_time_events = {}
 
-    once: (type, callback) ->
+    once: (type, callback) !->
         add-listener = (type, callback) ~>
             if typeof! @_one_time_events[type] isnt \Array
                 @_one_time_events[type] = []
@@ -17,7 +20,7 @@ export class EventEmitter
                     add-listener name, callback
 
 
-    on: (type, callback) ->
+    on: (type, id, callback) !->
         """
         usage:
 
@@ -31,20 +34,34 @@ export class EventEmitter
                     'name1': fn
                     'name2': fn2
         """
-        add-listener = (type, callback) ~>
-            if typeof! @_events[type] isnt \Array
-                @_events[type] = []
-            @_events[type].push callback.bind this
+        if typeof! id is \Function
+            callback = id
+            id = null
+
+        if typeof! @_events[type] isnt \Array
+            @_events[type] = []
+
+        add-listener = (type, id, callback) ~>
+            @_events[type].push {id, cb: callback.bind this}
 
         switch typeof! type
             when \String =>
-                add-listener type, callback
+                add-listener type, id, callback
             when \Object =>
                 for name, callback of type
-                    add-listener name, callback
+                    add-listener name, id, callback
 
     off: (type) ->
         @_events[type] = []
+
+    cancel: (id) !->
+        # remove a handler with a specific id from @_events
+        for type, listeners of @_events
+            for i, listener of listeners
+                if listener.id is id
+                    listeners.splice i, 1
+                    #console.log "removing #{id} from type: #{type}"
+                    break
 
     trigger: (type, ...args) ->
         """
@@ -55,7 +72,7 @@ export class EventEmitter
         """
         if @_events[type]
             for handler in that
-                handler ...args
+                handler.cb ...args
 
         if @_one_time_events[type]
             for i in [1 to that.length]
