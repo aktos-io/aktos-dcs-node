@@ -181,6 +181,15 @@ export class CouchDcsServer extends Actor
                     unless docs[i]._rev
                         docs[i].timestamp = Date.now!
                         docs[i].owner = (try msg.ctx.user) or \_process
+
+                    unless docs[i].timestamp
+                        @log.warn "Why don't we have a timestamp???"
+                        docs[i].timestamp = Date.now!
+
+                    unless docs[i].owner
+                        @log.warn "Why don't we have an owner???"
+                        docs[i].owner = (try msg.ctx.user) or \_process
+
                     # End of FIXME
                     docs[i].{}meta.modified = Date.now!
 
