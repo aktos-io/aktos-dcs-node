@@ -149,18 +149,20 @@ export class Actor extends EventEmitter
         @trigger \receive, msg
 
     on-topic: (topic, handler) ->
-        return unless topic
+        unless topic => throw "Need a topic."
+
         # subscribe this topic
         @subscribe topic unless topic in @subscriptions
 
-        @_topic_handlers[topic] = handler
+        @_topic_handlers[][topic].push handler
         @on \data, (msg) ~>
             if msg.topic `topic-match` topic
                 handler msg
 
 
     trigger-topic: (topic, ...args) ->
-        @_topic_handlers[topic] ...args
+        for handler in @_topic_handlers[topic]
+            handler ...args
 
     once-topic: (topic, handler) ->
         @subscribe topic unless topic in @subscriptions
