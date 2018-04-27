@@ -17,3 +17,16 @@ export class DcsTcpClient extends ProxyClient
 
         @on \disconnect, ~>
             @log.log "Info: Disconnected."
+
+        # A Tcp client should always try re-login (even though credentials are incorrect)
+        /*
+            unless error
+                #@log.log "seems logged in: session:", res.auth.session
+                @trigger \logged-in, res.auth.session
+            else
+                unless error is "EMPTY_CREDENTIALS"
+                    @log.info "ProxyClient will try to reconnect."
+                    if @connected
+                        <~ sleep 3000ms
+                        @trigger \_login, {forget-password: @opts.forget-password}
+        */

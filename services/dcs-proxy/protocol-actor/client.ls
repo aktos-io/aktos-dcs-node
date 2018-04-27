@@ -53,14 +53,11 @@ export class ProxyClient extends Actor
                     # on the remote site (subscribing RO messages in the DCS
                     # network would be meaningless since they will be dropped
                     # on the remote even if we forward them.)
-                    @subscriptions = @permissions-rw
+                    for index, topic of @subscriptions
+                        unless topic `topic-match` 'app.**'
+                            @subscriptions.splice index, 1
 
-                    # as we clear the @subscriptions, we should re-add the update handler
-                    @on-topic \app.dcs.update, (msg) ~>
-                        @send-response msg, @session
-
-                else
-                    @log.warn "Logged in, but there is no rw permissions found."
+                    @subscriptions ++= @permissions-rw
 
                 @log.info "Remote RW subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
@@ -68,7 +65,15 @@ export class ProxyClient extends Actor
             ..on \logout, (reason) ~>
                 @log.info "Logged out."
                 @session = null
-                @trigger \logged-out
+                @trigger \logged-out, reason
+
+        @on \logged-in, (session) ~>
+            @log.info "Emitting app.dcs.connect"
+            @send 'app.dcs.connect', session
+            @session = session
+
+        @on-topic \app.dcs.update, (msg) ~>
+            @send-response msg, @session
 
         # DCS interface
         @on \receive, (msg) ~>
@@ -88,24 +93,16 @@ export class ProxyClient extends Actor
                     |> @auth.add-token
                     |> pack)
 
-        @on \logged-in, (session) ~>
-            @log.info "Emitting app.dcs.connect"
-            @send 'app.dcs.connect', session
-            @session = session
-
-        @on-topic \app.dcs.update, (msg) ~>
-            @send-response msg, @session
-
         # transport interface
         @m = new MessageBinder!
         @transport
             ..on \connect, ~>
                 @connected = yes
-                @log.log bg-green "My transport is connected."
+                @log.log bg-green "My transport is connected, re-logging-in."
                 #@send \app.server.connect
                 @transport-ready = yes
                 @trigger \connect
-                err, res <~ @trigger \_login, {forget-password: @opts.forget-password}  # triggering procedures on (re)login
+                @trigger \_login  # triggering procedures on (re)login
 
             ..on \disconnect, ~>
                 @connected = no
@@ -128,6 +125,7 @@ export class ProxyClient extends Actor
 
     login: (credentials, callback) ->
         # normalize parameters
+        # ----------------------------------------------------
         if typeof! credentials is \Function
             callback = credentials
             credentials = null
@@ -140,32 +138,22 @@ export class ProxyClient extends Actor
                     @log.err bg-red "Wrong credentials?"
                 else
                     @log.log bg-green "Logged in into the DCS network."
+        # end of parameter normalization
 
         @off \_login
         @on \_login, (opts) ~>
             @log.log "sending credentials..."
             err, res <~ @auth.login credentials
-            if opts?.forget-password
-                #@log.warn "forgetting password"
-                credentials := token: try
-                    res.auth.session.token
-                catch
-                    null
-
             error = err or res?auth?error or (res?auth?session?logout is \yes)
+            # error: if present, it means we didn't logged in succesfully.
             unless error
-                #@log.log "seems logged in: session:", res.auth.session
                 @trigger \logged-in, res.auth.session
-            else
-                unless error is "EMPTY_CREDENTIALS"
-                    @log.info "ProxyClient will try to reconnect."
-                    if @connected
-                        <~ sleep 3000ms
-                        @trigger \_login, {forget-password: @opts.forget-password}
+
             callback error, res
 
-        if @connected
-            @trigger \_login, {forget-password: @opts.forget-password}
+        # trigger logging in if we are connected already.
+        if @connected => @trigger \_login
 
     logout: (callback) ->
-        @auth.logout callback
+        err, res <~ @auth.logout
+        callback err, res

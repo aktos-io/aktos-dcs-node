@@ -65,8 +65,7 @@ export class AuthRequest extends EventEmitter
         catch
             @log.err "something went wrong here: ex: ", e, "res: ", res, "err:", err
             err = e
-
-        callback err, res
+        callback (err or res?auth?error), res
 
     logout: (callback) ->
         @trigger \to-server, @add-token {auth: logout: yes}
