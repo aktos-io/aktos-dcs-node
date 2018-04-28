@@ -284,8 +284,13 @@ export class CouchDcsServer extends Actor
                 unless multiple
                     response := response?.0
                     error := error?.0
-                @send-and-echo msg, {err: error, res: response}
 
+                # perform the business logic here
+                if @has-listener \get
+                    err, res <~ @trigger \get, @db, msg, error, response
+                    @send-and-echo msg, {err, res}
+                else
+                    @send-and-echo msg, {err, res}
 
             # `all-docs` message
             else if \allDocs of msg.payload
@@ -296,7 +301,19 @@ export class CouchDcsServer extends Actor
             else if \view of msg.payload
                 @log.log "view message received", pack msg.payload
                 err, res <~ @db.view msg.payload.view, msg.payload.opts
-                @send-and-echo msg, {err: err, res: (res or null)}
+                if @has-listener \view
+                    /* register a chain function like so:
+
+                        ..on \view, (db, req, err, res, callback) ~>
+                            console.log "intermediate logic says view is: ", req
+                            callback err, res
+
+                    */
+                    console.log "has view listener...."
+                    err, res <~ @trigger \view, @db, msg, err, res
+                    @send-and-echo msg, {err, res}
+                else
+                    @send-and-echo msg, {err, res}
 
             # `getAtt` message (for getting attachments)
             else if \getAtt of msg.payload
