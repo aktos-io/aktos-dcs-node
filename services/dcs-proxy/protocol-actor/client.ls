@@ -137,7 +137,14 @@ export class ProxyClient extends Actor
                 for flatten [@subscriptions] => @log.info "->  #{..}"
                 @log.info "Emitting app.dcs.connect"
                 @send 'app.dcs.connect', @session
-                @trigger \logged-in, @session
+                @trigger \logged-in, @session, ~>
+                    # clear plaintext passwords
+                    credentials := {token: @session.token}
+            else
+                @session = null
+
+            if res?auth?session?logout is \yes
+                @trigger \kicked-out
 
             # re-trigger the login handler, on every re-login
             callback error, res

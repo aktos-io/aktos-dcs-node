@@ -47,6 +47,10 @@ export class DcsSocketIOBrowser extends ProxyClient
                 db.set \token, that
             @send-response msg, {err, res}
 
+        @on \logged-in, (session, clear-password) ~>
+            @log.info "clearing the plaintext password."
+            clear-password!
+
         @on-topic \app.dcs.do-logout, (msg) ~>
             @log.info "Logging out."
             err, res <~ @logout
