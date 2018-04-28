@@ -13,7 +13,7 @@ require! './services/couch-dcs/server': {CouchDcsServer}
 # Dcs Proxy
 require! './services/dcs-proxy/tcp/client': {DcsTcpClient}
 require! './services/dcs-proxy/tcp/server': {DcsTcpServer}
-require! './services/dcs-proxy/protocol-actor/auth-db': {AuthDB, as-docs}
+require! './src/auth-db': {AuthDB, as-docs}
 
 require! './lib': {
     EventEmitter, Logger, sleep, merge

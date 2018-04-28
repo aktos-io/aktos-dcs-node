@@ -1,8 +1,19 @@
-require! '../deps':{sleep}
+require! '../lib':{sleep}
 require! 'prelude-ls': {find}
+require! './authorization': {get-all-permissions}
 
 export class AuthDB
-    (@users-db, @permissions-db)->
+    (users-db, permissions-db)->
+        @users-db = if typeof! users-db is \Object
+            users-db |> as-docs
+        else
+            users-db
+
+        @permissions-db = if typeof! permissions-db is \Object
+            permissions-db |> as-docs
+        else
+            permissions-db
+
 
     get: (filter-name, callback) ->
         response = switch filter-name
@@ -12,14 +23,21 @@ export class AuthDB
         callback err=null, response
 
     get-user: (username, callback) ->
-        <~ sleep 200ms
-        doc = find (._id is username), @users-db
-        err = unless doc
-            reason: 'user not found'
-        else
-            null
+        '''
+        returns:
 
-        callback err, doc
+            userdoc <<< {permissions: {ro: .., rw: ..}}
+
+        '''
+        <~ sleep 200ms
+        user = find (._id is username), @users-db
+        unless user
+            err = {reason: 'user not found'}
+        else
+            err = null
+            user.permissions = get-all-permissions user.roles, @permissions-db
+
+        callback err, user
 
     get-permissions: (callback) ->
         <~ sleep 200ms

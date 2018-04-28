@@ -12,7 +12,7 @@ export class AuthRequest
         @reply-signal = new Signal!
 
     inbox: (msg) ->
-            @reply-signal.go msg
+        @reply-signal.go msg
 
     login: (_credentials={}, callback) ->
         # credentials might be one of the following:
@@ -41,12 +41,11 @@ export class AuthRequest
             return
 
         @write {auth: credentials}
-
         @reply-signal.clear!
         err, res <~ @reply-signal.wait 3000ms
         #@log.log "auth replay is: ", pack res
         if res?auth?session?token
-            @token = that 
+            @token = that
         callback (err or res?auth?error), res
 
     logout: (callback) ->

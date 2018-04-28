@@ -1,6 +1,5 @@
 require! './signal': {Signal}
 require! '../lib': {sleep, Logger, pack, EventEmitter}
-require! './authorization':{get-all-permissions}
 require! 'uuid4'
 require! 'colors': {
     red, green, yellow,
@@ -54,27 +53,16 @@ export class AuthHandler extends EventEmitter
                             error: err
                 else
                     if doc.passwd-hash is msg.auth.password
-                        err, permissions-db <~ db.get-permissions
-                        if err
-                            @log.log "error while getting permissions"
-                            # FIXME: send exception message to the client
-                            return
-
-                        token = uuid4!
-
                         session =
-                            token: token
+                            token: uuid4!
                             user: msg.auth.user
                             date: Date.now!
-                            permissions: get-all-permissions doc.roles, permissions-db
+                            permissions: doc.permissions
                             opening-scene: doc.opening-scene
 
                         @session-cache.add session
-
                         @log.log bg-green "new Login: #{msg.auth.user} (#{token})"
                         @log.log "(...sending with #{@@login-delay}ms delay)"
-
-
                         @trigger \login, session
                         <~ sleep @@login-delay
                         @trigger \to-client, do
