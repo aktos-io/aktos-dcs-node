@@ -1,3 +1,18 @@
+'''
+Usage:
+    auth-db = new AuthDB users, permissions
+
+    _err, user <~ auth-db.get-user username
+
+    user =
+        _id: username
+        password: sha512 of plaintext password
+        ...(what user doc contains)
+        permissions:
+            ro: ...
+            rw: ...
+
+'''
 require! '../lib':{sleep}
 require! 'prelude-ls': {find}
 require! './authorization': {get-all-permissions}
