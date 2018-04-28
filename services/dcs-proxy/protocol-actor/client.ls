@@ -43,34 +43,8 @@ export class ProxyClient extends Actor
 
         # Authentication protocol
         @auth = new AuthRequest @name
-            ..on \to-server, (msg) ~>
+            ..write = (msg) ~>
                 @transport.write pack msg
-
-            ..on \login, (permissions) ~>
-                @permissions-rw = flatten [permissions.rw]
-                unless empty @permissions-rw
-                    # subscribe only the messages that we have write permissions
-                    # on the remote site (subscribing RO messages in the DCS
-                    # network would be meaningless since they will be dropped
-                    # on the remote even if we forward them.)
-                    for index, topic of @subscriptions
-                        unless topic `topic-match` 'app.**'
-                            @subscriptions.splice index, 1
-
-                    @subscriptions ++= @permissions-rw
-
-                @log.info "Remote RW subscriptions: "
-                for flatten [@subscriptions] => @log.info "->  #{..}"
-
-            ..on \logout, (reason) ~>
-                @log.info "Logged out."
-                @session = null
-                @trigger \logged-out, reason
-
-        @on \logged-in, (session) ~>
-            @log.info "Emitting app.dcs.connect"
-            @send 'app.dcs.connect', session
-            @session = session
 
         @on-topic \app.dcs.update, (msg) ~>
             @send-response msg, @session
@@ -79,10 +53,11 @@ export class ProxyClient extends Actor
         @on \receive, (msg) ~>
             unless msg.topic `topic-match` "app.**"
                 unless msg.topic `topic-match` @permissions-rw
-                    @log.warn "We don't have permission for: ", msg
+                    @log.err "Possible coding error: We don't have permission for: ", msg
+                    @log.info "Our rw permissions: ", @permissions-rw
                     @send-response msg, {err: "
                         How come the ProxyClient is subscribed a topic
-                        that it has no rights to send? This is a DCS malfunction.
+                         that it has no rights to send? This is a DCS malfunction.
                         "}
                     return
 
@@ -116,7 +91,7 @@ export class ProxyClient extends Actor
                     # message is only forwarded to manager
                     if \auth of msg
                         #@log.log "received auth message, forwarding to AuthRequest."
-                        @auth.trigger \from-server, msg
+                        @auth.inbox msg
                     else
                         # debug
                         #@log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
@@ -147,8 +122,24 @@ export class ProxyClient extends Actor
             error = err or res?auth?error or (res?auth?session?logout is \yes)
             # error: if present, it means we didn't logged in succesfully.
             unless error
-                @trigger \logged-in, res.auth.session
+                @session = res.auth.session
+                @permissions-rw = flatten [@session.permissions.rw]
+                unless empty @permissions-rw
+                    # subscribe only the messages that we have write permissions
+                    # on the remote site (subscribing RO messages in the DCS
+                    # network would be meaningless since they will be dropped
+                    # on the remote even if we forward them.)
+                    for index, topic of @subscriptions
+                        unless topic `topic-match` 'app.**'
+                            @subscriptions.splice index, 1
+                    @subscriptions ++= @permissions-rw
+                @log.info "Remote RW subscriptions: "
+                for flatten [@subscriptions] => @log.info "->  #{..}"
+                @log.info "Emitting app.dcs.connect"
+                @send 'app.dcs.connect', @session
+                @trigger \logged-in, @session
 
+            # re-trigger the login handler, on every re-login
             callback error, res
 
         # trigger logging in if we are connected already.
@@ -156,4 +147,8 @@ export class ProxyClient extends Actor
 
     logout: (callback) ->
         err, res <~ @auth.logout
+        @log.info "Logged out; err, res: ", err, res
+        @session = null
+        reason = res?auth?error
+        @trigger \logged-out, reason
         callback err, res
