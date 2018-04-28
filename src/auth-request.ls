@@ -45,6 +45,8 @@ export class AuthRequest
         @reply-signal.clear!
         err, res <~ @reply-signal.wait 3000ms
         #@log.log "auth replay is: ", pack res
+        if res?auth?session?token
+            @token = that 
         callback (err or res?auth?error), res
 
     logout: (callback) ->
