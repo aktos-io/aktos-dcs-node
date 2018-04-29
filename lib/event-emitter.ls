@@ -38,11 +38,8 @@ export class EventEmitter
             callback = id
             id = null
 
-        if typeof! @_events[type] isnt \Array
-            @_events[type] = []
-
         add-listener = (type, id, callback) ~>
-            @_events[type].push {id, cb: callback.bind this}
+            @_events[][type].push {id, cb: callback.bind this}
 
         switch typeof! type
             when \String =>

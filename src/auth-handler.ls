@@ -61,7 +61,7 @@ export class AuthHandler extends EventEmitter
                             opening-scene: doc.opening-scene
 
                         @session-cache.add session
-                        @log.log bg-green "new Login: #{msg.auth.user} (#{token})"
+                        @log.log bg-green "new Login: #{msg.auth.user} (#{session.token})"
                         @log.log "(...sending with #{@@login-delay}ms delay)"
                         @trigger \login, session
                         <~ sleep @@login-delay
