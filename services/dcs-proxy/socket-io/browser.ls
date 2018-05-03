@@ -18,19 +18,17 @@ export class DcsSocketIOBrowser extends ProxyClient
         transport = new SocketIOTransport socket
         super transport, do
             name: \SocketIOBrowser
-            forget-password: yes
 
         db = opts.db
         if db.get \token
-            # there is a token currently, use token to sign in
-            @log.log "logging in with token: ", that
+            #### there is a token currently, use token to sign in
+            #@log.log "logging in with token: ", that
             err, res <~ @login {token: that}
-            @log.info "login with token:", err, res
+            #@log.info "login with token:", err, res
         else
-            # no token found, try a public login
-            @log.log "performing a public login"
+            #### no token found, try a public login
+            #@log.log "performing a public login"
             err, res <~ @login {user: 'public', password: 'public'}
-            #####debugger
             if err
                 @log.warn "Public login is failed: ", err
 
@@ -43,12 +41,12 @@ export class DcsSocketIOBrowser extends ProxyClient
         @on-topic \app.dcs.do-login, (msg) ~>
             err, res <~ @login msg.payload
             if res?.auth?.session?.token
-                @log.info "Logged in, got token: ", that
+                #@log.info "Logged in, got token: ", that
                 db.set \token, that
             @send-response msg, {err, res}
 
         @on \logged-in, (session, clear-password) ~>
-            @log.info "clearing the plaintext password."
+            #@log.info "clearing the plaintext password."
             clear-password!
 
         @on-topic \app.dcs.do-logout, (msg) ~>
