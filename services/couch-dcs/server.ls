@@ -14,6 +14,44 @@ dump = (name, doc) ->
     console.log "#{name} :", JSON.stringify(doc, null, 2)
 
 
+/*------------------------------------------------------------------------------
+
+Topic is calculated (and validated) in the following way:
+
+    1. selector =
+        prefix
+        + doc.type or view name (kind of filter function)
+        + method (get, put, view, change, etc...)
+        + filter function
+        + ...more filter functions
+    2. find the best match in the opts.permissions with
+        "#{prefix}.#{method}.#{doc-type or view-name}.**"
+    3. use that match as the message topic.
+
+Example selector:
+
+    db.order.get -> db.order.get.full
+    db.order.put
+        # => put a document as is if its "type is order"
+    db.order.put.as-client
+        # => put a document if its type is order and passed through
+        "as-client" filter
+    db.view.orders/getOrders -> db.view.orders/getOrders.match-own-company
+        # => filter with "match-company" function
+    db.view.orders/getOrders -> db.view.orders/getOrders
+        # => get whole view
+    db.change.view.orders/getOrders
+
+    Example permissions:
+
+    db.put.order.as-client
+    db.*.order.as-client
+    db.*.order (which means full access to "type is order" document)
+
+
+-------------------------------------------------------------------------------*/
+
+
 export class CouchDcsServer extends Actor
     (@params) ->
         super (@params.name or \CouchDcsServer)
@@ -48,7 +86,7 @@ export class CouchDcsServer extends Actor
                     @log.log (bg-green "<<<_view_>>>"), "following view: #{view}"
                     @db.follow {view, +include_rows}, (change) ~>
                         for let subs in @subscriptions
-                            topic = "#{subs}.changes.view.#{view}"
+                            topic = "#{subs}.change.view.#{view}"
                             @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
                             @send topic, change
 

@@ -1,10 +1,12 @@
 require! '../../src/actor': {Actor}
 require! '../../src/topic-match': {topic-match}
+require! '../../src/errors':{CodingError}
+require! 'prelude-ls': {first}
 
 '''
 usage:
 
-db = new CouchDcsClient prefix: 'myprefix'
+db = new CouchDcsClient topic: 'db'
 
 err, res <~ db.get \my-doc
 # sending message with topic: "myprefix.get"
@@ -13,22 +15,16 @@ unless err
 
 '''
 
-
 export class CouchDcsClient extends Actor
     (opts) ->
         super if opts.name => "CouchDcs #{opts.name}" else "CouchDcsClient"
-        if opts.topic
-            @topic = that
-        else if opts.prefix
-            @topic = that
-        else
-            throw 'CouchDcsClient: No default topic is given.'
-        @log.log "Initialized with topic: #{@topic}"
-        @on-topic 'app.dcs.connect', (msg) ~>
-            rw = msg.payload.permissions.rw
-            #@log.info "Checking permissions in", rw
-            unless @topic `topic-match` rw
-                @log.err "We do not have correct permissions for #{@topic}"
+        unless opts.topic => throw new CodingError "Topic is required."
+        #@topic = opts.topic
+        @on-every-login (msg) ~>
+            for msg.payload.permissions.rw
+                if .. `topic-match` "#{opts.topic}.**"
+                    @log.info "setting topic as #{..}"
+                    @topic = ..
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
@@ -37,7 +33,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
         timeout = opts.timeout or 5000ms
-        err, msg <~ @send-request {topic: "#{@topic}.get", timeout}, {get: doc-id, opts: opts}
+        err, msg <~ @send-request {@topic, timeout}, {get: doc-id, opts: opts}
         res = msg?.payload.res
         err = err or msg?.payload.err
         if err
@@ -51,8 +47,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
         timeout = opts.timeout or 15000ms
-
-        err, msg <~ @send-request {topic: "#{@topic}.allDocs", timeout}, {allDocs: opts}
+        err, msg <~ @send-request {@topic, timeout}, {allDocs: opts}
         callback (err or msg?.payload.err), msg?.payload.res
 
     put: (doc, opts, callback) ->
@@ -62,9 +57,8 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        err, msg <~ @send-request {
-            topic: "#{@topic}.put"
-            timeout: opts.timeout or 5_000ms}, {put: doc}
+        timeout = opts.timeout or 5_000ms
+        err, msg <~ @send-request {@topic, timeout}, {put: doc}
 
         error = err or msg?.payload.err
         response = msg?.payload.res
@@ -79,10 +73,8 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-
-        err, msg <~ @send-request {
-            topic: "#{@topic}.put"
-            timeout: opts.timeout or 5_000ms}, {put: doc, +transaction}
+        timeout = opts.timeout or 5_000ms
+        err, msg <~ @send-request {@topic, timeout}, {put: doc, +transaction}
 
         error = err or msg?.payload.err
         response = msg?.payload.res
@@ -98,7 +90,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
         timeout = opts.timeout or 10_000ms
-        err, msg <~ @send-request {topic: "#{@topic}.view", timeout}, {view: viewName, opts: opts}
+        err, msg <~ @send-request {@topic, timeout}, {view: viewName, opts: opts}
         callback (err or msg?.payload.err), msg?.payload.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->
@@ -110,7 +102,7 @@ export class CouchDcsClient extends Actor
 
         timeout = opts.timeout or 5000ms
 
-        err, msg <~ @send-request {topic: "#{@topic}.getAtt", timeout}, do
+        err, msg <~ @send-request {@topic, timeout}, do
             getAtt:
                 doc-id: doc-id
                 att-name: att-name
@@ -120,9 +112,8 @@ export class CouchDcsClient extends Actor
 
     follow: (opts={}, callback) ->
         timeout = opts.timeout or 5000ms
-        topic = "#{@topic}.follow"
         #@log.log "topic is: ", topic
-        err, msg <~ @send-request {topic, timeout}, {follow: opts}
+        err, msg <~ @send-request {@topic, timeout}, {follow: opts}
         if typeof! callback is \Function
             callback (err or msg?.payload.err), msg?.payload.res
 
