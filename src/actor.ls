@@ -188,3 +188,15 @@ export class Actor extends EventEmitter
             @mgr.deregister-actor this
             @trigger \kill, ...reason
             @_state.kill.finished = yes
+
+    on-every-login: (callback) ->
+        @on-topic 'app.dcs.connect', (msg) ~>
+            callback msg
+
+        # request dcs login state on init
+        @send-request 'app.dcs.update', (err, msg) ~>
+            #@log.info "requesting app.dcs.connect state:"
+            if not err and msg?payload
+                callback msg
+            else
+                @log.warn "invalid response: ", msg
