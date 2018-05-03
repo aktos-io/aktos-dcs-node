@@ -79,6 +79,6 @@ export class EventEmitter
     has-listener: (ev) ->
         if @_events[ev]
             for that
-                if typeof! .. is \Function
+                if typeof! ..cb is \Function
                     return true
         return false
