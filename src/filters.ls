@@ -1,8 +1,9 @@
 require! '../lib': {sleep}
 
 export class FpsExec
-    (fps=20fps, @context) ~>
-        @period = fps.period or 1000ms / fps
+    (opts=20fps) ~>
+        fps = if typeof! opts is \Number => opts
+        @period = opts.period or (1000ms / fps)
         @timer = null
         @last-exec = 0
 
@@ -13,14 +14,18 @@ export class FpsExec
         # do not send repetative messages in the time window
         time-to-exec = @period - (@now! - @last-exec)
         if time-to-exec < 0
-            time-to-exec = 0 
+            time-to-exec = 0
         try clear-timeout @timer
         @timer = sleep time-to-exec, ~>
-            func.call @context, ...args
+            func ...args
             @last-exec = @now!
 
 
 /*
+x = new FpsExec 15fps
+# or
+x = new FpsExec period: 3000ms
+
 ### Example Output:
 
 [13:39:26.587] DbLogger        : Read something:  10487
