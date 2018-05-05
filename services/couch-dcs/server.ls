@@ -76,10 +76,12 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
+            /*
             ..follow (change) ~>
                 @log.log (bg-green "<<<<<<>>>>>>"), "publishing change on #{@name}:", change.id
                 for let topic in @subscriptions
-                    @send "#{topic}.changes.all", change
+                    @send "db.changes.all", change
+            */
 
             ..get-all-views (err, res) ~>
                 for let view in res
