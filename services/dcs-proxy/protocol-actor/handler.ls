@@ -29,19 +29,10 @@ export class ProxyHandler extends Actor
             ..on \login, (ctx) ~>
                 @log.prefix = ctx.user
                 @subscriptions = []  # renew all subscriptions
-                unless empty (ctx.permissions.ro or [])
-                    @log.info "subscribing readonly: "
-                    for flatten [ctx.permissions.ro] => @log.info "->  #{..}"
-                    @subscribe ctx.permissions.ro
-
-                unless empty (ctx.permissions.rw or [])
-                    @log.info "subscribing read/write: "
-                    for flatten [ctx.permissions.rw] => @log.info "->  #{..}"
-                    @subscribe ctx.permissions.rw
-
-                # debug the subscriptions
-                #@log.info "TOTAL Subscriptions", @subscriptions.length
-                #for @subscriptions => @log.info "___  #{..}"
+                unless empty (ctx.routes or [])
+                    @log.info "subscribing routes: "
+                    for flatten [ctx.routes] => @log.info "->  #{..}"
+                    @subscribe ctx.routes
 
             ..on \logout, ~>
                 # logout is specific to browser like environments, where user
@@ -75,8 +66,8 @@ export class ProxyHandler extends Actor
                     else
                         try
                             msg
-                            |> @auth.check-permissions
-                            # permission check ok, send to DCS network
+                            |> @auth.check-routes
+                            # route check ok, send to DCS network
                             #|> (x) -> console.log "permissions okay for #{x.sender}.#{x.msg_id}"; return x
                             |> @send-enveloped
 

@@ -31,7 +31,7 @@ export class ProxyClient extends Actor
         @role = \client
         @connected = no
         @session = null
-        @permissions-rw = []
+        @routes = []
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------
@@ -52,9 +52,9 @@ export class ProxyClient extends Actor
         # DCS interface
         @on \receive, (msg) ~>
             unless msg.topic `topic-match` "app.**"
-                unless msg.topic `topic-match` @permissions-rw
+                unless msg.topic `topic-match` @routes
                     @log.err "Possible coding error: We don't have permission for: ", msg
-                    @log.info "Our rw permissions: ", @permissions-rw
+                    @log.info "Our rw permissions: ", @routes
                     @send-response msg, {err: "
                         How come the ProxyClient is subscribed a topic
                          that it has no rights to send? This is a DCS malfunction.
@@ -123,8 +123,8 @@ export class ProxyClient extends Actor
             # error: if present, it means we didn't logged in succesfully.
             unless error
                 @session = res.auth.session
-                @permissions-rw = flatten [@session.permissions.rw]
-                unless empty @permissions-rw
+                @routes = flatten [@session.routes]
+                unless empty @routes
                     # subscribe only the messages that we have write permissions
                     # on the remote site (subscribing RO messages in the DCS
                     # network would be meaningless since they will be dropped
@@ -132,7 +132,7 @@ export class ProxyClient extends Actor
                     for index, topic of @subscriptions
                         unless topic `topic-match` 'app.**'
                             @subscriptions.splice index, 1
-                    @subscriptions ++= @permissions-rw
+                    @subscriptions ++= @routes
                 @log.info "Remote RW subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
                 @log.info "Emitting app.dcs.connect"
