@@ -117,11 +117,19 @@ export class AuthHandler extends EventEmitter
     check-routes: (msg) ->
         #@log.log yellow "filter-incoming: input: ", pack msg
         session = @session-cache.get msg.token
-        if session?routes
+        # remove username from route
+        if session
+            # check if this actor has rights to send to that route
             for session.routes
                 if .. `topic-match` msg.to
                     delete msg.token
                     return msg
+            # check if this is a response message,
+            if msg.re
+                # FIXME: provide a token authentication per response message
+                delete msg.token
+                return msg
+
         @log.err (bg-red "filter-incoming dropping unauthorized message!"),
         throw new AuthError 'unauthorized message route'
 

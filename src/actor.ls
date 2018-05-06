@@ -73,13 +73,12 @@ export class Actor extends EventEmitter
     (name, opts={}) ->
         super!
         @mgr = new ActorManager!
-        @id = uuid4!
+        @id = @mgr.next-actor-id!
         @name = name or @id
         @log = new Logger @name
         @msg-seq = 0
         @subscriptions = [] # subscribe all routes by default.
         @request-queue = {}
-        @this-actor-is-a-proxy = no
         @_route_handlers = {}
         @_state = {}
         @mgr.register-actor this
@@ -129,51 +128,41 @@ export class Actor extends EventEmitter
             callback = data
             data = null
 
-        enveloped = @msg-template {to: route, data}
-
-        enveloped <<< do
-            req:
-                id: @id
-                seq: enveloped.seq
-
-        if @debug => @log.debug "sending request: ", enveloped
+        enveloped = @msg-template {to: route, data, +req}
         @subscribe route
         response-signal = new Signal!
-        @request-queue[enveloped.req.seq] = response-signal
-
-        do
-            timeout = timeout or 1000ms
-            err, msg <~ response-signal.wait timeout
+        @request-queue[enveloped.seq] = response-signal
+        timeout = timeout or 1000ms
+        response-signal.wait timeout, (err, msg) ~>
             @unsubscribe route
             callback err, msg
 
         @send-enveloped enveloped
 
     send-response: (req, data) ->
-        enveloped = @msg-template  do
-            to: req.to
-            data: data
-            res:
-                id: req.req?.id
-                seq: req.req?.seq
+        unless req.req
+            return @log.debug "No request is required, doing nothing."
 
-        #console.log "response sending: ", pack enveloped.res
+        enveloped = @msg-template {
+            to: req.from
+            data
+            re: req.seq
+        }
+        #@log.debug "sending the response for request: ", enveloped
         @send-enveloped enveloped
 
     _inbox: (msg) ->
         # process one message at a time
         #@log.log "Got message to inbox:", msg.data
         <~ sleep 0  # IMPORTANT: this fixes message sequences
-        if \res of msg
-            if msg.res.id is @id
-                if msg.res.seq of @request-queue
-                    #@log.log "...and triggered request queue:", msg.data
-                    @request-queue[msg.res.seq].go msg
-                    delete @request-queue[msg.res.seq]
-                    return
-            unless @this-actor-is-a-proxy
-                #@log.warn "Not my response, simply dropping the msg: ", msg.data
-                return
+        message-owner = msg.to.split '.' .[*-1]
+        if msg.re and message-owner is @id
+            # this is a response
+            #@log.debug "SINKING: This is a response message: ", msg
+            #@log.debug "I'm: #{@id}"
+            @request-queue[msg.re]?.go msg
+            delete @request-queue[msg.re]
+            return
 
         if \data of msg
             @trigger \data, msg
@@ -187,10 +176,12 @@ export class Actor extends EventEmitter
         # subscribe this route
         @subscribe route unless route in @subscriptions
 
-        @_route_handlers[][route].push handler
         @on \data, (msg) ~>
             if msg.to `route-match` route
                 handler msg
+
+        # for "trigger-topic" method to work
+        @_route_handlers[][route].push handler
 
 
     trigger-topic: (route, ...args) ->

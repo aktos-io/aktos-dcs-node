@@ -1,6 +1,6 @@
 require! 'prelude-ls': {reject, find}
 require! './topic-match': {topic-match: route-match}
-require! '../lib': {Logger, sleep}
+require! '../lib': {Logger, sleep, hex}
 
 
 export class ActorManager
@@ -10,8 +10,12 @@ export class ActorManager
         return @@instance if @@instance
         @@instance = this
         #@log = new Logger \ActorManager
-
+        @actor-uid = 1 # first actor id
         @actors = []
+        @manager-id = Date.now! |> hex
+
+    next-actor-id: ->
+        "a#{@actor-uid++}-#{@manager-id}"
 
     register-actor: (actor) ->
         unless find (.id is actor.id), @actors
@@ -21,6 +25,9 @@ export class ActorManager
         throw 'id is required!' unless id
         return find (.id is id), @actors
 
+    deliver-to: (id, msg) ->
+        @find-actor id ._inbox msg
+
     deregister-actor: (actor) ->
         @actors = reject (.id is actor.id), @actors
 
@@ -29,12 +36,9 @@ export class ActorManager
             #@log.log "looking for #{msg.to} to be matched in #{actor.subscriptions}"
             for route in actor.subscriptions
                 if msg.to `route-match` route
-                    unless (msg.from.split '.' .0) is (msg.to.split '.' .0)
-                        #@log.log "putting message: #{msg.from}.#{msg.seq} -> actor: #{actor.id}"
-                        actor._inbox msg
-                        break
-                    else
-                        console.log "dropping own message: ", msg, actor.id
+                    #@log.log "putting message: #{msg.from}.#{msg.seq} -> actor: #{actor.id}"
+                    actor._inbox msg
+                    break
             else
                 #@log.warn "dropping as routes are not matched: #{msg.to} vs. #{route}"
                 null

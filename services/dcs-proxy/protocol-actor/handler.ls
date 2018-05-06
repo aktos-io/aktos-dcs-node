@@ -13,14 +13,6 @@ export class ProxyHandler extends Actor
         """
         super opts.name
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        @this-actor-is-a-proxy = yes # THIS IS VERY IMPORTANT
-        # responses to the requests will be silently dropped otherwise
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
 
         @auth = new AuthHandler opts.db, opts.name
             ..on \to-client, (msg) ~>
@@ -54,10 +46,13 @@ export class ProxyHandler extends Actor
         # DCS to Transport
         @on do
             receive: (msg) ~>
-                # debug
-                #@log.log "DCS > Transport (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
-                #@log.log "... #{pack msg.payload}"
-                @transport.write pack msg
+                msg
+                #|> (m) ~>
+                #    if m.re
+                #        console.log "redirecting response message to transport: ", m
+                #    return m
+                |> pack
+                |> @transport.write
 
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
@@ -78,6 +73,16 @@ export class ProxyHandler extends Actor
                             msg
                             |> @auth.modify-sender
                             |> @auth.check-routes
+                            #|> (m) ~>
+                            #    if m.re
+                            #        @log.debug "forwarding response message to DCS", m
+                            #        console.log "subscriptions", @subscriptions
+                            #    return m
+                            #|> (m) ~>
+                            #    if m.req
+                            #        @log.debug "forwarding Request message to DCS", m
+                            #        console.log "subscriptions", @subscriptions
+                            #    return m
                             |> @send-enveloped
                         catch
                             if e.type is \AuthError

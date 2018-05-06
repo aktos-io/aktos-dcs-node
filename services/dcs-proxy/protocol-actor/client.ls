@@ -31,15 +31,6 @@ export class ProxyClient extends Actor
         @role = \client
         @connected = no
         @session = null
-        @routes = []
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        @this-actor-is-a-proxy = yes # THIS IS VERY IMPORTANT
-        # responses to the requests will be silently dropped otherwise
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
 
         # Authentication protocol
         @auth = new AuthRequest @name
@@ -49,12 +40,12 @@ export class ProxyClient extends Actor
         @on-topic \app.dcs.update, (msg) ~>
             @send-response msg, @session
 
-        # DCS interface
+        # DCS to Transport
         @on \receive, (msg) ~>
             unless msg.to `topic-match` "app.**"
-                unless msg.to `topic-match` @routes
-                    @log.err "Possible coding error: We don't have permission for: ", msg
-                    @log.info "Our rw permissions: ", @routes
+                unless msg.to `topic-match` @subscriptions
+                    @log.err "Possible coding error: We don't have a route for: ", msg
+                    @log.info "Our subscriptions: ", @subscriptions
                     @send-response msg, {err: "
                         How come the ProxyClient is subscribed a topic
                          that it has no rights to send? This is a DCS malfunction.
@@ -64,11 +55,17 @@ export class ProxyClient extends Actor
                 # debug
                 #@log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
                 #@log.log "... #{pack msg.payload}"
-                @transport.write (msg
-                    |> @auth.add-token
-                    |> pack)
+                msg
+                |> (m) ~>
+                    if m.re
+                        #console.log "this is a response message, unsubscribe from transient subscription"
+                        @unsubscribe m.to
+                    return m
+                |> @auth.add-token
+                |> pack
+                |> @transport.write
 
-        # transport interface
+        # Transport to DCS
         @m = new MessageBinder!
         @transport
             ..on \connect, ~>
@@ -96,6 +93,16 @@ export class ProxyClient extends Actor
                         # debug
                         #@log.log "  Transport > DCS (topic: #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
                         #@log.log "... #{pack msg.payload}"
+                        if msg.req
+                            # subscribe for possible response
+                            @subscribe msg.from
+                            #console.log "subscriptions: ", @subscriptions
+                        if msg.re
+                            # directly pass to message owner
+                            #@log.debug "forwarding a Response message to actor: ", msg
+                            msg.to = msg.to.replace "@#{@session.user}.", ''
+                            @mgr.deliver-to msg.to, msg
+                            return
                         @send-enveloped msg
 
     login: (credentials, callback) ->
@@ -123,12 +130,12 @@ export class ProxyClient extends Actor
             # error: if present, it means we didn't logged in succesfully.
             unless error
                 @session = res.auth.session
-                @routes = flatten [@session.routes]
-                unless empty @routes
+                routes = flatten [@session.routes]
+                unless empty routes
                     for index, topic of @subscriptions
                         unless topic `topic-match` 'app.**'
                             @subscriptions.splice index, 1
-                    @subscriptions ++= @routes
+                    @subscriptions ++= routes
                 @log.info "Remote RW subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
                 @log.info "Emitting app.dcs.connect"
