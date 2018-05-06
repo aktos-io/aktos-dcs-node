@@ -1,4 +1,4 @@
-require! '../deps': {AuthHandler, pack, unpack, Actor}
+require! '../deps': {AuthHandler, pack, unpack, Actor, topic-match}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-cyan}
 require! 'prelude-ls': {split, flatten, split-at, empty}
 require! './helpers': {MessageBinder}
@@ -31,8 +31,18 @@ export class ProxyHandler extends Actor
                 @subscriptions = []  # renew all subscriptions
                 unless empty (ctx.routes or [])
                     @log.info "subscribing routes: "
-                    for flatten [ctx.routes] => @log.info "->  #{..}"
-                    @subscribe ctx.routes
+                    for flatten [ctx.routes]
+                        if ..0 is \@
+                            if "@#{ctx.user}.**" `topic-match` ..
+                                # This is a user specific route
+                                @log.info "-->  #{..}"
+                                @subscribe ..
+                            else
+                                #@log.warn "We can't subscribe to #{..} since we are not that user."
+                                null
+                        else
+                            @log.info "->  #{..}"
+                            @subscribe ..
 
             ..on \logout, ~>
                 # logout is specific to browser like environments, where user
@@ -41,7 +51,7 @@ export class ProxyHandler extends Actor
                 # IMPORTANT: SECURITY: Clear subscriptions
                 @subscriptions = []
 
-        # DCS interface
+        # DCS to Transport
         @on do
             receive: (msg) ~>
                 # debug
@@ -52,7 +62,7 @@ export class ProxyHandler extends Actor
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
 
-        # transport interface
+        # Transport to DCS
         @m = new MessageBinder!
         @transport
             ..on "data", (data) ~>
@@ -66,14 +76,9 @@ export class ProxyHandler extends Actor
                     else
                         try
                             msg
+                            |> @auth.modify-sender
                             |> @auth.check-routes
-                            # route check ok, send to DCS network
-                            #|> (x) -> console.log "permissions okay for #{x.sender}.#{x.msg_id}"; return x
                             |> @send-enveloped
-
-                            # debug
-                            #@log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                            #@log.log "... #{pack msg.payload}"
                         catch
                             if e.type is \AuthError
                                 @log.warn "Authorization failed, dropping message."

@@ -118,10 +118,14 @@ export class AuthHandler extends EventEmitter
         #@log.log yellow "filter-incoming: input: ", pack msg
         session = @session-cache.get msg.token
         if session?routes
-            msg.ctx = {user: session.user}
             for session.routes
                 if .. `topic-match` msg.topic
                     delete msg.token
                     return msg
         @log.err (bg-red "filter-incoming dropping unauthorized message!"),
         throw new AuthError 'unauthorized message route'
+
+    modify-sender: (msg) ->
+        session = @session-cache.get msg.token
+        msg.from = "@#{session.user}"
+        return msg

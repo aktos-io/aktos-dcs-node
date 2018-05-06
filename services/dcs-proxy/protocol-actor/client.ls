@@ -125,10 +125,6 @@ export class ProxyClient extends Actor
                 @session = res.auth.session
                 @routes = flatten [@session.routes]
                 unless empty @routes
-                    # subscribe only the messages that we have write permissions
-                    # on the remote site (subscribing RO messages in the DCS
-                    # network would be meaningless since they will be dropped
-                    # on the remote even if we forward them.)
                     for index, topic of @subscriptions
                         unless topic `topic-match` 'app.**'
                             @subscriptions.splice index, 1
