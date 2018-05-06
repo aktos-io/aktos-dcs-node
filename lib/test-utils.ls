@@ -7,7 +7,7 @@ export make-tests = (lib-name, tests) ->
         tests = lib-name
         lib-name = \Tests
 
-    console.log "++++++++++ Start of tests: #{lib-name}"
+    console.log "+++ Start of #{lib-name}"
     for name, test of tests
         @expect = expect
         @clone = clone
@@ -55,4 +55,4 @@ export make-tests = (lib-name, tests) ->
 
             else
                 #console.log "...passed from test: #{name}."
-    console.log "End of tests."
+    console.log "... End of #{lib-name}"
