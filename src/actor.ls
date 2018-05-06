@@ -3,7 +3,7 @@ require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
 require! 'prelude-ls': {split, flatten, keys, unique}
 require! uuid4
-require! './topic-match': {topic-match}
+require! './topic-match': {topic-match: route-match}
 
 /*
 message =
@@ -13,7 +13,7 @@ message =
     part: part number of this specific message, integer ("undefined" for single messages)
         multi part messages include "part" attribute, `-1` for end of chunks
         streams will just increment this attribute for every frame
-    data: Payload of message
+    data: data of message
 
     # control attributes
     #--------------------
@@ -30,7 +30,7 @@ ack message fields:
 Request message:
     Unicast:
 
-        from, to: "@some-user.some-topic", seq, part?, data?, +req
+        from, to: "@some-user.some-route", seq, part?, data?, +req
 
     Multicast:
 
@@ -58,11 +58,11 @@ Broadcast message:
 
 Multicast message:
 
-    from, to: ["@some-user.some-topic", ..], seq, part?, data?, +no_ack
+    from, to: ["@some-user.some-route", ..], seq, part?, data?, +no_ack
 */
 
 export class TopicTypeError extends Error
-    (@message, @topic) ->
+    (@message, @route) ->
         super ...
         Error.captureStackTrace(this, TopicTypeError)
         @type = \TopicTypeError
@@ -76,22 +76,13 @@ export class Actor extends EventEmitter
         @id = uuid4!
         @name = name or @id
         @log = new Logger @name
-
         @msg-seq = 0
-        @subscriptions = [] # subscribe all topics by default.
-
+        @subscriptions = [] # subscribe all routes by default.
         @request-queue = {}
         @this-actor-is-a-proxy = no
-
-        @_topic_handlers = {}
-
-        @_state =
-            kill:
-                started: no
-                finished: no
-
+        @_route_handlers = {}
+        @_state = {}
         @mgr.register-actor this
-
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
         # < ~ sleep 0 <= really no need for this?
@@ -103,143 +94,130 @@ export class Actor extends EventEmitter
 
     msg-template: (msg={}) ->
         msg-raw =
-            sender: @name
+            from: @id
+            to: null
             timestamp: Date.now! / 1000
-            msg_id: @msg-seq++
+            seq: @msg-seq++
             token: null
-
         return msg-raw <<< msg
 
-    subscribe: (topics) ->
-        for topic in unique flatten [topics]
-            @subscriptions.push topic
+    subscribe: (routes) ->
+        for route in unique flatten [routes]
+            @subscriptions.push route
 
-    unsubscribe: (topic) ->
-        @subscriptions.splice (@subscriptions.index-of topic), 1
+    unsubscribe: (route) ->
+        @subscriptions.splice (@subscriptions.index-of route), 1
 
-    send: (topic, payload) ~>
-        if typeof! topic isnt \String
-            throw new TopicTypeError "Topic is not a string?", topic
+    send: (route, data) ~>
+        if typeof! route isnt \String
+            throw new TopicTypeError "Topic is not a string?", route
+        enveloped = @msg-template {to: route, data}
+        @send-enveloped enveloped
 
-        if @debug => debugger
-        enveloped = @msg-template do
-            topic: topic
-            payload: payload
-        try
-            @send-enveloped enveloped
-            if @debug => @log.log "sending #{pack enveloped}"
-        catch
-            @log.err "sending message failed. msg: ", payload, e
-            throw e
-
-    send-request: (_topic, payload, callback) ->
+    send-request: (_route, data, callback) ->
         /*
         opts:
             timeout: milliseconds
         */
         # normalize parameters
-        switch typeof! _topic
-            when \String => [topic, timeout] = [_topic, 0]
-            when \Object => [topic, timeout] = [_topic.topic, _topic.timeout]
+        switch typeof! _route
+            when \String => [route, timeout] = [_route, 0]
+            when \Object => [route, timeout] = [_route.route, _route.timeout]
 
-        if typeof! payload is \Function
-            callback = payload
-            payload = null
+        if typeof! data is \Function
+            # data might be null
+            callback = data
+            data = null
 
-        enveloped = @msg-template do
-            topic: topic
-            payload: payload
+        enveloped = @msg-template {to: route, data}
 
         enveloped <<< do
             req:
                 id: @id
-                seq: enveloped.msg_id
+                seq: enveloped.seq
 
-        if @debug => @log.log "sending request: ", enveloped
-        @subscribe topic
+        if @debug => @log.debug "sending request: ", enveloped
+        @subscribe route
         response-signal = new Signal!
         @request-queue[enveloped.req.seq] = response-signal
 
         do
             timeout = timeout or 1000ms
             err, msg <~ response-signal.wait timeout
-            @unsubscribe topic
+            @unsubscribe route
             callback err, msg
 
         @send-enveloped enveloped
 
-    send-response: (msg-to-response-to, payload) ->
+    send-response: (req, data) ->
         enveloped = @msg-template  do
-            topic: msg-to-response-to.topic
-            payload: payload
+            to: req.to
+            data: data
             res:
-                id: msg-to-response-to.req?.id
-                seq: msg-to-response-to.req?.seq
+                id: req.req?.id
+                seq: req.req?.seq
 
         #console.log "response sending: ", pack enveloped.res
         @send-enveloped enveloped
 
     _inbox: (msg) ->
         # process one message at a time
-        #@log.log "Got message to inbox:", msg.payload
+        #@log.log "Got message to inbox:", msg.data
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         if \res of msg
             if msg.res.id is @id
                 if msg.res.seq of @request-queue
-                    #@log.log "...and triggered request queue:", msg.payload
+                    #@log.log "...and triggered request queue:", msg.data
                     @request-queue[msg.res.seq].go msg
                     delete @request-queue[msg.res.seq]
                     return
             unless @this-actor-is-a-proxy
-                #@log.warn "Not my response, simply dropping the msg: ", msg.payload
+                #@log.warn "Not my response, simply dropping the msg: ", msg.data
                 return
 
-        if \payload of msg
+        if \data of msg
             @trigger \data, msg
 
         # also deliver messages to 'receive' handlers
         @trigger \receive, msg
 
-    on-topic: (topic, handler) ->
-        unless topic => throw "Need a topic."
+    on-topic: (route, handler) ->
+        unless route => throw "Need a route."
 
-        # subscribe this topic
-        @subscribe topic unless topic in @subscriptions
+        # subscribe this route
+        @subscribe route unless route in @subscriptions
 
-        @_topic_handlers[][topic].push handler
+        @_route_handlers[][route].push handler
         @on \data, (msg) ~>
-            if msg.topic `topic-match` topic
+            if msg.to `route-match` route
                 handler msg
 
 
-    trigger-topic: (topic, ...args) ->
-        for handler in @_topic_handlers[topic]
+    trigger-topic: (route, ...args) ->
+        for handler in @_route_handlers[route]
             handler ...args
 
-    once-topic: (topic, handler) ->
-        @subscribe topic unless topic in @subscriptions
+    once-route: (route, handler) ->
+        @subscribe route unless route in @subscriptions
 
         @once \data, (msg) ~>
-            if msg.topic `topic-match` topic
+            if msg.to `route-match` route
                 handler msg
-                @unsubscribe topic
+                @unsubscribe route
 
     send-enveloped: (msg) ->
-        msg.sender = @id
-        if not msg.topic and not (\auth of msg)
-            @log.err "send-enveloped: Message has no topic. Not sending."
-            debugger
-            return
+        if not msg.to and not (\auth of msg)
+            return @log.err "send-enveloped: Message has no route. Not sending.", msg
         <~ sleep 0
-        if @debug => @log.log "sending message: ", msg
-        @mgr.distribute msg
+        if @debug => @log.debug "sending message: ", msg
+        @mgr.distribute msg, @id
 
     kill: (...reason) ->
-        unless @_state.kill.started
-            @_state.kill.started = yes
+        unless @_state.kill-started
+            @_state.kill-started = yes
             @mgr.deregister-actor this
             @trigger \kill, ...reason
-            @_state.kill.finished = yes
+            @_state.kill-finished = yes
 
     on-every-login: (callback) ->
         @on-topic 'app.dcs.connect', (msg) ~>
@@ -248,7 +226,7 @@ export class Actor extends EventEmitter
         # request dcs login state on init
         @send-request 'app.dcs.update', (err, msg) ~>
             #@log.info "requesting app.dcs.connect state:"
-            if not err and msg?payload
+            if not err and msg?data
                 callback msg
             else
                 @log.warn "invalid response: ", msg
@@ -262,4 +240,7 @@ if require.main is module
 
     new class A2 extends Actor
         action: ->
+            @on-topic "hello", (msg) ~>
+                @log.err "received hello message", msg
+
             @send "hello", {hello: \there}

@@ -51,8 +51,8 @@ export class ProxyClient extends Actor
 
         # DCS interface
         @on \receive, (msg) ~>
-            unless msg.topic `topic-match` "app.**"
-                unless msg.topic `topic-match` @routes
+            unless msg.to `topic-match` "app.**"
+                unless msg.to `topic-match` @routes
                     @log.err "Possible coding error: We don't have permission for: ", msg
                     @log.info "Our rw permissions: ", @routes
                     @send-response msg, {err: "
@@ -62,7 +62,7 @@ export class ProxyClient extends Actor
                     return
 
                 # debug
-                #@log.log "Transport < DCS: (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                #@log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
                 #@log.log "... #{pack msg.payload}"
                 @transport.write (msg
                     |> @auth.add-token
@@ -94,7 +94,7 @@ export class ProxyClient extends Actor
                         @auth.inbox msg
                     else
                         # debug
-                        #@log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                        #@log.log "  Transport > DCS (topic: #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
                         #@log.log "... #{pack msg.payload}"
                         @send-enveloped msg
 

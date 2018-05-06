@@ -55,7 +55,7 @@ export class ProxyHandler extends Actor
         @on do
             receive: (msg) ~>
                 # debug
-                #@log.log "DCS > Transport (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
+                #@log.log "DCS > Transport (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
                 #@log.log "... #{pack msg.payload}"
                 @transport.write pack msg
 
@@ -82,6 +82,7 @@ export class ProxyHandler extends Actor
                         catch
                             if e.type is \AuthError
                                 @log.warn "Authorization failed, dropping message."
+                                console.log msg
                             else
                                 throw e
 
