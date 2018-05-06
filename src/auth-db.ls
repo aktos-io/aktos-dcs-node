@@ -9,15 +9,15 @@ Users are also roles (groups). Fields are:
 
         'some-role'
         'some-other-role' # or user
-        '!some-restricted-role'
+        '!some-restricted-role' # exclude some-restricted-role's routes
 
     routes: Array of routes that the user can communicate with
 
         'some-topic.some-child.*'   # => send/receive to/from that topic along with other subscribers
-        '@some-user.**'             # => communicate only with @some-user
+        '@some-user.**'              # => communicate only with @some-user
                                          login username should match in order to
                                          receive this messages.
-        '! some-other-topic.**'     # => disable for that route
+        '!some-other-topic.**'     # => disable for that route
 
     permissions: Array of domain specific permissions/filter names.
         In order to negate the filter, prepend "!" to the beginning.
@@ -97,16 +97,34 @@ export merge-user-doc = (username, user-docs) ->
 
     _user = {}
     if user.roles
-        for flatten [that]
-            _role = clone (merge-user-doc .., user-docs)
+        for role-name in flatten [that]
+            exclude = no
+            if role-name.0 is "!"
+                # this is an exclusion
+                role-name = role-name.slice 1 .trim!
+                exclude = yes
+            _role = clone (merge-user-doc role-name, user-docs)
             try delete _role._id
             try delete _role._rev
             try delete _role.passwd-hash
-            #console.log "role is: ", _role
+
+            # remove user specific routes
+            for i, route of _role.routes
+                if route `topic-match` "@#{role-name}.**"
+                    _role.routes.splice i, 1
+
+            if exclude
+                for <[ permissions routes ]>
+                    if arr=_role[..]
+                        for index, item of arr
+                            unless item.match /^!.*/
+                                arr[index] = "!#{item}"
+                #console.log "excluded role is: ", _role
             _user `merge` _role
 
     result = _user `merge` user
     result.routes = calc-negation result.routes
+    result.[]routes.unshift "@#{username}.**"
     result.permissions = calc-negation result.permissions
     return result
 
@@ -131,7 +149,6 @@ if require.main is module
             roles: <[ me him foo-like ]>
             routes:
                 \@hello.there
-
 
         'foo-like':
             routes:
@@ -159,6 +176,17 @@ if require.main is module
                 \!db.*
                 ...
 
+        'to-exclude':
+            routes:
+                \plc1.**
+
+        'coyote':
+            roles:
+                \qux
+                \!to-exclude
+            routes:
+                \plc1.io1
+
 
     auth = new AuthDB users
 
@@ -172,6 +200,9 @@ if require.main is module
                 opening-scene: \orders
                 hey: \second
                 hello: \baby
+                routes:
+                    \@cca.**
+                    ...
 
         'simple2': ->
             expect auth.get \foo
@@ -180,6 +211,7 @@ if require.main is module
                 roles: <[ me him foo-like ]>
                 hey: \me
                 routes:
+                    \@foo.**
                     \world.is.great
                     \@hello.there
 
@@ -190,8 +222,8 @@ if require.main is module
                 roles: <[ me him foo-like foo ]>
                 hey: \me
                 routes:
+                    \@bar.**
                     \@hello.there
-                    ...
 
         'permissions': ->
             expect auth.get \baz
@@ -200,8 +232,8 @@ if require.main is module
                 roles: <[ me him foo-like foo ]>
                 hey: \me
                 routes:
+                    \@baz.**
                     \@hello.there
-                    ...
                 permissions:
                     \db.own-clients
                     \plc.input
@@ -213,8 +245,21 @@ if require.main is module
                 roles: <[ me him foo-like foo baz ]>
                 hey: \me
                 routes:
+                    \@qux.**
                     \@hello.there
+                permissions:
+                    \plc.input
                     ...
+
+        'role exclusion': ->
+            expect auth.get \coyote
+            .to-equal do
+                _id: \coyote
+                roles: <[ me him foo-like foo baz qux !to-exclude ]>
+                hey: \me
+                routes:
+                    \@coyote.**
+                    \@hello.there
                 permissions:
                     \plc.input
                     ...
