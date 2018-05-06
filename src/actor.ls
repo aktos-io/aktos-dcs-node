@@ -5,6 +5,62 @@ require! 'prelude-ls': {split, flatten, keys, unique}
 require! uuid4
 require! './topic-match': {topic-match}
 
+/*
+message =
+    from: ID of sender actor's ID
+    to: String or Array of routes that the message will be delivered to
+    seq: sequence number of message (integer, autoincremental)
+    part: part number of this specific message, integer ("undefined" for single messages)
+        multi part messages include "part" attribute, `-1` for end of chunks
+        streams will just increment this attribute for every frame
+    data: Payload of message
+
+    # control attributes
+    #--------------------
+    re: "#{from}.#{seq}" # optional, if this is a response for a request
+    nack: true (we don't need acknowledgement message, just like UDP)
+    req: true (this is a request, I'm waiting for the response)
+    ack: true (acknowledgement messages)
+    heartbeat: integer (wait at least for this amount of time for next part)
+
+
+ack message fields:
+    from, to, seq, part?, re, +ack
+
+Request message:
+    Unicast:
+
+        from, to: "@some-user.some-topic", seq, part?, data?, +req
+
+    Multicast:
+
+        Not defined yet.
+
+Response:
+    Unicast response    : from, to, seq, re: "...",
+    Multicast response  : from, to, seq, re: "...", +all,
+
+        Response (0) -> part: 0, +ack
+
+        Response (1..x) -> part: ++, data: ...
+
+        Control messages:
+            part: ++, heartbeat: 200..99999ms
+
+        Response (end) -> part: -1, data: ...
+
+
+Broadcast message:
+    from, to: "**", seq, part?, data, +nack
+
+    ("**": means "to all _available_ routes")
+
+
+Multicast message:
+
+    from, to: ["@some-user.some-topic", ..], seq, part?, data?, +no_ack
+*/
+
 export class TopicTypeError extends Error
     (@message, @topic) ->
         super ...
@@ -20,7 +76,6 @@ export class Actor extends EventEmitter
         @id = uuid4!
         @name = name or @id
         @log = new Logger @name
-        @debug = opts.debug
 
         @msg-seq = 0
         @subscriptions = [] # subscribe all topics by default.
@@ -46,17 +101,14 @@ export class Actor extends EventEmitter
         @name = name
         @log.name = name
 
-    msg-template: (msg) ->
+    msg-template: (msg={}) ->
         msg-raw =
-            sender: null
+            sender: @name
             timestamp: Date.now! / 1000
             msg_id: @msg-seq++
             token: null
 
-        if msg
-            return msg-raw <<<< msg
-        else
-            return msg-raw
+        return msg-raw <<< msg
 
     subscribe: (topics) ->
         for topic in unique flatten [topics]
@@ -70,7 +122,7 @@ export class Actor extends EventEmitter
             throw new TopicTypeError "Topic is not a string?", topic
 
         if @debug => debugger
-        enveloped = @msg-template! <<< do
+        enveloped = @msg-template do
             topic: topic
             payload: payload
         try
@@ -94,7 +146,7 @@ export class Actor extends EventEmitter
             callback = payload
             payload = null
 
-        enveloped = @msg-template! <<< do
+        enveloped = @msg-template do
             topic: topic
             payload: payload
 
@@ -117,7 +169,7 @@ export class Actor extends EventEmitter
         @send-enveloped enveloped
 
     send-response: (msg-to-response-to, payload) ->
-        enveloped = @msg-template! <<< do
+        enveloped = @msg-template  do
             topic: msg-to-response-to.topic
             payload: payload
             res:
@@ -200,3 +252,14 @@ export class Actor extends EventEmitter
                 callback msg
             else
                 @log.warn "invalid response: ", msg
+
+if require.main is module
+    console.log "initializing actor test"
+    new class A1 extends Actor
+        action: ->
+            @on-topic "hello", (msg) ~>
+                @log.log "received hello message", msg
+
+    new class A2 extends Actor
+        action: ->
+            @send "hello", {hello: \there}
