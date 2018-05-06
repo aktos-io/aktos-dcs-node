@@ -13,10 +13,13 @@ export class DcsTcpClient extends ProxyClient
             forget-password: no
 
         @on \connect, ~>
-            @log.log "Info: Connected to server..."
+            @log.info "Connected to server..."
 
         @on \disconnect, ~>
-            @log.log "Info: Disconnected."
+            @log.info "Disconnected."
+
+        @on-topic \app.dcs.connect, (msg) ~>
+            @log.info "Tcp Client is logged in into the DCS network."
 
         # A Tcp client should always try re-login (even though credentials are incorrect)
         /*

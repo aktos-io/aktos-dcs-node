@@ -27,7 +27,7 @@ export class ProxyHandler extends Actor
                         if ..0 is \@
                             if "@#{ctx.user}.**" `topic-match` ..
                                 # This is a user specific route
-                                @log.info "-->  #{..}"
+                                @log.info "=>  #{..}"
                                 @subscribe ..
                             else
                                 #@log.warn "We can't subscribe to #{..} since we are not that user."
@@ -72,6 +72,7 @@ export class ProxyHandler extends Actor
                         try
                             msg
                             |> @auth.modify-sender
+                            |> @auth.add-ctx
                             |> @auth.check-routes
                             #|> (m) ~>
                             #    if m.re

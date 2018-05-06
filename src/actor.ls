@@ -152,8 +152,8 @@ export class Actor extends EventEmitter
         @send-enveloped enveloped
 
     _inbox: (msg) ->
-        # process one message at a time
         #@log.log "Got message to inbox:", msg.data
+        msg.{}ctx.permissions = (try msg.ctx.permissions) or []
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         message-owner = msg.to.split '.' .[*-1]
         if msg.re and message-owner is @id

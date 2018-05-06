@@ -3,7 +3,7 @@ require! '../deps': {
     Signal, Actor, topic-match
 }
 require! 'colors': {bg-red, red, bg-yellow, green, bg-green}
-require! 'prelude-ls': {split, flatten, split-at, empty}
+require! 'prelude-ls': {split, flatten, split-at, empty, reject}
 require! './helpers': {MessageBinder}
 
 '''
@@ -79,6 +79,7 @@ export class ProxyClient extends Actor
             ..on \disconnect, ~>
                 @connected = no
                 @log.log bg-yellow "My transport is disconnected."
+                @subscriptions = reject (~> it `topic-match` @session.routes), @subscriptions
                 @trigger \disconnect
                 @send 'app.dcs.disconnect'
 
@@ -130,13 +131,8 @@ export class ProxyClient extends Actor
             # error: if present, it means we didn't logged in succesfully.
             unless error
                 @session = res.auth.session
-                routes = flatten [@session.routes]
-                unless empty routes
-                    for index, topic of @subscriptions
-                        unless topic `topic-match` 'app.**'
-                            @subscriptions.splice index, 1
-                    @subscriptions ++= routes
-                @log.info "Remote RW subscriptions: "
+                @subscriptions ++= @session.routes
+                @log.info "Remote route subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
                 @log.info "Emitting app.dcs.connect"
                 @send 'app.dcs.connect', @session

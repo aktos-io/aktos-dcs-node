@@ -53,6 +53,7 @@ export class AuthHandler extends EventEmitter
                             user: msg.auth.user
                             date: Date.now!
                             routes: user.routes
+                            permissions: user.permissions
 
                         @session-cache.add session
                         @log.log bg-green "new Login: #{msg.auth.user} (#{session.token})"
@@ -136,4 +137,9 @@ export class AuthHandler extends EventEmitter
     modify-sender: (msg) ->
         session = @session-cache.get msg.token
         msg.from = "@#{session.user}.#{msg.from}"
+        return msg
+
+    add-ctx: (msg) ->
+        session = @session-cache.get msg.token
+        msg.ctx = {session.permissions}
         return msg
