@@ -96,3 +96,6 @@ export class Logger extends EventEmitter
 
     todo: (...args) ~>
         console.info.apply console, [@get-prefix!, magenta('[TODO]')] ++ args
+
+    debug: (...args) ~>
+        console.info.apply console, [@get-prefix!, yellow('[DEBUG]')] ++ args
