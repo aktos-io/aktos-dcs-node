@@ -48,14 +48,9 @@ export class ProxyHandler extends Actor
             receive: (msg) ~>
                 msg
                 |> (m) ~>
-                    if m.re
-                        #console.log "redirecting response message to transport: ", m
-                        null
                     if m.req
-                        #console.log "redirecting request message to transport: ", m
-                        #console.log "subscriptions: ", @subscriptions
-                        null
-                    return m
+                        @log.todo "Add response token here."
+                    m
                 |> pack
                 |> @transport.write
 

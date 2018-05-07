@@ -69,6 +69,7 @@ export class TopicTypeError extends Error
         @type = \TopicTypeError
 
 
+LAST_PART = -1
 
 export class Actor extends EventEmitter
     (name, opts={}) ->
@@ -146,26 +147,26 @@ export class Actor extends EventEmitter
             return @log.debug "No request is required, doing nothing."
 
         # normalize parameters
-        unless data
+        if typeof! data is \Undefined
             data = meta
             meta = {}
 
+        resp-id = "#{req.from}.#{req.seq}"
         if meta.part
-            resp-id = "#{req.from}.#{req.seq}"
-            unless is-it-NaN @_requests[resp-id]
-                part = ++@_requests[resp-id]
-                console.log "this is a number: #{part}"
-            else
-                part = 0
-                @_requests[resp-id] = part
-            console.log "requests cache: ", @_requests
+            unless @_requests[resp-id]?
+                @_requests[resp-id] = 0
+            meta.part = @_requests[resp-id]++
+        else
+            if @_requests[resp-id]?
+                # this is the last part of a parted message
+                delete @_requests[resp-id]
+                meta.part = LAST_PART
 
         enveloped = @msg-template {
             to: req.from
             data
             re: req.seq
-
-        }
+        } <<< meta
         #@log.debug "sending the response for request: ", enveloped
         @send-enveloped enveloped
 
@@ -175,11 +176,21 @@ export class Actor extends EventEmitter
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         message-owner = msg.to.split '.' .[*-1]
         if msg.re? and message-owner is @id
-            # this is a response
-            #@log.debug "SINKING: This is a response message: ", msg
-            #@log.debug "I'm: #{@id}"
-            @request-queue[msg.re]?.go msg
-            delete @request-queue[msg.re]
+            if @request-queue[msg.re]
+                @log.debug "We were expecting this response: ", msg
+                # this is a response
+                #@log.debug "SINKING: This is a response message: ", msg
+                #@log.debug "I'm: #{@id}"
+                @request-queue[msg.re]?.go msg
+
+                if not msg.part? or msg.part < 0
+                    if not msg.part?
+                        @log.debug "this was a single part response."
+                    else
+                        @log.debug "this was the last part of the message chain."
+                    delete @request-queue[msg.re]
+            else
+                @log.err "This is not a message we were expecting?", msg
             return
 
         if \data of msg
