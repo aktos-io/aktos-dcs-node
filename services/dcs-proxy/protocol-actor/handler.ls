@@ -71,18 +71,13 @@ export class ProxyHandler extends Actor
                     else
                         try
                             msg
+                            |> (m) ~>
+                                if m.re?
+                                    @log.todo "Check response token here."
+                                return m
                             |> @auth.modify-sender
                             |> @auth.add-ctx
                             |> @auth.check-routes
-                            #|> (m) ~>
-                            #    # debug
-                            #    if m.re
-                            #        @log.debug "forwarding response message to DCS", m
-                            #        console.log "subscriptions", @subscriptions
-                            #    if m.req
-                            #        @log.debug "forwarding Request message to DCS", m
-                            #        console.log "subscriptions", @subscriptions
-                            #    return m
                             |> @send-enveloped
                         catch
                             if e.type is \AuthError
