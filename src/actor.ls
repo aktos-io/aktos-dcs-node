@@ -1,7 +1,7 @@
 require! '../lib': {sleep, pack, EventEmitter, Logger}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
-require! 'prelude-ls': {split, flatten, keys, unique}
+require! 'prelude-ls': {split, flatten, keys, unique, is-it-NaN}
 require! uuid4
 require! './topic-match': {topic-match: route-match}
 
@@ -22,7 +22,8 @@ message =
     req: true (this is a request, I'm waiting for the response)
     ack: true (acknowledgement messages)
     heartbeat: integer (wait at least for this amount of time for next part)
-
+    ctx:
+        permissions: Array of calculated user permissions.
 
 ack message fields:
     from, to, seq, part?, re, +ack
@@ -81,6 +82,7 @@ export class Actor extends EventEmitter
         @request-queue = {}
         @_route_handlers = {}
         @_state = {}
+        @_requests = {}
         @mgr.register-actor this
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
@@ -139,24 +141,40 @@ export class Actor extends EventEmitter
 
         @send-enveloped enveloped
 
-    send-response: (req, data) ->
+    send-response: (req, meta, data) ->
         unless req.req
             return @log.debug "No request is required, doing nothing."
+
+        # normalize parameters
+        unless data
+            data = meta
+            meta = {}
+
+        if meta.part
+            resp-id = "#{req.from}.#{req.seq}"
+            unless is-it-NaN @_requests[resp-id]
+                part = ++@_requests[resp-id]
+                console.log "this is a number: #{part}"
+            else
+                part = 0
+                @_requests[resp-id] = part
+            console.log "requests cache: ", @_requests
 
         enveloped = @msg-template {
             to: req.from
             data
             re: req.seq
+
         }
         #@log.debug "sending the response for request: ", enveloped
         @send-enveloped enveloped
 
     _inbox: (msg) ->
-        #@log.log "Got message to inbox:", msg.data
+        #@log.log "Got message to inbox:", msg
         msg.{}ctx.permissions = (try msg.ctx.permissions) or []
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         message-owner = msg.to.split '.' .[*-1]
-        if msg.re and message-owner is @id
+        if msg.re? and message-owner is @id
             # this is a response
             #@log.debug "SINKING: This is a response message: ", msg
             #@log.debug "I'm: #{@id}"

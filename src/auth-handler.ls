@@ -126,7 +126,7 @@ export class AuthHandler extends EventEmitter
                     delete msg.token
                     return msg
             # check if this is a response message,
-            if msg.re
+            if msg.re?
                 # FIXME: provide a token authentication per response message
                 delete msg.token
                 return msg

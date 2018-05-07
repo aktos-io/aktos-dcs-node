@@ -47,10 +47,15 @@ export class ProxyHandler extends Actor
         @on do
             receive: (msg) ~>
                 msg
-                #|> (m) ~>
-                #    if m.re
-                #        console.log "redirecting response message to transport: ", m
-                #    return m
+                |> (m) ~>
+                    if m.re
+                        #console.log "redirecting response message to transport: ", m
+                        null
+                    if m.req
+                        #console.log "redirecting request message to transport: ", m
+                        #console.log "subscriptions: ", @subscriptions
+                        null
+                    return m
                 |> pack
                 |> @transport.write
 
@@ -75,11 +80,10 @@ export class ProxyHandler extends Actor
                             |> @auth.add-ctx
                             |> @auth.check-routes
                             #|> (m) ~>
+                            #    # debug
                             #    if m.re
                             #        @log.debug "forwarding response message to DCS", m
                             #        console.log "subscriptions", @subscriptions
-                            #    return m
-                            #|> (m) ~>
                             #    if m.req
                             #        @log.debug "forwarding Request message to DCS", m
                             #        console.log "subscriptions", @subscriptions
@@ -88,7 +92,7 @@ export class ProxyHandler extends Actor
                         catch
                             if e.type is \AuthError
                                 @log.warn "Authorization failed, dropping message."
-                                console.log msg
+                                @log.warn "dropped message: ", msg
                             else
                                 throw e
 
