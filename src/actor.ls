@@ -10,20 +10,29 @@ message =
     from: ID of sender actor's ID
     to: String or Array of routes that the message will be delivered to
     seq: sequence number of message (integer, autoincremental)
-    part: part number of this specific message, integer ("undefined" for single messages)
-        multi part messages include "part" attribute, `-1` for end of chunks
-        streams will just increment this attribute for every frame
     data: data of message
 
-    # control attributes
-    #--------------------
+    # control attributes (used for routing)
+    #------------------------------------------
     re: "#{from}.#{seq}" # optional, if this is a response for a request
-    nack: true (we don't need acknowledgement message, just like UDP)
+    part: part number of this specific message, integer ("undefined" for single messages)
+        Partial messages should include "part" attribute (0 based, autoincremented),
+        `-1` for end of chunks.
+        Streams should use `-2` as `part` attribute for every frame.
     req: true (this is a request, I'm waiting for the response)
+    timeout: integer (wait at least for this amount of time for next part)
+
+    # extra attributes
+    #--------------------
+    method: Method to use concatenating partial transfers. Default is `merge`
+        function. If present, application will handle the concatenation.
+    permissions: Array of calculated user permissions.
+
+    # optional attributes
+    #----------------------
+    nack: true (we don't need acknowledgement message, just like UDP)
     ack: true (acknowledgement messages)
-    heartbeat: integer (wait at least for this amount of time for next part)
-    ctx:
-        permissions: Array of calculated user permissions.
+
 
 ack message fields:
     from, to, seq, part?, re, +ack
@@ -144,12 +153,15 @@ export class Actor extends EventEmitter
                 part-handler := func
             on-complete: (func) ~>
                 complete-handler := func
+            send-part: (msg, last-part=no) ~>
+                @log.todo "Sending next part"
         do
             response-signal = new Signal!
             @request-queue[enveloped.seq] = response-signal
             error = null
             prev-pieces = {}
             message = {}
+            merge-method-manual = no
             <~ :lo(op) ~>
                 err, msg <~ response-signal.wait timeout
                 if err
@@ -160,7 +172,10 @@ export class Actor extends EventEmitter
                     #@log.success "GOT RESPONSE SIGNAL"
                     part-handler msg
                     if msg.timeout => timeout := that
-                    message `merge` msg
+                    if msg.method?
+                        merge-method-manual := yes
+                    unless merge-method-manual
+                        message `merge` msg
                     if not msg.part? or msg.part < 0
                         /*
                         if not msg.part?
@@ -175,6 +190,8 @@ export class Actor extends EventEmitter
             @unsubscribe route
             delete @request-queue[enveloped.seq]
 
+            if merge-method-manual
+                error := "Merge method is set to manual. We can't concat the messages."
             #@log.log "Received full message: ", message
             complete-handler error, message
             if typeof! callback is \Function

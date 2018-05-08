@@ -141,5 +141,5 @@ export class AuthHandler extends EventEmitter
 
     add-ctx: (msg) ->
         session = @session-cache.get msg.token
-        msg.ctx = {session.permissions}
+        msg.permissions = session.permissions
         return msg
