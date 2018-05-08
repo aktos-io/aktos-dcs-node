@@ -132,8 +132,7 @@ export class Actor extends EventEmitter
             meta.to = route
             timeout = 0ms
         else
-            if opts.topic or opts.route
-                meta.to = opts.topic or opts.route
+            meta.to = opts.topic or opts.route or opts.to
 
         meta.part = @get-next-part-id meta.part, "#{meta.to}"
 
@@ -237,7 +236,7 @@ export class Actor extends EventEmitter
         @send-enveloped enveloped
 
     _inbox: (msg) ->
-        @log.log "Got message to inbox:", (JSON.stringify msg).length
+        #@log.log "Got message to inbox:", (JSON.stringify msg).length
         msg.permissions = msg.permissions or []
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         message-owner = msg.to.split '.' .[*-1]
