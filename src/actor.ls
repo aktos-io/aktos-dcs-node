@@ -32,6 +32,7 @@ message =
     #----------------------
     nack: true (we don't need acknowledgement message, just like UDP)
     ack: true (acknowledgement messages)
+    timestamp: Unix time in milliseconds
 
 
 ack message fields:
@@ -85,6 +86,7 @@ export class Actor extends EventEmitter
         super!
         @mgr = new ActorManager!
         @id = @mgr.next-actor-id!
+        @me = @id
         @name = name or @id
         @log = new Logger @name
         @msg-seq = 0
@@ -105,11 +107,8 @@ export class Actor extends EventEmitter
 
     msg-template: (msg={}) ->
         msg-raw =
-            from: @id
-            to: null
-            timestamp: Date.now! / 1000
+            from: @me
             seq: @msg-seq++
-            token: null
         return msg-raw <<< msg
 
     subscribe: (routes) ->
@@ -134,7 +133,7 @@ export class Actor extends EventEmitter
         else
             meta.to = opts.topic or opts.route or opts.to
 
-        meta.part = @get-next-part-id meta.part, "#{meta.to}"
+        meta.part = @get-next-part-id opts.part, "#{meta.to}"
 
         if typeof! data is \Function
             # data might be null
@@ -152,10 +151,14 @@ export class Actor extends EventEmitter
         reg-part-handlers =
             on-part: (func) ~>
                 part-handler := func
-            on-complete: (func) ~>
+            on-receive: (func) ~>
                 complete-handler := func
-            send-part: (msg, last-part=no) ~>
-                @log.todo "Sending next part"
+            send-part: (data, last-part=yes) ~>
+                msg = enveloped <<< {data, }
+                msg.part = @get-next-part-id (not last-part), "#{meta.to}"
+                #@log.todo "Sending next part: ", msg
+                @send-enveloped msg
+
         do
             response-signal = new Signal!
             @request-queue[enveloped.seq] = response-signal
@@ -227,8 +230,10 @@ export class Actor extends EventEmitter
 
         meta.part = @get-next-part-id meta.part, "#{req.from}.#{req.seq}"
 
-        enveloped = @msg-template {
+        enveloped = {
+            from: @me
             to: req.from
+            seq: @msg-seq++
             data
             re: req.seq
         } <<< meta
@@ -240,7 +245,8 @@ export class Actor extends EventEmitter
         msg.permissions = msg.permissions or []
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         message-owner = msg.to.split '.' .[*-1]
-        if msg.re? and message-owner is @id
+        if message-owner is @id and msg.re?
+            # this is a response to this actor.
             if @request-queue[msg.re]
                 # this is a response
                 #@log.debug "We were expecting this response: ", msg
@@ -248,6 +254,7 @@ export class Actor extends EventEmitter
             else
                 @log.err "This is not a message we were expecting?", msg
             return
+
 
         if \data of msg
             @trigger \data, msg
@@ -263,7 +270,12 @@ export class Actor extends EventEmitter
 
         @on \data, (msg) ~>
             if msg.to `route-match` route
-                handler msg
+                if msg.req and msg.part?
+                    @log.todo "UNIMPLEMENTED: We received partial message, part: #{msg.part}"
+                    #handler msg, ()
+                else
+                    # simple message, forward as is
+                    handler msg
 
         # for "trigger-topic" method to work
         @_route_handlers[][route].push handler
@@ -285,6 +297,7 @@ export class Actor extends EventEmitter
         if not msg.to and not (\auth of msg)
             return @log.err "send-enveloped: Message has no route. Not sending.", msg
         <~ sleep 0
+        msg.timestamp = Date.now!
         if @debug => @log.debug "sending message: ", msg
         @mgr.distribute msg, @id
 
