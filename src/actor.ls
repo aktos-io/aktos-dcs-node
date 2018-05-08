@@ -136,6 +136,14 @@ export class Actor extends EventEmitter
         # make preperation for the response
         @subscribe route
         timeout = timeout or 1000ms
+
+        part-handler = ->
+        complete-handler = ->
+        reg-part-handlers =
+            on-part: (func) ~>
+                part-handler := func
+            on-complete: (func) ~>
+                complete-handler := func
         do
             response-signal = new Signal!
             @request-queue[enveloped.seq] = response-signal
@@ -149,7 +157,8 @@ export class Actor extends EventEmitter
                     error := err
                     return op!
                 else
-                    @log.success "GOT RESPONSE SIGNAL"
+                    #@log.success "GOT RESPONSE SIGNAL"
+                    part-handler msg
                     if msg.timeout => timeout := that
                     message `merge` msg
                     if not msg.part? or msg.part < 0
@@ -167,10 +176,12 @@ export class Actor extends EventEmitter
             delete @request-queue[enveloped.seq]
 
             #@log.log "Received full message: ", message
+            complete-handler error, message
             if typeof! callback is \Function
                 callback error, message
 
         @send-enveloped enveloped
+        return reg-part-handlers
 
     send-response: (req, meta, data) ->
         unless req.req
