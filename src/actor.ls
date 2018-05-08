@@ -1,4 +1,4 @@
-require! '../lib': {sleep, pack, EventEmitter, Logger}
+require! '../lib': {sleep, pack, EventEmitter, Logger, merge}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
 require! 'prelude-ls': {split, flatten, keys, unique, is-it-NaN}
@@ -132,13 +132,43 @@ export class Actor extends EventEmitter
             data = null
 
         enveloped = @msg-template {to: route, data, +req}
+
+        # make preperation for the response
         @subscribe route
-        response-signal = new Signal!
-        @request-queue[enveloped.seq] = response-signal
         timeout = timeout or 1000ms
-        response-signal.wait timeout, (err, msg) ~>
+        do
+            response-signal = new Signal!
+            @request-queue[enveloped.seq] = response-signal
+            error = null
+            prev-pieces = {}
+            message = {}
+            <~ :lo(op) ~>
+                err, msg <~ response-signal.wait timeout
+                if err
+                    #@log.err "We have timed out"
+                    error := err
+                    return op!
+                else
+                    @log.success "GOT RESPONSE SIGNAL"
+                    if msg.timeout => timeout := that
+                    message `merge` msg
+                    if not msg.part? or msg.part < 0
+                        /*
+                        if not msg.part?
+                            @log.debug "this was a single part response."
+                        else
+                            @log.debug "this was the last part of the message chain."
+                        */
+                        return op!
+                lo(op)
+
+            # Got the full messages (or error) at this point.
             @unsubscribe route
-            callback err, msg
+            delete @request-queue[enveloped.seq]
+
+            #@log.log "Received full message: ", message
+            if typeof! callback is \Function
+                callback error, message
 
         @send-enveloped enveloped
 
@@ -161,6 +191,8 @@ export class Actor extends EventEmitter
                 # this is the last part of a parted message
                 delete @_requests[resp-id]
                 meta.part = LAST_PART
+            else
+                @log.warn "Dropping response part after last part."
 
         enveloped = @msg-template {
             to: req.from
@@ -177,18 +209,9 @@ export class Actor extends EventEmitter
         message-owner = msg.to.split '.' .[*-1]
         if msg.re? and message-owner is @id
             if @request-queue[msg.re]
-                @log.debug "We were expecting this response: ", msg
                 # this is a response
-                #@log.debug "SINKING: This is a response message: ", msg
-                #@log.debug "I'm: #{@id}"
+                #@log.debug "We were expecting this response: ", msg
                 @request-queue[msg.re]?.go msg
-
-                if not msg.part? or msg.part < 0
-                    if not msg.part?
-                        @log.debug "this was a single part response."
-                    else
-                        @log.debug "this was the last part of the message chain."
-                    delete @request-queue[msg.re]
             else
                 @log.err "This is not a message we were expecting?", msg
             return
@@ -217,7 +240,7 @@ export class Actor extends EventEmitter
         for handler in @_route_handlers[route]
             handler ...args
 
-    once-route: (route, handler) ->
+    once-topic: (route, handler) ->
         @subscribe route unless route in @subscriptions
 
         @once \data, (msg) ~>
