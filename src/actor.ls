@@ -92,7 +92,7 @@ export class Actor extends EventEmitter
         @request-queue = {}
         @_route_handlers = {}
         @_state = {}
-        @_requests = {}
+        @_partial_msg_states = {}
         @mgr.register-actor this
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
@@ -125,32 +125,27 @@ export class Actor extends EventEmitter
         enveloped = @msg-template {to: route, data}
         @send-enveloped enveloped
 
-    send-request: (_route, data, callback) ->
-        /*
-        opts:
-            timeout: milliseconds
-        */
+    send-request: (opts, data, callback) ->
         # normalize parameters
-        switch typeof! _route
-            when \String =>
-                route = _route
-                timeout = null
-            when \Object =>
-                route = if _route.topic?
-                    _route.topic
-                else if _route.route
-                    _route.route
-                timeout = _route.timeout
+        meta = {}
+        if typeof! opts is \String
+            meta.to = route
+            timeout = 0ms
+        else
+            if opts.topic or opts.route
+                meta.to = opts.topic or opts.route
+
+        meta.part = @get-next-part-id meta.part, "#{meta.to}"
 
         if typeof! data is \Function
             # data might be null
             callback = data
             data = null
 
-        enveloped = @msg-template {to: route, data, +req}
+        enveloped = @msg-template meta <<< {data, +req}
 
         # make preperation for the response
-        @subscribe route
+        @subscribe meta.to
         timeout = timeout or 1000ms
 
         part-handler = ->
@@ -194,7 +189,7 @@ export class Actor extends EventEmitter
                 lo(op)
 
             # Got the full messages (or error) at this point.
-            @unsubscribe route
+            @unsubscribe meta.to
             delete @request-queue[enveloped.seq]
 
             if merge-method-manual
@@ -207,6 +202,21 @@ export class Actor extends EventEmitter
         @send-enveloped enveloped
         return reg-part-handlers
 
+    get-next-part-id: (autoinc, msg-id) ->
+        LAST_PART = -1
+        next-part = undefined
+        if autoinc
+            unless @_partial_msg_states[msg-id]?
+                @_partial_msg_states[msg-id] = 0
+            next-part = @_partial_msg_states[msg-id]++
+        else
+            # single part message or last part of a partial message
+            if @_partial_msg_states[msg-id]?
+                # this is the last part of a parted message
+                delete @_partial_msg_states[msg-id]
+                next-part = LAST_PART
+        return next-part
+
     send-response: (req, meta, data) ->
         unless req.req
             return @log.debug "No request is required, doing nothing."
@@ -216,18 +226,7 @@ export class Actor extends EventEmitter
             data = meta
             meta = {}
 
-        resp-id = "#{req.from}.#{req.seq}"
-        if meta.part
-            unless @_requests[resp-id]?
-                @_requests[resp-id] = 0
-            meta.part = @_requests[resp-id]++
-        else
-            if @_requests[resp-id]?
-                # this is the last part of a parted message
-                delete @_requests[resp-id]
-                meta.part = LAST_PART
-            else
-                @log.warn "Dropping response part after last part."
+        meta.part = @get-next-part-id meta.part, "#{req.from}.#{req.seq}"
 
         enveloped = @msg-template {
             to: req.from
@@ -238,8 +237,8 @@ export class Actor extends EventEmitter
         @send-enveloped enveloped
 
     _inbox: (msg) ->
-        #@log.log "Got message to inbox:", msg
-        msg.{}ctx.permissions = (try msg.ctx.permissions) or []
+        @log.log "Got message to inbox:", (JSON.stringify msg).length
+        msg.permissions = msg.permissions or []
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         message-owner = msg.to.split '.' .[*-1]
         if msg.re? and message-owner is @id
