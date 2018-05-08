@@ -132,8 +132,15 @@ export class Actor extends EventEmitter
         */
         # normalize parameters
         switch typeof! _route
-            when \String => [route, timeout] = [_route, 0]
-            when \Object => [route, timeout] = [_route.route, _route.timeout]
+            when \String =>
+                route = _route
+                timeout = null
+            when \Object =>
+                route = if _route.topic?
+                    _route.topic
+                else if _route.route
+                    _route.route
+                timeout = _route.timeout
 
         if typeof! data is \Function
             # data might be null
