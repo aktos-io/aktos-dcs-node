@@ -21,7 +21,6 @@ export class CouchDcsClient extends Actor
         unless opts.route => throw new CodingError "Route is required."
 
         @on-every-login (msg) ~>
-            debugger
             if msg.data.routes `topic-match` opts.route
                 @route = opts.route
                 @log.info "setting route as #{@route}"
@@ -35,6 +34,7 @@ export class CouchDcsClient extends Actor
             @log.err "No route is defined (yet?). Dropping request:", data
         else
             timeout = opts.timeout or 5000ms
+            #@log.debug "request timeout: ", timeout 
             @send-request {@route, timeout}, data, callback
 
     get: (doc-id, opts, callback) ->
@@ -101,7 +101,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
         timeout = opts.timeout or 10_000ms
-        err, msg <~ @__request {@route, timeout, +debug}, {view: viewName, opts: opts}
+        err, msg <~ @__request {@route, timeout}, {view: viewName, opts: opts}
         callback (err or msg?.data.err), msg?.data?.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->

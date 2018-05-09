@@ -42,7 +42,7 @@ export class AuthHandler extends EventEmitter
         @session-cache = new SessionCache!
 
         @on \check-auth, (msg) ~>
-            @log.log "Processing authentication message", msg
+            if msg.debug => @log.log "Processing authentication message", msg
 
             if \user of msg.auth
                 try
