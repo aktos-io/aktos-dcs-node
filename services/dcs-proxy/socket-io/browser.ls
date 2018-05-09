@@ -46,7 +46,7 @@ export class DcsSocketIOBrowser extends ProxyClient
             if res?.auth?.session?.token
                 #@log.info "Logged in, got token: ", that
                 db.set \token, that
-            debugger
+            #@log.log "responding to app.dcs.do-login message: ", err, res
             @send-response msg, {err, res}
 
         @on \logged-in, (session, clear-password) ~>
