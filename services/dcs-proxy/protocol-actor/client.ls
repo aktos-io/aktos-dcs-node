@@ -40,6 +40,10 @@ export class ProxyClient extends Actor
         @on-topic \app.dcs.update, (msg) ~>
             @send-response msg, @session
 
+        @on \disconnect, ~>
+            @subscriptions = reject (~> it `topic-match` @session.routes), @subscriptions
+            @session = null
+
         # DCS to Transport
         @on \receive, (msg) ~>
             if msg.debug => debugger
@@ -83,7 +87,6 @@ export class ProxyClient extends Actor
             ..on \disconnect, ~>
                 @connected = no
                 @log.log bg-yellow "My transport is disconnected."
-                @subscriptions = reject (~> it `topic-match` @session?.routes), @subscriptions
                 @trigger \disconnect
                 @send 'app.dcs.disconnect'
 
@@ -144,7 +147,7 @@ export class ProxyClient extends Actor
                     # clear plaintext passwords
                     credentials := {token: @session.token}
             else
-                @session = null
+                @trigger \disconnect
 
             if res?auth?session?logout is \yes
                 @trigger \kicked-out
@@ -158,7 +161,7 @@ export class ProxyClient extends Actor
     logout: (callback) ->
         err, res <~ @auth.logout
         @log.info "Logged out; err, res: ", err, res
-        @session = null
+        @trigger \disconnect
         reason = res?auth?error
         @trigger \logged-out, reason
         callback err, res
