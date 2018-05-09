@@ -71,7 +71,10 @@ export merge-user-doc = (username, user-docs) ->
                 # this is an exclusion
                 role-name = role-name.slice 1 .trim!
                 exclude = yes
-            _role = clone (merge-user-doc role-name, user-docs)
+            try
+                _role = clone (merge-user-doc role-name, user-docs)
+            catch
+                throw "No such role is found while calculating permissions: #{role-name}"
             try delete _role._id
             try delete _role._rev
             try delete _role.passwd-hash
