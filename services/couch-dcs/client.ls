@@ -23,7 +23,7 @@ export class CouchDcsClient extends Actor
         @on-every-login (msg) ~>
             if msg.data.routes `topic-match` opts.route
                 @route = opts.route
-                @log.info "setting route as #{@route}"
+                #@log.info "setting route as #{@route}"
             else
                 @log.err "We won't be able to connect to #{opts.route},
                     not found in ", msg.data.routes
@@ -34,7 +34,7 @@ export class CouchDcsClient extends Actor
             @log.err "No route is defined (yet?). Dropping request:", data
         else
             timeout = opts.timeout or 5000ms
-            #@log.debug "request timeout: ", timeout 
+            #@log.debug "request timeout: ", timeout
             @send-request {@route, timeout}, data, callback
 
     get: (doc-id, opts, callback) ->

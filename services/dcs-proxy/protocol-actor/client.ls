@@ -54,8 +54,8 @@ export class ProxyClient extends Actor
                     return
 
                 # debug
-                @log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
-                @log.log "... #{pack msg.data}"
+                #@log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
+                #@log.log "... #{pack msg.data}"
                 msg
                 |> (m) ~>
                     if m.re?

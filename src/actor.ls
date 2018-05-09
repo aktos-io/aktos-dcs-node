@@ -268,12 +268,13 @@ export class Actor extends EventEmitter
             # this is a response to this actor.
             if @request-queue[msg.re]
                 # this is a response
-                @log.debug "We were expecting this response: ", msg
-                @log.debug "Current request queue: ", @request-queue
+                if @debug
+                    @log.debug "We were expecting this response: ", msg
+                    @log.debug "Current request queue: ", @request-queue
                 @request-queue[msg.re]?.go msg
             else
                 @log.err "This is not a message we were expecting?", msg
-                @log.warn "Current request queue: ", @request-queue
+                if @debug => @log.warn "Current request queue: ", @request-queue
             return
 
 

@@ -19,8 +19,6 @@ export class DcsSocketIOBrowser extends ProxyClient
         super transport, do
             name: \SocketIOBrowser
 
-        @debug = yes
-
         db = opts.db
         if db.get \token
             #### there is a token currently, use token to sign in
