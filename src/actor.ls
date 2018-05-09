@@ -125,7 +125,7 @@ export class Actor extends EventEmitter
         # normalize parameters
         meta = {}
         if typeof! opts is \String
-            meta.to = route
+            meta.to = opts
             timeout = 0ms
         else
             meta.to = opts.topic or opts.route or opts.to
