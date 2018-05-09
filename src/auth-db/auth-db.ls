@@ -73,25 +73,26 @@ export merge-user-doc = (username, user-docs) ->
                 exclude = yes
             try
                 _role = clone (merge-user-doc role-name, user-docs)
+                try delete _role._id
+                try delete _role._rev
+                try delete _role.passwd-hash
+
+                # remove user specific routes
+                for i, route of _role.routes
+                    if route `topic-match` "@#{role-name}.**"
+                        _role.routes.splice i, 1
+
+                if exclude
+                    for <[ permissions routes ]>
+                        if arr=_role[..]
+                            for index, item of arr
+                                unless item.match /^!.*/
+                                    arr[index] = "!#{item}"
+                    #console.log "excluded role is: ", _role
+                _user `merge` _role
             catch
-                throw "No such role is found while calculating permissions: #{role-name}"
-            try delete _role._id
-            try delete _role._rev
-            try delete _role.passwd-hash
+                console.log "No such role is found while calculating permissions: #{role-name}"
 
-            # remove user specific routes
-            for i, route of _role.routes
-                if route `topic-match` "@#{role-name}.**"
-                    _role.routes.splice i, 1
-
-            if exclude
-                for <[ permissions routes ]>
-                    if arr=_role[..]
-                        for index, item of arr
-                            unless item.match /^!.*/
-                                arr[index] = "!#{item}"
-                #console.log "excluded role is: ", _role
-            _user `merge` _role
 
     result = _user `merge` user
     result.routes = calc-negation result.routes
