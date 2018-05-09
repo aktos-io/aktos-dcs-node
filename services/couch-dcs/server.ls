@@ -343,11 +343,9 @@ export class CouchDcsServer extends Actor
                 err, res <~ @db.view msg.data.view, msg.data.opts
                 if @has-listener \view
                     /* register a chain function like so:
-
                         ..on \view, (db, req, err, res, callback) ~>
                             console.log "intermediate logic says view is: ", req
                             callback err, res
-
                     */
                     err, res <~ @trigger \view, @db, msg, err, res
                     @send-and-echo msg, {err, res}

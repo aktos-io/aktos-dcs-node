@@ -126,13 +126,12 @@ export class Actor extends EventEmitter
     send-request: (opts, data, callback) ->
         # normalize parameters
         meta = {}
+        timeout = 1000ms
         if typeof! opts is \String
             meta.to = opts
-            timeout = null  # use default
         else
             meta.to = opts.topic or opts.route or opts.to
-            timeout = opts.timeout
-        timeout = timeout or 1000ms
+            timeout = that if opts.timeout
 
         seq = @msg-seq++
         request-id = "#{seq}"
@@ -145,7 +144,7 @@ export class Actor extends EventEmitter
             callback = data
             data = null
 
-        enveloped = meta <<< {from: @me, seq, data, +req}
+        enveloped = meta <<< {from: @me, seq, data, +req, timestamp: Date.now!}
 
         # make preperation for the response
         @subscribe meta.to
@@ -179,13 +178,14 @@ export class Actor extends EventEmitter
             message = {}
             merge-method-manual = no
             <~ :lo(op) ~>
+                @log.debug "Request timeout is: #{timeout}"
                 err, msg <~ response-signal.wait timeout
                 if err
                     #@log.err "We have timed out"
                     error := err
                     return op!
                 else
-                    #@log.success "GOT RESPONSE SIGNAL"
+                    @log.debug "GOT RESPONSE SIGNAL in ", msg.timestamp - enveloped.timestamp
                     part-handler msg
                     if msg.timeout => timeout := that
                     if msg.method?
@@ -332,7 +332,8 @@ export class Actor extends EventEmitter
             debugger
             return @log.err "send-enveloped: Message has no route. Not sending.", msg
         <~ sleep 0
-        msg.timestamp = Date.now!
+        unless msg.timestamp
+            msg.timestamp = Date.now!
         if @debug => @log.debug "sending message: ", msg
         @mgr.distribute msg, @id
 
