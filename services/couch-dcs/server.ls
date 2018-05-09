@@ -137,7 +137,7 @@ export class CouchDcsServer extends Actor
             callback count
 
         @on \data, (msg) ~>
-            @log.log "received payload: ", keys(msg.data), "from ctx:", msg.ctx
+            #@log.log "received payload: ", keys(msg.data), "by:", msg.user
             # `put` message
             if \put of msg.data and msg.data.transaction is yes
                 # handle the transaction, see ./transactions.md
@@ -349,7 +349,6 @@ export class CouchDcsServer extends Actor
                             callback err, res
 
                     */
-                    console.log "has view listener...."
                     err, res <~ @trigger \view, @db, msg, err, res
                     @send-and-echo msg, {err, res}
                 else
