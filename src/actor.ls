@@ -94,7 +94,7 @@ export class Actor extends EventEmitter
         @name = name or @id
         @log = new Logger @name
         @msg-seq = 0
-        @subscriptions = [] # subscribe all routes by default.
+        @subscriptions = [@me]
         @request-queue = {}
         @_route_handlers = {}
         @_state = {}
@@ -135,9 +135,7 @@ export class Actor extends EventEmitter
         request-id = "#{meta.to}"
         meta.part = @get-next-part-id opts.part, request-id
 
-        if opts.debug
-            meta.debug = yes
-            debugger
+        meta.debug = yes if opts.debug
 
         if typeof! data is \Function
             # data might be null
@@ -146,11 +144,9 @@ export class Actor extends EventEmitter
 
         enveloped = meta <<< {from: @me, seq: @msg-seq++, data, +req}
 
-        unless enveloped.to
-            debugger
-
         # make preperation for the response
         @subscribe meta.to
+
         timeout = timeout or 1000ms
 
         part-handler = ->
@@ -251,7 +247,7 @@ export class Actor extends EventEmitter
             re: req.seq
         } <<< meta
 
-        unless enveloped.to
+        if enveloped.debug
             debugger
         #@log.debug "sending the response for request: ", enveloped
         @send-enveloped enveloped
@@ -292,6 +288,7 @@ export class Actor extends EventEmitter
                     #@log.log "We received partial message, part: #{msg.part}"
                     @send-response msg, {+part, +ack}, null
                     request-id = "#{msg.from}.#{msg.seq}"
+
                     unless @_request_concat_cache[request-id]
                         @_request_concat_cache[request-id] = do ~>
                             message = {}
@@ -322,7 +319,7 @@ export class Actor extends EventEmitter
                 handler msg
                 @unsubscribe route
 
-    send-enveloped: (msg) ->
+    send-enveloped: (msg) !->
         unless msg.to or (\auth of msg)
             debugger
             return @log.err "send-enveloped: Message has no route. Not sending.", msg
