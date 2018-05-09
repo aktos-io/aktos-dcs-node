@@ -128,11 +128,14 @@ export class Actor extends EventEmitter
         meta = {}
         if typeof! opts is \String
             meta.to = opts
-            timeout = 1000ms
+            timeout = null  # use default
         else
             meta.to = opts.topic or opts.route or opts.to
+            timeout = opts.timeout
+        timeout = timeout or 1000ms
 
-        request-id = "#{meta.to}"
+        seq = @msg-seq++
+        request-id = "#{seq}"
         meta.part = @get-next-part-id opts.part, request-id
 
         meta.debug = yes if opts.debug
@@ -142,12 +145,10 @@ export class Actor extends EventEmitter
             callback = data
             data = null
 
-        enveloped = meta <<< {from: @me, seq: @msg-seq++, data, +req}
+        enveloped = meta <<< {from: @me, seq, data, +req}
 
         # make preperation for the response
         @subscribe meta.to
-
-        timeout = timeout or 1000ms
 
         part-handler = ->
         complete-handler = ->
@@ -171,7 +172,8 @@ export class Actor extends EventEmitter
 
         do
             response-signal = new Signal!
-            @request-queue[enveloped.seq] = response-signal
+            #@log.debug "Adding request id #{request-id} to request queue: ", @request-queue
+            @request-queue[request-id] = response-signal
             error = null
             prev-pieces = {}
             message = {}
@@ -200,9 +202,12 @@ export class Actor extends EventEmitter
                         return op!
                 lo(op)
 
+            if error is \timeout
+                @log.warn "Request is timed out. Be careful."
             # Got the full messages (or error) at this point.
             @unsubscribe meta.to
-            delete @request-queue[enveloped.seq]
+            #@log.debug "Removing request id: #{request-id}"
+            delete @request-queue[request-id]
 
             if merge-method-manual
                 error := "Merge method is set to manual. We can't concat the messages."
@@ -263,10 +268,12 @@ export class Actor extends EventEmitter
             # this is a response to this actor.
             if @request-queue[msg.re]
                 # this is a response
-                #@log.debug "We were expecting this response: ", msg
+                @log.debug "We were expecting this response: ", msg
+                @log.debug "Current request queue: ", @request-queue
                 @request-queue[msg.re]?.go msg
             else
                 @log.err "This is not a message we were expecting?", msg
+                @log.warn "Current request queue: ", @request-queue
             return
 
 
