@@ -9,7 +9,9 @@ require! './topic-match': {topic-match: route-match}
 message =
     from: ID of sender actor's ID
     to: String or Array of routes that the message will be delivered to
-    seq: sequence number of message (integer, autoincremental)
+    seq: Sequence number of message (integer, autoincremental). Every unique message
+        receives a new sequence number. Partial messages share the same sequence number,
+        they are identified with their `part` attribute.
     data: data of message
 
     # control attributes (used for routing)
@@ -95,6 +97,7 @@ export class Actor extends EventEmitter
         @_route_handlers = {}
         @_state = {}
         @_partial_msg_states = {}
+        @_request_concat_cache = {}
         @mgr.register-actor this
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
@@ -104,12 +107,6 @@ export class Actor extends EventEmitter
     set-name: (name) ->
         @name = name
         @log.name = name
-
-    msg-template: (msg={}) ->
-        msg-raw =
-            from: @me
-            seq: @msg-seq++
-        return msg-raw <<< msg
 
     subscribe: (routes) ->
         for route in unique flatten [routes]
@@ -121,7 +118,7 @@ export class Actor extends EventEmitter
     send: (route, data) ~>
         if typeof! route isnt \String
             throw new TopicTypeError "Topic is not a string?", route
-        enveloped = @msg-template {to: route, data}
+        enveloped = {from: @me, to: route, data, seq: @msg-seq++}
         @send-enveloped enveloped
 
     send-request: (opts, data, callback) ->
@@ -140,7 +137,7 @@ export class Actor extends EventEmitter
             callback = data
             data = null
 
-        enveloped = @msg-template meta <<< {data, +req}
+        enveloped = meta <<< {from: @me, seq: @msg-seq++, data, +req}
 
         # make preperation for the response
         @subscribe meta.to
@@ -148,16 +145,23 @@ export class Actor extends EventEmitter
 
         part-handler = ->
         complete-handler = ->
+        last-part-sent = no
         reg-part-handlers =
             on-part: (func) ~>
                 part-handler := func
             on-receive: (func) ~>
                 complete-handler := func
             send-part: (data, last-part=yes) ~>
+                if last-part-sent
+                    @log.err "Last part is already sent."
+                    return
                 msg = enveloped <<< {data, }
                 msg.part = @get-next-part-id (not last-part), "#{meta.to}"
                 #@log.todo "Sending next part: ", msg
+                @log.log "Sending next part with id: ", msg.part
                 @send-enveloped msg
+                if last-part
+                    last-part-sent := yes
 
         do
             response-signal = new Signal!
@@ -205,7 +209,6 @@ export class Actor extends EventEmitter
         return reg-part-handlers
 
     get-next-part-id: (autoinc, msg-id) ->
-        LAST_PART = -1
         next-part = undefined
         if autoinc
             unless @_partial_msg_states[msg-id]?
@@ -271,8 +274,19 @@ export class Actor extends EventEmitter
         @on \data, (msg) ~>
             if msg.to `route-match` route
                 if msg.req and msg.part?
-                    @log.todo "UNIMPLEMENTED: We received partial message, part: #{msg.part}"
-                    #handler msg, ()
+                    #@log.log "We received partial message, part: #{msg.part}"
+                    @send-response msg, {+part, +ack}, null
+                    request-id = "#{msg.from}.#{msg.seq}"
+                    unless @_request_concat_cache[request-id]
+                        @_request_concat_cache[request-id] = do ~>
+                            message = {}
+                            (msg) ~>
+                                #@log.log "received a message to concatenate: ", msg
+                                message `merge` msg
+                                if msg.part is LAST_PART
+                                    handler message
+                                    delete @_request_concat_cache[request-id]
+                    @_request_concat_cache[request-id] msg
                 else
                     # simple message, forward as is
                     handler msg
