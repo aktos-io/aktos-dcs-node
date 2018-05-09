@@ -32,6 +32,7 @@ export class CouchDcsClient extends Actor
     __request: (opts={}, data, callback) ->
         unless @route
             debugger
+            @log.err "No route is defined (yet?). Dropping request:", data
         else
             timeout = opts.timeout or 5000ms
             @send-request {@route, timeout}, data, callback
