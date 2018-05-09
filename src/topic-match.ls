@@ -53,7 +53,7 @@ export topic-match = (topics, keypaths, opts={}) ->
 
                 console.log "no condition broke the match." if opts.debug
                 return true
-        return false
+    return false
 
 
 do test-topic-match = ->
@@ -83,6 +83,8 @@ do test-topic-match = ->
         * topic: "foo.*.bar", keypath: "foo.*", expected: false
 
         * topic: "foo.**", keypath: "foo", expected: true
+        * topic: "@foo", keypath: <[ @foo.** @bar.** ]>, expected: true
+        * topic: <[ @bar.** @foo-bar.** ]>, keypath: "@foo-bar" expected: true
 
         # first: any foo messages that contains two or more commands
         * topic: "foo.*.**", keypath: "foo.bar.baz", expected: true
