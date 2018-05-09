@@ -29,12 +29,14 @@ message =
     method: Method to use concatenating partial transfers. Default is `merge`
         function. If present, application will handle the concatenation.
     permissions: Array of calculated user permissions.
+    debug: if set to true, message highlights the route it passes
 
     # optional attributes
     #----------------------
     nack: true (we don't need acknowledgement message, just like UDP)
     ack: true (acknowledgement messages)
     timestamp: Unix time in milliseconds
+
 
 
 ack message fields:
@@ -126,11 +128,16 @@ export class Actor extends EventEmitter
         meta = {}
         if typeof! opts is \String
             meta.to = opts
-            timeout = 0ms
+            timeout = 1000ms
         else
             meta.to = opts.topic or opts.route or opts.to
 
-        meta.part = @get-next-part-id opts.part, "#{meta.to}"
+        request-id = "#{meta.to}"
+        meta.part = @get-next-part-id opts.part, request-id
+
+        if opts.debug
+            meta.debug = yes
+            debugger
 
         if typeof! data is \Function
             # data might be null
@@ -138,6 +145,9 @@ export class Actor extends EventEmitter
             data = null
 
         enveloped = meta <<< {from: @me, seq: @msg-seq++, data, +req}
+
+        unless enveloped.to
+            debugger
 
         # make preperation for the response
         @subscribe meta.to
@@ -155,8 +165,8 @@ export class Actor extends EventEmitter
                 if last-part-sent
                     @log.err "Last part is already sent."
                     return
-                msg = enveloped <<< {data, }
-                msg.part = @get-next-part-id (not last-part), "#{meta.to}"
+                msg = enveloped <<< {data}
+                msg.part = @get-next-part-id (not last-part), request-id
                 #@log.todo "Sending next part: ", msg
                 @log.log "Sending next part with id: ", msg.part
                 @send-enveloped msg
@@ -240,11 +250,16 @@ export class Actor extends EventEmitter
             data
             re: req.seq
         } <<< meta
+
+        unless enveloped.to
+            debugger
         #@log.debug "sending the response for request: ", enveloped
         @send-enveloped enveloped
 
     _inbox: (msg) ->
         #@log.log "Got message to inbox:", (JSON.stringify msg).length
+        if @debug or msg.debug => @log.debug "Got message: ", msg
+
         msg.permissions = msg.permissions or []
         <~ sleep 0  # IMPORTANT: this fixes message sequences
         message-owner = msg.to.split '.' .[*-1]
@@ -308,7 +323,8 @@ export class Actor extends EventEmitter
                 @unsubscribe route
 
     send-enveloped: (msg) ->
-        if not msg.to and not (\auth of msg)
+        unless msg.to or (\auth of msg)
+            debugger
             return @log.err "send-enveloped: Message has no route. Not sending.", msg
         <~ sleep 0
         msg.timestamp = Date.now!

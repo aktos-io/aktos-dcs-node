@@ -19,6 +19,8 @@ export class DcsSocketIOBrowser extends ProxyClient
         super transport, do
             name: \SocketIOBrowser
 
+        @debug = yes
+
         db = opts.db
         if db.get \token
             #### there is a token currently, use token to sign in
@@ -39,10 +41,12 @@ export class DcsSocketIOBrowser extends ProxyClient
             @log.info "Disconnected."
 
         @on-topic \app.dcs.do-login, (msg) ~>
-            err, res <~ @login msg.payload
+            if msg.debug => debugger
+            err, res <~ @login msg.data
             if res?.auth?.session?.token
                 #@log.info "Logged in, got token: ", that
                 db.set \token, that
+            debugger
             @send-response msg, {err, res}
 
         @on \logged-in, (session, clear-password) ~>
@@ -56,6 +60,8 @@ export class DcsSocketIOBrowser extends ProxyClient
 
         public-login-allowed = yes
         @on \logged-out, (reason) ~>
+            @log.log "This is a logout"
+            db.del \token
             if (reason?.code is \GRACEFUL) and public-login-allowed
                 @log.log "Logged out, perform a public login in 100ms"
                 <~ sleep 100ms

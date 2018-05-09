@@ -42,7 +42,7 @@ export class AuthHandler extends EventEmitter
         @session-cache = new SessionCache!
 
         @on \check-auth, (msg) ~>
-            #@log.log "Processing authentication message", msg
+            @log.log "Processing authentication message", msg
 
             if \user of msg.auth
                 try
@@ -142,4 +142,5 @@ export class AuthHandler extends EventEmitter
     add-ctx: (msg) ->
         session = @session-cache.get msg.token
         msg.permissions = session.permissions
+        msg.user = session.user
         return msg

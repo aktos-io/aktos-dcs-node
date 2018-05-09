@@ -110,7 +110,7 @@ export class IoProxyHandler extends Actor
 
         @on-topic "#{@name}.write", (msg) ~>
             #@log.warn "triggering 'write'."
-            new-value = msg.payload.val
+            new-value = msg.data.val
             @trigger \write, handle, new-value, (err) ~>
                 @send-response msg, {err: err}
                 unless err

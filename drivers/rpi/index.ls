@@ -79,7 +79,7 @@ export class DOutput extends Io
         write (@opts.initial or 0)
 
         @on \data, (msg) ~>
-            write msg.payload.val, msg if msg.payload.val?
+            write msg.data.val, msg if msg.data.val?
 
         @on \update, ~>
             @log.log "requested update, sending current status..."

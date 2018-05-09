@@ -16,7 +16,11 @@ export class ProxyHandler extends Actor
 
         @auth = new AuthHandler opts.db, opts.name
             ..on \to-client, (msg) ~>
-                @transport.write pack @msg-template msg
+                if msg.debug
+                    @log.log "Debugging message: ", msg
+                {from: @me, seq: @msg-seq++} <<< msg
+                |> pack
+                |> @transport.write
 
             ..on \login, (ctx) ~>
                 @log.prefix = ctx.user
@@ -65,6 +69,9 @@ export class ProxyHandler extends Actor
                 for msg in @m.append data
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager
+                    if msg.debug
+                        @log.log "Debugging message: ", msg
+
                     if \auth of msg
                         #@log.log green "received auth message: ", msg
                         @auth.trigger \check-auth, msg

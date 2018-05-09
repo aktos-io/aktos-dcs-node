@@ -42,6 +42,7 @@ export class ProxyClient extends Actor
 
         # DCS to Transport
         @on \receive, (msg) ~>
+            if msg.debug => debugger
             unless msg.to `topic-match` "app.**"
                 unless msg.to `topic-match` @subscriptions
                     @log.err "Possible coding error: We don't have a route for: ", msg
@@ -53,8 +54,8 @@ export class ProxyClient extends Actor
                     return
 
                 # debug
-                #@log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
-                #@log.log "... #{pack msg.payload}"
+                @log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
+                @log.log "... #{pack msg.data}"
                 msg
                 |> (m) ~>
                     if m.re?
@@ -82,7 +83,7 @@ export class ProxyClient extends Actor
             ..on \disconnect, ~>
                 @connected = no
                 @log.log bg-yellow "My transport is disconnected."
-                @subscriptions = reject (~> it `topic-match` @session.routes), @subscriptions
+                @subscriptions = reject (~> it `topic-match` @session?.routes), @subscriptions
                 @trigger \disconnect
                 @send 'app.dcs.disconnect'
 
@@ -96,7 +97,7 @@ export class ProxyClient extends Actor
                     else
                         # debug
                         #@log.log "  Transport > DCS (topic: #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
-                        #@log.log "... #{pack msg.payload}"
+                        #@log.log "... #{pack msg.data}"
                         if msg.req
                             # subscribe for possible response
                             @subscribe msg.from

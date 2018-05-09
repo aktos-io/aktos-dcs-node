@@ -64,7 +64,8 @@ export merge-user-doc = (username, user-docs) ->
 
     _user = {}
     if user.roles
-        for role-name in flatten [that]
+        user.roles = flatten [that]
+        for role-name in user.roles
             exclude = no
             if role-name.0 is "!"
                 # this is an exclusion

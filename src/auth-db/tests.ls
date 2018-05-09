@@ -1,5 +1,5 @@
-require! '../lib/test-utils': {make-tests}
-require! './auth-db': {auth-db}
+require! '../../lib/test-utils': {make-tests}
+require! './auth-db': {AuthDB}
 
 users =
     'cca':
@@ -56,6 +56,14 @@ users =
             \!to-exclude
         routes:
             \plc1.io1
+
+    'db-proxy':
+        routes:
+            \@db-proxy.**
+
+    'my-other-user':
+        roles:
+            \db-proxy
 
 
 auth = new AuthDB users
@@ -133,3 +141,12 @@ make-tests 'AuthDB Tests', do
             permissions:
                 \plc.input
                 ...
+
+    'special routes': ->
+        expect auth.get \my-other-user
+        .to-equal do
+            _id: \my-other-user
+            roles: <[ db-proxy ]>
+            routes:
+                \@my-other-user.**
+                \@db-proxy.**
