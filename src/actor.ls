@@ -185,7 +185,7 @@ export class Actor extends EventEmitter
                     error := err
                     return op!
                 else
-                    @log.debug "GOT RESPONSE SIGNAL in ", msg.timestamp - enveloped.timestamp
+                    #@log.debug "GOT RESPONSE SIGNAL in ", msg.timestamp - enveloped.timestamp
                     part-handler msg
                     if msg.timeout => timeout := that
                     if msg.method?
