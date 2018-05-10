@@ -63,6 +63,8 @@ export class CouchDcsServer extends Actor
         else
             @log.warn "No subscriptions provided to #{@name}"
 
+        event-route = @params.subscribe.replace /^@/, ''
+
         @db = new CouchNano @params
             ..on do
                 connected: ~>
@@ -79,18 +81,17 @@ export class CouchDcsServer extends Actor
             /*
             ..follow (change) ~>
                 @log.log (bg-green "<<<<<<>>>>>>"), "publishing change on #{@name}:", change.id
-                for let topic in @subscriptions
-                    @send "db.changes.all", change
+                @send "#{event-route}.change.all"
             */
 
             ..get-all-views (err, res) ~>
                 for let view in res
                     @log.log (bg-green "<<<_view_>>>"), "following view: #{view}"
                     @db.follow {view, +include_rows}, (change) ~>
-                        for let subs in @subscriptions
-                            topic = "#{subs}.change.view.#{view}"
-                            @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
-                            @send topic, change
+                        topic = "#{event-route}.change.view.#{view}"
+                        @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
+                        @log.todo "Take authorization into account while publishing changes!"
+                        @send topic, change
 
             ..start-heartbeat!
 
@@ -139,7 +140,7 @@ export class CouchDcsServer extends Actor
         @on \data, (msg) ~>
             #@log.log "received payload: ", keys(msg.data), "by:", msg.user
             # `put` message
-            if \put of msg.data and msg.data.transaction is yes
+            if \put of msg.data and msg.data.transaction is on
                 # handle the transaction, see ./transactions.md
                 @log.log bg-yellow "Handling transaction..."
                 doc = msg.data.put
@@ -202,9 +203,17 @@ export class CouchDcsServer extends Actor
 
 
             else if \put of msg.data
-                docs = flatten [msg.data.put]
+                msg.data.put = flatten [msg.data.put]
+                docs = msg.data.put
                 if empty docs
                     return @send-and-echo msg, {err: message: "Empty document", res: null}
+
+                <~ :lo(op) ~>
+                    if @has-listener \before-put
+                        <~ @trigger \before-put, msg
+                        return op!
+                    else
+                        return op!
 
                 # Apply server side attributes
                 # ---------------------------
@@ -229,38 +238,42 @@ export class CouchDcsServer extends Actor
                     unless docs[i].owner
                         @log.warn "Why don't we have an owner???"
                         docs[i].owner = (try msg.user) or \_process
-
                     # End of FIXME
+
                     docs[i].{}meta.modified = Date.now!
-
-
                     i++
                     lo(op)
 
                 # Write to database
-                if docs.length is 1
-                    err, res <~ @db.put docs.0
-                    @send-and-echo msg, {err: err, res: res or null}
-                else
-                    err, res <~ @db.bulk-docs docs
-
-                    if typeof! res is \Array and not err
-                        for res
-                            if ..error
-                                err = {error: message: 'Errors occurred, see the response'}
-                                break
-
-                    @send-and-echo msg, {err: err, res: res or null}
+                err = null
+                res = null
+                <~ :lo(op) ~>
+                    if docs.length is 1
+                        _err, _res <~ @db.put docs.0
+                        err := _err
+                        res := _res
+                        return op!
+                    else
+                        _err, _res <~ @db.bulk-docs docs
+                        err := _err
+                        res := _res
+                        if typeof! res is \Array and not err
+                            for res
+                                if ..error
+                                    err := {error: message: 'Errors occurred, see the response'}
+                                    break
+                        return op!
+                # send the response
+                @send-and-echo msg, {err, res}
 
             # `get` message
             else if \get of msg.data
-                if msg.data.opts.custom
-                    # this message will be handled custom
-                    @trigger \custom-get, @db, msg.data, (err, res) ~>
-                        console.log "...handled by custom handler"
-                        @send-and-echo msg, {err, res}
-                    return
-
+                <~ :lo(op) ~>
+                    if @has-listener \before-get
+                        <~ @trigger \before-get, msg
+                        return op!
+                    else
+                        return op!
                 multiple = typeof! msg.data.get is \Array # decide response format
                 doc-id = msg.data.get
                 doc-id = [doc-id] if typeof! doc-id is \String
@@ -327,7 +340,7 @@ export class CouchDcsServer extends Actor
 
                 # perform the business logic here
                 if @has-listener \get
-                    err, res <~ @trigger \get, @db, msg, error, response
+                    err, res <~ @trigger \get, msg, error, response
                     @send-and-echo msg, {err, res}
                 else
                     @send-and-echo msg, {err, res}
@@ -339,15 +352,16 @@ export class CouchDcsServer extends Actor
 
             # `view` message
             else if \view of msg.data
-                @log.log "view message received", pack msg.data
+                #@log.log "view message received", pack msg.data
+                <~ :lo(op) ~>
+                    if @has-listener \before-view
+                        <~ @trigger \before-view, msg
+                        return op!
+                    else
+                        return op!
                 err, res <~ @db.view msg.data.view, msg.data.opts
                 if @has-listener \view
-                    /* register a chain function like so:
-                        ..on \view, (db, req, err, res, callback) ~>
-                            console.log "intermediate logic says view is: ", req
-                            callback err, res
-                    */
-                    err, res <~ @trigger \view, @db, msg, err, res
+                    err, res <~ @trigger \view, msg, err, res
                     @send-and-echo msg, {err, res}
                 else
                     @send-and-echo msg, {err, res}
