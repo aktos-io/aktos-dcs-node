@@ -1,7 +1,7 @@
 # Usage: (see tests)
 
 require! '../../lib':{sleep, merge, clone}
-require! 'prelude-ls': {find, partition, flatten}
+require! 'prelude-ls': {find, partition, flatten, unique}
 require! '../topic-match': {topic-match}
 
 export class AuthDB
@@ -95,8 +95,7 @@ export merge-user-doc = (username, user-docs) ->
 
 
     result = _user `merge` user
-    result.routes = calc-negation result.routes
-    result.[]routes.unshift "@#{username}.**"
+    result.routes = ["@#{username}.**"] ++ (result.routes or []) |> calc-negation
     result.permissions = calc-negation result.permissions
     return result
 
