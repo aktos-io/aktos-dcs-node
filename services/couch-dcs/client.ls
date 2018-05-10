@@ -58,7 +58,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
         timeout = opts.timeout or 15000ms
-        err, msg <~ @__request {@route, timeout}, {allDocs: opts}
+        err, msg <~ @__request {timeout}, {allDocs: opts}
         callback (err or msg?.data.err), msg?.data?.res
 
     put: (doc, opts, callback) ->
@@ -69,7 +69,7 @@ export class CouchDcsClient extends Actor
         # end of normalization
 
         timeout = opts.timeout or 5_000ms
-        err, msg <~ @__request {@route, timeout}, {put: doc}
+        err, msg <~ @__request {timeout}, {put: doc}
 
         error = err or msg?.data.err
         response = msg?.data?.res
@@ -85,7 +85,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
         timeout = opts.timeout or 5_000ms
-        err, msg <~ @__request {@route, timeout}, {put: doc, +transaction}
+        err, msg <~ @__request {timeout}, {put: doc, +transaction}
 
         error = err or msg?.data.err
         response = msg?.data?.res
@@ -101,7 +101,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
         timeout = opts.timeout or 10_000ms
-        err, msg <~ @__request {@route, timeout}, {view: viewName, opts: opts}
+        err, msg <~ @__request {timeout, opts.debug}, {view: viewName, opts: opts}
         callback (err or msg?.data.err), msg?.data?.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->
@@ -113,7 +113,7 @@ export class CouchDcsClient extends Actor
 
         timeout = opts.timeout or 5000ms
 
-        err, msg <~ @__request {@route, timeout}, do
+        err, msg <~ @__request {timeout}, do
             getAtt:
                 doc-id: doc-id
                 att-name: att-name
