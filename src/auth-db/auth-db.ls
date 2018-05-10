@@ -63,39 +63,40 @@ export merge-user-doc = (username, user-docs) ->
     if user.permissions => user.permissions = flatten [user.permissions]
 
     _user = {}
-    if user.roles
-        user.roles = flatten [that]
-        for role-name in user.roles
+    if user.groups
+        user.groups = flatten [that]
+        for group-name in user.groups
             exclude = no
-            if role-name.0 is "!"
+            if group-name.0 is "!"
                 # this is an exclusion
-                role-name = role-name.slice 1 .trim!
+                group-name = group-name.slice 1 .trim!
                 exclude = yes
             try
-                _role = clone (merge-user-doc role-name, user-docs)
-                try delete _role._id
-                try delete _role._rev
-                try delete _role.passwd-hash
+                _group = clone (merge-user-doc group-name, user-docs)
+                try delete _group._id
+                try delete _group._rev
+                try delete _group.passwd-hash
 
                 # remove user specific routes
-                for i, route of _role.routes
-                    if route `topic-match` "@#{role-name}.**"
-                        _role.routes.splice i, 1
+                for i, route of _group.routes
+                    if route `topic-match` "@#{group-name}.**"
+                        _group.routes.splice i, 1
 
                 if exclude
                     for <[ permissions routes ]>
-                        if arr=_role[..]
+                        if arr=_group[..]
                             for index, item of arr
                                 unless item.match /^!.*/
                                     arr[index] = "!#{item}"
-                    #console.log "excluded role is: ", _role
-                _user `merge` _role
+                    #console.log "excluded group is: ", _group
+                _user `merge` _group
             catch
-                console.log "No such role is found while calculating permissions: #{role-name}"
+                console.log "No such group is found while calculating permissions: #{group-name}"
 
 
     result = _user `merge` user
-    result.routes = ["@#{username}.**"] ++ (result.routes or []) |> calc-negation
+    result.routes = ["@#{username}.**"] ++ (result.routes or [])
+        |> calc-negation
     result.permissions = calc-negation result.permissions
     return result
 

@@ -4,7 +4,7 @@ require! './auth-db': {AuthDB}
 users =
     'cca':
         passwd-hash: 123
-        roles: <[ me him ]>
+        groups: <[ me him ]>
         opening-scene: \orders
         hello: \baby
 
@@ -16,7 +16,7 @@ users =
 
     'foo':
         hey: 'me'
-        roles: <[ me him foo-like ]>
+        groups: <[ me him foo-like ]>
         routes:
             \@hello.there
 
@@ -26,13 +26,13 @@ users =
             ...
 
     'bar':
-        roles: <[ foo ]>
+        groups: <[ foo ]>
         routes:
             \!world.is.great
             ...
 
     'baz':
-        roles: <[ foo ]>
+        groups: <[ foo ]>
         routes:
             \!world.is.great
             ...
@@ -41,7 +41,7 @@ users =
             \plc.input
 
     'qux':
-        roles: <[ baz ]>
+        groups: <[ baz ]>
         permissions:
             \!db.*
             ...
@@ -51,7 +51,7 @@ users =
             \plc1.**
 
     'coyote':
-        roles:
+        groups:
             \qux
             \!to-exclude
         routes:
@@ -62,7 +62,7 @@ users =
             \@db-proxy.**
 
     'my-other-user':
-        roles:
+        groups:
             \db-proxy
 
 
@@ -74,7 +74,7 @@ make-tests 'AuthDB Tests', do
         .to-equal do
             _id: \cca
             passwd-hash: 123
-            roles: <[ me him ]>
+            groups: <[ me him ]>
             opening-scene: \orders
             hey: \second
             hello: \baby
@@ -86,7 +86,7 @@ make-tests 'AuthDB Tests', do
         expect auth.get \foo
         .to-equal do
             _id: \foo
-            roles: <[ me him foo-like ]>
+            groups: <[ me him foo-like ]>
             hey: \me
             routes:
                 \@foo.**
@@ -97,7 +97,7 @@ make-tests 'AuthDB Tests', do
         expect auth.get \bar
         .to-equal do
             _id: \bar
-            roles: <[ me him foo-like foo ]>
+            groups: <[ me him foo-like foo ]>
             hey: \me
             routes:
                 \@bar.**
@@ -107,7 +107,7 @@ make-tests 'AuthDB Tests', do
         expect auth.get \baz
         .to-equal do
             _id: \baz
-            roles: <[ me him foo-like foo ]>
+            groups: <[ me him foo-like foo ]>
             hey: \me
             routes:
                 \@baz.**
@@ -120,7 +120,7 @@ make-tests 'AuthDB Tests', do
         expect auth.get \qux
         .to-equal do
             _id: \qux
-            roles: <[ me him foo-like foo baz ]>
+            groups: <[ me him foo-like foo baz ]>
             hey: \me
             routes:
                 \@qux.**
@@ -133,7 +133,7 @@ make-tests 'AuthDB Tests', do
         expect auth.get \coyote
         .to-equal do
             _id: \coyote
-            roles: <[ me him foo-like foo baz qux !to-exclude ]>
+            groups: <[ me him foo-like foo baz qux !to-exclude ]>
             hey: \me
             routes:
                 \@coyote.**
@@ -146,7 +146,7 @@ make-tests 'AuthDB Tests', do
         expect auth.get \my-other-user
         .to-equal do
             _id: \my-other-user
-            roles: <[ db-proxy ]>
+            groups: <[ db-proxy ]>
             routes:
                 \@my-other-user.**
                 \@db-proxy.**
