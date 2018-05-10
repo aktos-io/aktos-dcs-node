@@ -56,15 +56,15 @@ export class ProxyHandler extends Actor
                     |> (m) ~>
                         if m.re?
                             # this is a response, check if we were expecting it
-                            @log.debug "Checking if we are expecting #{m.to}"
+                            #@log.debug "Checking if we are expecting #{m.to}"
                             unless @request-table[m.to]
                                 error = "Not our response."
-                                @log.debug "Dropping response: #{error}"
+                                #@log.debug "Dropping response: #{error}"
                                 throw error
                             else
                                 unless m.part? or m.part is -1
-                                    @log.debug "Last part of our expected response,
-                                        removing from table."
+                                    #@log.debug "Last part of our expected response,
+                                    #    removing from table."
                                     delete @request-table[m.to]
                         return m
                     |> (m) ~>
@@ -106,7 +106,7 @@ export class ProxyHandler extends Actor
                             |> @auth.add-ctx
                             |> (m) ~>
                                 if m.req
-                                    @log.debug "adding response route for #{m.from}"
+                                    #@log.debug "adding response route for #{m.from}"
                                     @request-table[m.from] = yes
                                 return m
                             |> @auth.check-routes
