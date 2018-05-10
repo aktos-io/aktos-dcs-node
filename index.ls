@@ -20,6 +20,8 @@ require! './lib': {
     pack, unpack, clone, diff
 }
 
+require! './src/topic-match': {topic-match}
+
 require! './proxy-actors/io-proxy/io-proxy-client': {IoProxyClient}
 
 require! './drivers/driver-abstract': {DriverAbstract}
@@ -32,4 +34,5 @@ module.exports = {
     pack, unpack, clone, diff
     IoProxyClient
     DriverAbstract
+    topic-match
 }
