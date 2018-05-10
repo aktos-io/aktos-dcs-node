@@ -41,7 +41,7 @@ export class ProxyClient extends Actor
             @send-response msg, @session
 
         @on \disconnect, ~>
-            @subscriptions = reject (~> it `topic-match` @session.routes), @subscriptions
+            @subscriptions = reject (~> it `topic-match` @session?.routes), @subscriptions
             @session = null
 
         # DCS to Transport
