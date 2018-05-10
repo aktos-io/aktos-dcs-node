@@ -178,7 +178,7 @@ export class Actor extends EventEmitter
             message = {}
             merge-method-manual = no
             <~ :lo(op) ~>
-                @log.debug "Request timeout is: #{timeout}"
+                #@log.debug "Request timeout is: #{timeout}"
                 err, msg <~ response-signal.wait timeout
                 if err
                     #@log.err "We have timed out"
