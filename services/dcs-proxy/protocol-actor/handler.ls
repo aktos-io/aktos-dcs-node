@@ -13,6 +13,7 @@ export class ProxyHandler extends Actor
         """
         super opts.name
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
+        @request-table = {}
 
         @auth = new AuthHandler opts.db, opts.name
             ..on \to-client, (msg) ~>
@@ -50,13 +51,32 @@ export class ProxyHandler extends Actor
         # DCS to Transport
         @on do
             receive: (msg) ~>
-                msg
-                |> (m) ~>
-                    if m.req
-                        @log.todo "Add response token here."
-                    m
-                |> pack
-                |> @transport.write
+                try
+                    msg
+                    |> (m) ~>
+                        if m.re?
+                            # this is a response, check if we were expecting it
+                            @log.debug "Checking if we are expecting #{m.to}"
+                            unless @request-table[m.to]
+                                error = "Not our response."
+                                @log.debug "Dropping response: #{error}"
+                                throw error
+                            else
+                                unless m.part? or m.part is -1
+                                    @log.debug "Last part of our expected response,
+                                        removing from table."
+                                    delete @request-table[m.to]
+                        return m
+                    |> (m) ~>
+                        if m.req
+                            @log.todo "Add response token here."
+                        m
+                    |> pack
+                    |> @transport.write
+                catch
+                    switch e
+                    | "Not our response." => null
+                    |_ => throw e
 
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
@@ -84,6 +104,11 @@ export class ProxyHandler extends Actor
                                 return m
                             |> @auth.modify-sender
                             |> @auth.add-ctx
+                            |> (m) ~>
+                                if m.req
+                                    @log.debug "adding response route for #{m.from}"
+                                    @request-table[m.from] = yes
+                                return m
                             |> @auth.check-routes
                             |> @send-enveloped
                         catch

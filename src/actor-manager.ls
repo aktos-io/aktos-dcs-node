@@ -9,10 +9,10 @@ export class ActorManager
         # Make this class Singleton
         return @@instance if @@instance
         @@instance = this
-        #@log = new Logger \ActorManager
         @actor-uid = 1 # first actor id
         @actors = []
         @manager-id = Date.now! |> hex
+        @log = new Logger "ActorMan.#{@manager-id}"
 
     next-actor-id: ->
         "a#{@actor-uid++}-#{@manager-id}"
@@ -26,7 +26,10 @@ export class ActorManager
         return find (.id is id), @actors
 
     deliver-to: (id, msg) ->
-        @find-actor id ._inbox msg
+        try
+            @find-actor id ._inbox msg
+        catch
+            @log.err "We can not find this actor: ", e 
 
     deregister-actor: (actor) ->
         @actors = reject (.id is actor.id), @actors
