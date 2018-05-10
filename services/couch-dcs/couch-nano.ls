@@ -74,7 +74,6 @@ export class CouchNano extends EventEmitter
                 reason: err.reason
                 name: err.name
                 message: err.reason or err.error
-                orig: err
         if headers?
             if headers['set-cookie']
                 @cookie = that
@@ -315,7 +314,7 @@ export class CouchNano extends EventEmitter
             else
                 return op!
 
-        @log.log "___feeding #{options.view or '/'}"
+        #@log.log "___feeding #{options.view or '/'}"
         feed
             ..on \change, (changes) ~>
                 if options.view-function
