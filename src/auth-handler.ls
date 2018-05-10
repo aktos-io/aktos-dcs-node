@@ -64,7 +64,8 @@ export class AuthHandler extends EventEmitter
                             auth:
                                 session: session
                     else
-                        @log.err "wrong password", doc, msg.auth.password
+                        @log.err "wrong password, tried:
+                            #{msg.auth.user}, #{msg.auth.password}"
                         @trigger \to-client, do
                             auth:
                                 error: "wrong password"
