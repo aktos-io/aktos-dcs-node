@@ -397,6 +397,6 @@ export class CouchDcsServer extends Actor
         if _new.err
              @log.log "error was : #{pack _new.err}"
         else
-            @log.log (green ">>>"), "responding for #{orig.from}, #{orig.seq}:
-                #{pack _new .length} bytes"
+            @log.log (green ">>>"), "responding to #{orig.from}:#{orig.seq} (
+                #{pack _new .length} bytes)"
         @send-response orig, _new

@@ -314,7 +314,7 @@ export class CouchNano extends EventEmitter
             else
                 return op!
 
-        #@log.log "___feeding #{options.view or '/'}"
+        @log.log "___feeding #{options.view or '/'}"
         feed
             ..on \change, (changes) ~>
                 if options.view-function
