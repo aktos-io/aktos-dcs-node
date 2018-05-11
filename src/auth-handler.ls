@@ -48,21 +48,21 @@ export class AuthHandler extends EventEmitter
                 try
                     user = db.get msg.auth.user
                     if user.passwd-hash is msg.auth.password
-                        session =
+                        @session =
                             token: uuid4!
                             user: msg.auth.user
                             date: Date.now!
                             routes: user.routes
                             permissions: user.permissions
 
-                        @session-cache.add session
-                        @log.log bg-green "new Login: #{msg.auth.user} (#{session.token})"
+                        @session-cache.add @session
+                        @log.log bg-green "new Login: #{msg.auth.user} (#{@session.token})"
                         @log.log "(...sending with #{@@login-delay}ms delay)"
-                        @trigger \login, session
+                        @trigger \login, @session
                         <~ sleep @@login-delay
                         @trigger \to-client, do
                             auth:
-                                session: session
+                                session: @session
                     else
                         @log.err "wrong password, tried:
                             #{msg.auth.user}, #{msg.auth.password}"

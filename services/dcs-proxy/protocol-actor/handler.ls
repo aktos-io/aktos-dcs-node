@@ -46,10 +46,10 @@ export class ProxyHandler extends Actor
                     msg
                     |> (m) ~>
                         unless m.from `topic-match` "@#{m.user}.**"
-                            throw {
-                                type: \NORMAL,
+                            @log.debug "Dropping user specific route: ", m
+                            throw do
+                                type: \NORMAL
                                 message: "User broadcast route, we are not that user."
-                            }
 
                         if m.re?
                             # this is a response, check if we were expecting it
@@ -57,17 +57,16 @@ export class ProxyHandler extends Actor
                             response-id = "#{m.to}.#{m.re}"
                             unless @request-table[response-id]
                                 error = "Not our response."
-                                @log.debug "Dropping response: #{error}, resp: #{response-id}"
+                                #@log.debug "Dropping response: #{error}, resp: #{response-id}"
                                 throw {type: \NORMAL, message: error}
                             else
                                 unless m.part? or m.part is -1
-                                    @log.debug "Last part of our expected response,
-                                        removing from table."
+                                    #"Last part of our expected response, removing from table." |> @log.debug
                                     delete @request-table[response-id]
                         return m
                     |> (m) ~>
-                        if m.req
-                            @log.todo "Add response token here."
+                        if m.req and "@#{@auth.session.user}.**" `topic-match` m.to
+                            @log.todo "Add response token here. me: #{@auth.session.user}, msg: ", m
                         m
                     |> pack
                     |> @transport.write
