@@ -17,7 +17,7 @@ export class IoProxyClient extends Actor
 
         #@log.debug "Subscribed to @route: #{@route}, #{@me}"
         @on-topic "#{@route}.read", (msg) ~>
-            @log.log "#{@route}.read received: ", msg
+            #@log.log "#{@route}.read received: ", msg
             if @reply-signal.waiting
                 #@c-log "...is redirected to reply-signal..."
                 @reply-signal.go msg.data

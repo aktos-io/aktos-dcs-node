@@ -17,6 +17,8 @@ message =
     # control attributes (used for routing)
     #------------------------------------------
     re: "#{from}.#{seq}" # optional, if this is a response for a request
+    res-token: One time response token for that specific response. Responses are dropped
+        without that correct token.
     part: part number of this specific message, integer ("undefined" for single messages)
         Partial messages should include "part" attribute (0 based, autoincremented),
         `-1` for end of chunks.
@@ -255,6 +257,7 @@ export class Actor extends EventEmitter
             seq: @msg-seq++
             data
             re: req.seq
+            res-token: req.res-token
         } <<< meta
 
         if enveloped.debug

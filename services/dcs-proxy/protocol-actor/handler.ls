@@ -2,6 +2,7 @@ require! '../deps': {AuthHandler, pack, unpack, Actor, topic-match}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-cyan}
 require! 'prelude-ls': {split, flatten, split-at, empty}
 require! './helpers': {MessageBinder}
+require! 'uuid4'
 
 
 export class ProxyHandler extends Actor
@@ -46,10 +47,9 @@ export class ProxyHandler extends Actor
                     msg
                     |> (m) ~>
                         unless m.from `topic-match` "@#{m.user}.**"
-                            @log.debug "Dropping user specific route: ", m
-                            throw do
-                                type: \NORMAL
-                                message: "User broadcast route, we are not that user."
+                            message = "Dropping user specific route message"
+                            @log.debug message, m
+                            throw {type: \NORMAL, message}
 
                         if m.re?
                             # this is a response, check if we were expecting it
@@ -59,21 +59,23 @@ export class ProxyHandler extends Actor
                                 error = "Not our response."
                                 #@log.debug "Dropping response: #{error}, resp: #{response-id}"
                                 throw {type: \NORMAL, message: error}
+                            else if @request-table[response-id] isnt m.res-token
+                                message = "Response token is not correct, dropping message.
+                                    expecting #{@request-table[response-id]}, got: #{m.res-token}"
+                                delete @request-table[response-id]
+                                throw {type: \HACK, message}
                             else
                                 unless m.part? or m.part is -1
                                     #"Last part of our expected response, removing from table." |> @log.debug
                                     delete @request-table[response-id]
+                            delete m.res-token  # remove unnecessary data
                         return m
-                    |> (m) ~>
-                        if m.req and "@#{@auth.session.user}.**" `topic-match` m.to
-                            @log.todo "Add response token here. me: #{@auth.session.user}, msg: ", m
-                        m
                     |> pack
                     |> @transport.write
                 catch
                     switch e.type
                     | "NORMAL" => null
-                    |_ => throw e
+                    |_ => @log.err e.message
 
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
@@ -95,16 +97,14 @@ export class ProxyHandler extends Actor
                     else
                         try
                             msg
-                            |> (m) ~>
-                                if m.re?
-                                    @log.todo "Check response token here."
-                                return m
                             |> @auth.modify-sender
                             |> @auth.add-ctx
                             |> (m) ~>
                                 if m.req
-                                    #@log.debug "adding response route for #{m.from}"
-                                    @request-table["#{m.from}.#{m.seq}"] = yes
+                                    #@log.debug "adding response route and token for #{m.from}"
+                                    token = uuid4!
+                                    @request-table["#{m.from}.#{m.seq}"] = token
+                                    m.res-token = token
                                 return m
                             |> @auth.check-routes
                             |> @send-enveloped
