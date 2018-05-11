@@ -52,7 +52,7 @@ export create-io-proxies = (opts) ->
     for let device in devices
         log.log "==> Initializing #{device.driver.constructor.name}"
         for let handle in device.io-handles
-            log.log "handle is: ", handle
+            #log.log "handle is: ", handle
             new IoProxyHandler handle, device.driver
 
 ## Example Usage

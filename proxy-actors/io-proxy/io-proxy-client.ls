@@ -15,7 +15,7 @@ export class IoProxyClient extends Actor
         @reply-signal = new Signal \reply-signal
         @value = undefined
 
-        @log.debug "Subscribed to @route: #{@route}, #{@me}"
+        #@log.debug "Subscribed to @route: #{@route}, #{@me}"
         @on-topic "#{@route}.read", (msg) ~>
             @log.log "#{@route}.read received: ", msg
             if @reply-signal.waiting

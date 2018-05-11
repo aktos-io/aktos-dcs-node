@@ -114,8 +114,7 @@ export class IoProxyHandler extends Actor
             @trigger \write, handle, new-value, (err) ~>
                 @send-response msg, {err: err}
                 unless err
-                    # write succeeded, broadcast the value
-                    @log.debug "write succeeded, broadcast the value"
+                    # "write succeeded, broadcast the value" |> @log.debug 
                     broadcast-value err=null, new-value
 
         @on-topic "#{@name}.update", (msg) ~>
