@@ -63,11 +63,12 @@ export class ProxyClient extends Actor
                 msg
                 |> (m) ~>
                     if m.re?
-                        #console.log "this is a response message"
+                        response-id = "#{m.to}"
+                        @log.debug "this is a response message: #{response-id}"
                         if not m.part? or m.part is -1
                             #console.log "...last part or has no part, unsubscribing
                             #    from transient subscription"
-                            @unsubscribe m.to
+                            @unsubscribe response-id
                     return m
                 |> @auth.add-token
                 |> pack
@@ -103,11 +104,13 @@ export class ProxyClient extends Actor
                         #@log.log "... #{pack msg.data}"
                         if msg.req
                             # subscribe for possible response
-                            @subscribe msg.from
+                            response-route = "#{msg.from}"
+                            @log.debug "Transient subscription to response route: #{response-route}"
+                            @subscribe response-route
                             #console.log "subscriptions: ", @subscriptions
                         if msg.re?
                             # directly pass to message owner
-                            #@log.debug "forwarding a Response message to actor: ", msg
+                            @log.debug "forwarding a Response message to actor: ", msg
                             msg.to = msg.to.replace "@#{@session.user}.", ''
                             @mgr.deliver-to msg.to, msg
                             return
