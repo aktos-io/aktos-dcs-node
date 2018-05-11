@@ -51,24 +51,29 @@ export class ProxyHandler extends Actor
                             @log.debug message, m
                             throw {type: \NORMAL, message}
 
-                        if m.re?
-                            # this is a response, check if we were expecting it
-                            #@log.debug "Checking if we are expecting #{m.to}"
-                            response-id = "#{m.to}.#{m.re}"
-                            unless @request-table[response-id]
-                                error = "Not our response."
-                                #@log.debug "Dropping response: #{error}, resp: #{response-id}"
-                                throw {type: \NORMAL, message: error}
-                            else if @request-table[response-id] isnt m.res-token
-                                message = "Response token is not correct, dropping message.
-                                    expecting #{@request-table[response-id]}, got: #{m.res-token}"
-                                delete @request-table[response-id]
-                                throw {type: \HACK, message}
-                            else
-                                unless m.part? or m.part is -1
-                                    #"Last part of our expected response, removing from table." |> @log.debug
+                        try
+                            if m.re?
+                                # this is a response, check if we were expecting it
+                                #@log.debug "Checking if we are expecting #{m.to}"
+                                response-id = "#{m.to}.#{m.re}"
+                                unless @request-table[response-id]
+                                    error = "Not our response."
+                                    #@log.debug "Dropping response: #{error}, resp: #{response-id}"
+                                    throw {type: \NORMAL, message: error}
+                                else if @request-table[response-id] isnt m.res-token
+                                    message = "Response token is not correct, dropping message.
+                                        expecting #{@request-table[response-id]}, got: #{m.res-token}"
                                     delete @request-table[response-id]
-                            delete m.res-token  # remove unnecessary data
+                                    throw {type: \HACK, message}
+                                else
+                                    unless m.part? or m.part is -1
+                                        #"Last part of our expected response, removing from table." |> @log.debug
+                                        delete @request-table[response-id]
+                                delete m.res-token  # remove unnecessary data
+                        catch
+                            # still move forward if it has carbon copy attribute
+                            unless m.cc
+                                throw e
                         return m
                     |> pack
                     |> @transport.write

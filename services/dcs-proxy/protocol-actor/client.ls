@@ -1,6 +1,6 @@
 require! '../deps': {
     AuthRequest, sleep, pack, unpack
-    Signal, Actor, topic-match
+    Signal, Actor, topic-match, clone
 }
 require! 'colors': {bg-red, red, bg-yellow, green, bg-green}
 require! 'prelude-ls': {split, flatten, split-at, empty, reject}
@@ -113,6 +113,10 @@ export class ProxyClient extends Actor
                             #@log.debug "forwarding a Response message to actor: ", msg
                             msg.to = msg.to.replace "@#{@session.user}.", ''
                             @mgr.deliver-to msg.to, msg
+                            if msg.cc
+                                msg2 = clone msg
+                                msg2.to = msg.cc
+                                @send-enveloped msg2
                             return
                         @send-enveloped msg
 
