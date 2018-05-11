@@ -25,12 +25,6 @@ export class ActorManager
         throw 'id is required!' unless id
         return find (.id is id), @actors
 
-    deliver-to: (id, msg) ->
-        try
-            @find-actor id ._inbox msg
-        catch
-            @log.err "We can not find this actor: ", e 
-
     deregister-actor: (actor) ->
         @actors = reject (.id is actor.id), @actors
 
