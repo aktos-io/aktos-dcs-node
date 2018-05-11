@@ -281,7 +281,8 @@ export class Actor extends EventEmitter
                     @log.debug "Current request queue: ", @request-queue
                 @request-queue[msg.re]?.go msg
             else
-                @log.err "This is not a message we were expecting?", msg
+                @log.err "This is not a message we were expecting (or interested in)?
+                    (killed: #{@_state.kill-finished}. is it timed out already?)", msg
                 if @debug => @log.warn "Current request queue: ", @request-queue
             return
 
