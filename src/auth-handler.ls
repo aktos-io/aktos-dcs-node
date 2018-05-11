@@ -137,6 +137,8 @@ export class AuthHandler extends EventEmitter
 
     modify-sender: (msg) ->
         session = @session-cache.get msg.token
+        unless session
+            throw new AuthError "No appropriate session is found."
         msg.from = "@#{session.user}.#{msg.from}"
         return msg
 
