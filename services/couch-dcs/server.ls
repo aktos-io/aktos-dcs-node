@@ -145,6 +145,16 @@ export class CouchDcsServer extends Actor
                 @log.log bg-yellow "Handling transaction..."
                 doc = msg.data.put
 
+                # insert chain
+                <~ :lo(op) ~>
+                    chain = \before-transaction
+                    if @has-listener chain
+                        <~ @trigger chain, msg
+                        return op!
+                    else
+                        return op!
+
+
                 # Assign proper doc id
                 err, next-id <~ get-next-id doc._id
                 unless err => doc._id = next-id
@@ -369,6 +379,7 @@ export class CouchDcsServer extends Actor
             # `getAtt` message (for getting attachments)
             else if \getAtt of msg.data
                 @log.log "get attachment message received", msg.data
+                @send-response msg, {+part, timeout: 30_000ms, +ack}, null
                 q = msg.data.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
                 @send-and-echo msg, {err: err, res: res or null}
@@ -376,10 +387,6 @@ export class CouchDcsServer extends Actor
             else if \cmd of msg.data
                 cmd = msg.data.cmd
                 @log.warn "got a cmd:", cmd
-
-            else if \follow of msg.data
-                @log.warn "DEPRECATED: follow message:", msg.data
-                return
 
             else
                 err = reason: "Unknown method name: #{pack msg.data}"

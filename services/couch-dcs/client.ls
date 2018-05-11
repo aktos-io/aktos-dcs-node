@@ -33,9 +33,9 @@ export class CouchDcsClient extends Actor
             debugger
             @log.err "No route is defined (yet?). Dropping request:", data
         else
-            timeout = opts.timeout or 5000ms
+            #timeout = opts.timeout or 5000ms
             #@log.debug "request timeout: ", timeout
-            @send-request {@route, timeout}, data, callback
+            @send-request {@route}, data, callback
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
@@ -43,7 +43,7 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-        timeout = opts.timeout or 5000ms
+        timeout = opts.timeout or 10_000ms
         err, msg <~ @__request {timeout}, {get: doc-id, opts: opts}
         res = msg?.data?.res
         err = err or msg?.data.err
