@@ -26,8 +26,8 @@ message =
 
     # extra attributes
     #--------------------
-    method: Method to use concatenating partial transfers. Default is `merge`
-        function. If present, application will handle the concatenation.
+    merge: If set to false, partials are concatenated by application (outside of)
+        actor. If omitted, `aea.merge` method is used.
     permissions: Array of calculated user permissions.
     debug: if set to true, message highlights the route it passes
 
@@ -188,7 +188,7 @@ export class Actor extends EventEmitter
                     #@log.debug "GOT RESPONSE SIGNAL in ", msg.timestamp - enveloped.timestamp
                     part-handler msg
                     if msg.timeout => timeout := that
-                    if msg.method?
+                    if msg.merge? and msg.merge is false
                         merge-method-manual := yes
                     unless merge-method-manual
                         message `merge` msg
@@ -202,8 +202,13 @@ export class Actor extends EventEmitter
                         return op!
                 lo(op)
 
+            if @_state.kill-finished
+                @log.warn "Got response activity after killed?", error, message
+                return
             if error is \timeout
-                @log.warn "Request is timed out. Be careful."
+                @log.warn "Request is timed out. Timeout was #{timeout/1000}s, seq: #{enveloped.seq}
+                    Be careful. req was:", enveloped, "state is: ", @_state
+                #debugger
             # Got the full messages (or error) at this point.
             @unsubscribe meta.to
             #@log.debug "Removing request id: #{request-id}"
@@ -260,6 +265,9 @@ export class Actor extends EventEmitter
     _inbox: (msg) ->
         #@log.log "Got message to inbox:", (JSON.stringify msg).length
         if @debug or msg.debug => @log.debug "Got message: ", msg
+
+        if @_state.kill-finished
+            debugger
 
         msg.permissions = msg.permissions or []
         <~ sleep 0  # IMPORTANT: this fixes message sequences
@@ -337,11 +345,15 @@ export class Actor extends EventEmitter
         if @debug => @log.debug "sending message: ", msg
         @mgr.distribute msg, @id
 
-    kill: (...reason) ->
+    kill: (reason) ->
+        #@log.debug "Killing actor. reason: #{reason}"
         unless @_state.kill-started
             @_state.kill-started = yes
             @mgr.deregister-actor this
-            @trigger \kill, ...reason
+            for id, signal of @request-queue
+                #@log.debug "...Removing signal: ", id
+                signal.reset!
+            @trigger \kill, reason
             @_state.kill-finished = yes
 
     on-every-login: (callback) ->
