@@ -17,6 +17,7 @@ message =
     # control attributes (used for routing)
     #------------------------------------------
     re: "#{from}.#{seq}" # optional, if this is a response for a request
+    cc: "Carbon Copy": If set to true, message is also delivered to this route.
     res-token: One time response token for that specific response. Responses are dropped
         without that correct token.
     part: part number of this specific message, integer ("undefined" for single messages)
@@ -86,6 +87,7 @@ export class TopicTypeError extends Error
 
 
 LAST_PART = -1
+message-owner = (.to.split '.' .[*-1])  # last part of "to:" attribute
 
 export class Actor extends EventEmitter
     (name, opts={}) ->
@@ -274,8 +276,7 @@ export class Actor extends EventEmitter
 
         msg.permissions = msg.permissions or []
         <~ sleep 0  # IMPORTANT: this fixes message sequences
-        message-owner = msg.to.split '.' .[*-1]
-        if message-owner is @id and msg.re?
+        if msg.re? and message-owner(msg) is @me
             # this is a response to this actor.
             if @request-queue[msg.re]
                 # this is a response
@@ -285,10 +286,11 @@ export class Actor extends EventEmitter
                 @request-queue[msg.re]?.go msg
             else
                 @log.err "This is not a message we were expecting (or interested in)?
-                    (killed: #{@_state.kill-finished}. is it timed out already?)", msg
+                    (killed: #{@_state.kill-finished}. is it timed out already? I'm #{@me})", msg
                 if @debug => @log.warn "Current request queue: ", @request-queue
-            return
 
+            # Sink the messages here. Let only its request function handles the response.
+            return
 
         if \data of msg
             @trigger \data, msg
@@ -328,8 +330,11 @@ export class Actor extends EventEmitter
 
 
     trigger-topic: (route, ...args) ->
-        for handler in @_route_handlers[route]
-            handler ...args
+        if @_route_handlers[route]
+            for handler in that
+                handler ...args
+        else
+            @log.debug "No such route handler found: #{route}"
 
     once-topic: (route, handler) ->
         @subscribe route unless route in @subscriptions
