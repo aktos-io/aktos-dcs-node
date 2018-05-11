@@ -59,10 +59,10 @@ export class IoProxyHandler extends Actor
     (handle, driver) ->
         unless handle.constructor.name is \IoHandle
             throw new CodingError "handle should be an instance of IoHandle class"
-        topic = handle.topic
-        topic or throw new CodingError "A topic MUST be provided to IoProxyHandler."
-        super topic
-        #@log.info "Initializing #{handle.topic}"
+        route = handle.route
+        route or throw new CodingError "A route MUST be provided to IoProxyHandler."
+        super route
+        #@log.info "Initializing #{handle.route}"
 
         prev = null
         RESPONSE_FORMAT = (err, curr) ->
@@ -115,6 +115,7 @@ export class IoProxyHandler extends Actor
                 @send-response msg, {err: err}
                 unless err
                     # write succeeded, broadcast the value
+                    @log.debug "write succeeded, broadcast the value"
                     broadcast-value err=null, new-value
 
         @on-topic "#{@name}.update", (msg) ~>

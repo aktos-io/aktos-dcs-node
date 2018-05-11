@@ -9,7 +9,6 @@ usage:
 db = new CouchDcsClient route: "@db-proxy"
 
 err, res <~ db.get \my-doc
-# sending message with topic: "myprefix.get"
 unless err
     console.log "My document is: ", res
 

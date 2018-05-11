@@ -29,17 +29,8 @@ export class ProxyHandler extends Actor
                 unless empty (ctx.routes or [])
                     @log.info "subscribing routes: "
                     for flatten [ctx.routes]
-                        if ..0 is \@
-                            if "@#{ctx.user}.**" `topic-match` ..
-                                # This is a user specific route
-                                @log.info "=>  #{..}"
-                                @subscribe ..
-                            else
-                                #@log.warn "We can't subscribe to #{..} since we are not that user."
-                                null
-                        else
-                            @log.info "->  #{..}"
-                            @subscribe ..
+                        @log.info "->  #{..}"
+                        @subscribe ..
 
             ..on \logout, ~>
                 # logout is specific to browser like environments, where user
@@ -54,6 +45,12 @@ export class ProxyHandler extends Actor
                 try
                     msg
                     |> (m) ~>
+                        unless m.from `topic-match` "@#{m.user}.**"
+                            throw {
+                                type: \NORMAL,
+                                message: "User broadcast route, we are not that user."
+                            }
+
                         if m.re?
                             # this is a response, check if we were expecting it
                             #@log.debug "Checking if we are expecting #{m.to}"
@@ -61,7 +58,7 @@ export class ProxyHandler extends Actor
                             unless @request-table[response-id]
                                 error = "Not our response."
                                 @log.debug "Dropping response: #{error}, resp: #{response-id}"
-                                throw error
+                                throw {type: \NORMAL, message: error}
                             else
                                 unless m.part? or m.part is -1
                                     @log.debug "Last part of our expected response,
@@ -75,8 +72,8 @@ export class ProxyHandler extends Actor
                     |> pack
                     |> @transport.write
                 catch
-                    switch e
-                    | "Not our response." => null
+                    switch e.type
+                    | "NORMAL" => null
                     |_ => throw e
 
             kill: (reason, e) ~>

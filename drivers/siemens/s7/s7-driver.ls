@@ -72,18 +72,18 @@ export class SiemensS7Driver extends DriverAbstract
                 for addr, _value of data
                     {handle, callback} = @watches[addr]
                     value = handle.get-meaningful _value
-                    #@log.log "value: ", handle.topic, handle.address, value
+                    #@log.log "value: ", handle.route, handle.address, value
                     if handle.prev? and abs(handle.prev - value) / value < (handle.threshold or 0.001)
                         #@log.info "Considered No-change: #{handle.prev} -> #{value}"
                         null
                     else
-                        #@log.log "#{handle.topic}  is changed: -> #{value}"
+                        #@log.log "#{handle.route}  is changed: -> #{value}"
                         callback err=null, value
                         handle.prev = value
             <~ sleep (@opts.period or 1500ms)
             lo(op)
 
     watch-changes: (handle, callback) ->
-        @log.log "Adding address of #{handle.topic} (#{handle.address}) to the read poll."
+        @log.log "Adding address of #{handle.route} (#{handle.address}) to the read poll."
         @watches[handle.address] = {handle, callback}
         @conn.addItems handle.address

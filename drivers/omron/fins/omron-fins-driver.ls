@@ -190,7 +190,7 @@ export class OmronFinsDriver extends DriverAbstract
         callback err, msg
 
     watch-changes: (handle, callback) ->
-        #@log.todo "Received a watch change for #{handle.topic}"
+        #@log.todo "Received a watch change for #{handle.route}"
         @watches[handle.address] = {handle, callback}
 
     start-polling: ->

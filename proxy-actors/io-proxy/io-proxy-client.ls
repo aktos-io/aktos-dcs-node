@@ -15,8 +15,9 @@ export class IoProxyClient extends Actor
         @reply-signal = new Signal \reply-signal
         @value = undefined
 
+        @log.debug "Subscribed to @route: #{@route}, #{@me}"
         @on-topic "#{@route}.read", (msg) ~>
-            #@log.log "#{@route}.read received: ", msg
+            @log.log "#{@route}.read received: ", msg
             if @reply-signal.waiting
                 #@c-log "...is redirected to reply-signal..."
                 @reply-signal.go msg.data
@@ -36,10 +37,10 @@ export class IoProxyClient extends Actor
                         @value = rec.curr
 
         @on-topic "app.dcs.connect", (msg) ~>
-            unless @topic `topic-match` msg.data.routes
-                @log.warn "We don't have write permissions for #{@route}"
+            unless @route `topic-match` msg.data.routes
+                @log.warn "We don't have a route for #{@route} in ", msg.data.routes
 
-            @send-request {route: "#{@route}.update", timeout: @timeout}, (err, msg) ~>
+            @send-request {route: "#{@route}.update", @timeout}, (err, msg) ~>
                 if err
                     @trigger \error, {message: err}
                 else

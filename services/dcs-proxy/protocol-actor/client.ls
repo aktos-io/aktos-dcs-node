@@ -100,7 +100,7 @@ export class ProxyClient extends Actor
                         @auth.inbox msg
                     else
                         # debug
-                        #@log.log "  Transport > DCS (topic: #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
+                        #@log.log "  Transport > DCS (route: #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
                         #@log.log "... #{pack msg.data}"
                         if msg.req
                             # subscribe for possible response
