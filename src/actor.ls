@@ -191,7 +191,9 @@ export class Actor extends EventEmitter
                 else
                     #@log.debug "GOT RESPONSE SIGNAL in ", msg.timestamp - enveloped.timestamp
                     part-handler msg
-                    if msg.timeout => timeout := that
+                    if msg.timeout
+                        #@log.debug "New timeout is set from target: #{that}ms"
+                        timeout := that
                     if msg.merge? and msg.merge is false
                         merge-method-manual := yes
                     unless merge-method-manual
