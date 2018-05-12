@@ -357,6 +357,7 @@ export class CouchDcsServer extends Actor
 
             # `all-docs` message
             else if \allDocs of msg.data
+                @send-response msg, {+part, timeout: 10_000ms, +ack}, null
                 err, res <~ @db.all-docs msg.data.all-docs
                 @send-and-echo msg, {err: err, res: res or null}
 
@@ -368,6 +369,7 @@ export class CouchDcsServer extends Actor
                         <~ @trigger \before-view, msg
                         return op!
                     else
+                        @send-response msg, {+part, timeout: 20_000ms, +ack}, null
                         return op!
                 err, res <~ @db.view msg.data.view, msg.data.opts
                 if @has-listener \view
