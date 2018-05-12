@@ -63,8 +63,6 @@ export class CouchDcsServer extends Actor
         else
             @log.warn "No subscriptions provided to #{@name}"
 
-        event-route = @params.subscribe.replace /^@/, ''
-
         @db = new CouchNano @params
             ..on do
                 connected: ~>
@@ -88,7 +86,7 @@ export class CouchDcsServer extends Actor
                 for let view in res
                     @log.log (bg-green "<<<_view_>>>"), "following view: #{view}"
                     @db.follow {view, +include_rows}, (change) ~>
-                        topic = "#{event-route}.change.view.#{view}"
+                        topic = "#{@params.subscribe}.change.view.#{view}"
                         @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
                         @log.todo "Take authorization into account while publishing changes!"
                         @send topic, change
