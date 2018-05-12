@@ -101,8 +101,11 @@ export class CouchNano extends EventEmitter
             if err
                 @log.err "Heartbeat failed: ", err
             else
-                @log.info "Heartbeat OK: #{res.db_name} is successful, disk_size
-                    : #{parse-int res.disk_size / 1024}K"
+                size = parse-int res.disk_size / 1024
+                size-str = "#{parse-int size} K"
+                if size / 1024 > 1
+                    size-str = "#{parse-int size / 1024} M"
+                @log.info "Heartbeat: #{res.db_name}: #{size-str}"
             <~ sleep 1000ms_per_s * 60s_per_min * 2min
             lo(op)
 
