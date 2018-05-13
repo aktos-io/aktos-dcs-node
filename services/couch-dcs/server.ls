@@ -76,19 +76,20 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
+            /*
             ..follow (change) ~>
                 @log.log (bg-green "<<<<<<>>>>>>"), "publishing change on #{@name}:", change.id
-                for let topic in @subscriptions
-                    @send "#{topic}.changes.all", change
+                @send "#{event-route}.change.all"
+            */
 
             ..get-all-views (err, res) ~>
                 for let view in res
                     @log.log (bg-green "<<<_view_>>>"), "following view: #{view}"
                     @db.follow {view, +include_rows}, (change) ~>
-                        for let subs in @subscriptions
-                            topic = "#{subs}.change.view.#{view}"
-                            @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
-                            @send topic, change
+                        topic = "#{@params.subscribe}.change.view.#{view}"
+                        @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
+                        @log.todo "Take authorization into account while publishing changes!"
+                        @send topic, change
 
             ..start-heartbeat!
 
@@ -135,19 +136,29 @@ export class CouchDcsServer extends Actor
             callback count
 
         @on \data, (msg) ~>
-            #@log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
+            #@log.log "received payload: ", keys(msg.data), "by:", msg.user
             # `put` message
-            if \put of msg.payload and msg.payload.transaction is yes
+            if \put of msg.data and msg.data.transaction is on
                 # handle the transaction, see ./transactions.md
                 @log.log bg-yellow "Handling transaction..."
-                doc = msg.payload.put
+                doc = msg.data.put
+
+                # insert chain
+                <~ :lo(op) ~>
+                    chain = \before-transaction
+                    if @has-listener chain
+                        <~ @trigger chain, msg
+                        return op!
+                    else
+                        return op!
+
 
                 # Assign proper doc id
                 err, next-id <~ get-next-id doc._id
                 unless err => doc._id = next-id
                 unless doc._rev
                     doc.timestamp = Date.now!
-                    doc.owner = (try msg.ctx.user) or \_process
+                    doc.owner = (try msg.user) or \_process
                 doc.{}meta.modified = Date.now!
 
 
@@ -199,10 +210,18 @@ export class CouchDcsServer extends Actor
                 @send-and-echo msg, {err: err, res: res or null}
 
 
-            else if \put of msg.payload
-                docs = flatten [msg.payload.put]
+            else if \put of msg.data
+                msg.data.put = flatten [msg.data.put]
+                docs = msg.data.put
                 if empty docs
                     return @send-and-echo msg, {err: message: "Empty document", res: null}
+
+                <~ :lo(op) ~>
+                    if @has-listener \before-put
+                        <~ @trigger \before-put, msg
+                        return op!
+                    else
+                        return op!
 
                 # Apply server side attributes
                 # ---------------------------
@@ -218,7 +237,7 @@ export class CouchDcsServer extends Actor
                     # in the first revision . Fetch the first version on request.
                     unless docs[i]._rev
                         docs[i].timestamp = Date.now!
-                        docs[i].owner = (try msg.ctx.user) or \_process
+                        docs[i].owner = (try msg.user) or \_process
 
                     unless docs[i].timestamp
                         @log.warn "Why don't we have a timestamp???"
@@ -226,45 +245,49 @@ export class CouchDcsServer extends Actor
 
                     unless docs[i].owner
                         @log.warn "Why don't we have an owner???"
-                        docs[i].owner = (try msg.ctx.user) or \_process
-
+                        docs[i].owner = (try msg.user) or \_process
                     # End of FIXME
+
                     docs[i].{}meta.modified = Date.now!
-
-
                     i++
                     lo(op)
 
                 # Write to database
-                if docs.length is 1
-                    err, res <~ @db.put docs.0
-                    @send-and-echo msg, {err: err, res: res or null}
-                else
-                    err, res <~ @db.bulk-docs docs
-
-                    if typeof! res is \Array and not err
-                        for res
-                            if ..error
-                                err = {error: message: 'Errors occurred, see the response'}
-                                break
-
-                    @send-and-echo msg, {err: err, res: res or null}
+                err = null
+                res = null
+                <~ :lo(op) ~>
+                    if docs.length is 1
+                        _err, _res <~ @db.put docs.0
+                        err := _err
+                        res := _res
+                        return op!
+                    else
+                        _err, _res <~ @db.bulk-docs docs
+                        err := _err
+                        res := _res
+                        if typeof! res is \Array and not err
+                            for res
+                                if ..error
+                                    err := {error: message: 'Errors occurred, see the response'}
+                                    break
+                        return op!
+                # send the response
+                @send-and-echo msg, {err, res}
 
             # `get` message
-            else if \get of msg.payload
-                if msg.payload.opts.custom
-                    # this message will be handled custom
-                    @trigger \custom-get, @db, msg.payload, (err, res) ~>
-                        console.log "...handled by custom handler"
-                        @send-and-echo msg, {err, res}
-                    return
-
-                multiple = typeof! msg.payload.get is \Array # decide response format
-                doc-id = msg.payload.get
+            else if \get of msg.data
+                <~ :lo(op) ~>
+                    if @has-listener \before-get
+                        <~ @trigger \before-get, msg
+                        return op!
+                    else
+                        return op!
+                multiple = typeof! msg.data.get is \Array # decide response format
+                doc-id = msg.data.get
                 doc-id = [doc-id] if typeof! doc-id is \String
                 doc-id = doc-id |> unique-by JSON.stringify
                 {String: doc-id, Array: older-revs} = doc-id |> group-by (-> typeof! it)
-                opts = msg.payload.opts or {}
+                opts = msg.data.opts or {}
                 opts.keys = doc-id or []
                 opts.include_docs = yes
                 #dump 'opts: ', opts
@@ -325,51 +348,48 @@ export class CouchDcsServer extends Actor
 
                 # perform the business logic here
                 if @has-listener \get
-                    err, res <~ @trigger \get, @db, msg, error, response
+                    err, res <~ @trigger \get, msg, error, response
                     @send-and-echo msg, {err, res}
                 else
                     @send-and-echo msg, {err, res}
 
             # `all-docs` message
-            else if \allDocs of msg.payload
-                err, res <~ @db.all-docs msg.payload.all-docs
+            else if \allDocs of msg.data
+                @send-response msg, {+part, timeout: 10_000ms, +ack}, null
+                err, res <~ @db.all-docs msg.data.all-docs
                 @send-and-echo msg, {err: err, res: res or null}
 
             # `view` message
-            else if \view of msg.payload
-                @log.log "view message received", pack msg.payload
-                err, res <~ @db.view msg.payload.view, msg.payload.opts
+            else if \view of msg.data
+                #@log.log "view message received", pack msg.data
+                <~ :lo(op) ~>
+                    if @has-listener \before-view
+                        <~ @trigger \before-view, msg
+                        return op!
+                    else
+                        @send-response msg, {+part, timeout: 20_000ms, +ack}, null
+                        return op!
+                err, res <~ @db.view msg.data.view, msg.data.opts
                 if @has-listener \view
-                    /* register a chain function like so:
-
-                        ..on \view, (db, req, err, res, callback) ~>
-                            console.log "intermediate logic says view is: ", req
-                            callback err, res
-
-                    */
-                    console.log "has view listener...."
-                    err, res <~ @trigger \view, @db, msg, err, res
+                    err, res <~ @trigger \view, msg, err, res
                     @send-and-echo msg, {err, res}
                 else
                     @send-and-echo msg, {err, res}
 
             # `getAtt` message (for getting attachments)
-            else if \getAtt of msg.payload
-                @log.log "get attachment message received", msg.payload
-                q = msg.payload.getAtt
+            else if \getAtt of msg.data
+                @log.log "get attachment message received", msg.data
+                @send-response msg, {+part, timeout: 30_000ms, +ack}, null
+                q = msg.data.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
                 @send-and-echo msg, {err: err, res: res or null}
 
-            else if \cmd of msg.payload
-                cmd = msg.payload.cmd
+            else if \cmd of msg.data
+                cmd = msg.data.cmd
                 @log.warn "got a cmd:", cmd
 
-            else if \follow of msg.payload
-                @log.warn "DEPRECATED: follow message:", msg.payload
-                return
-
             else
-                err = reason: "Unknown method name: #{pack msg.payload}"
+                err = reason: "Unknown method name: #{pack msg.data}"
                 @send-and-echo msg, {err: err, res: null}
 
 
@@ -377,5 +397,6 @@ export class CouchDcsServer extends Actor
         if _new.err
              @log.log "error was : #{pack _new.err}"
         else
-            @log.log (green ">>>"), "responding for #{orig.topic}: #{pack _new .length} bytes"
+            @log.log (green ">>>"), "responding to #{orig.from}:#{orig.seq} (
+                #{pack _new .length} bytes)"
         @send-response orig, _new

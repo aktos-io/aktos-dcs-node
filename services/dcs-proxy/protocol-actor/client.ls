@@ -1,9 +1,9 @@
 require! '../deps': {
     AuthRequest, sleep, pack, unpack
-    Signal, Actor, topic-match
+    Signal, Actor, topic-match, clone
 }
 require! 'colors': {bg-red, red, bg-yellow, green, bg-green}
-require! 'prelude-ls': {split, flatten, split-at, empty}
+require! 'prelude-ls': {split, flatten, split-at, empty, reject}
 require! './helpers': {MessageBinder}
 
 '''
@@ -31,15 +31,6 @@ export class ProxyClient extends Actor
         @role = \client
         @connected = no
         @session = null
-        @permissions-rw = []
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        @this-actor-is-a-proxy = yes # THIS IS VERY IMPORTANT
-        # responses to the requests will be silently dropped otherwise
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
 
         # Authentication protocol
         @auth = new AuthRequest @name
@@ -49,12 +40,17 @@ export class ProxyClient extends Actor
         @on-topic \app.dcs.update, (msg) ~>
             @send-response msg, @session
 
-        # DCS interface
+        @on \disconnect, ~>
+            @subscriptions = reject (~> it `topic-match` @session?.routes), @subscriptions
+            @session = null
+
+        # DCS to Transport
         @on \receive, (msg) ~>
-            unless msg.topic `topic-match` "app.**"
-                unless msg.topic `topic-match` @permissions-rw
-                    @log.err "Possible coding error: We don't have permission for: ", msg
-                    @log.info "Our rw permissions: ", @permissions-rw
+            if msg.debug => debugger
+            unless msg.to `topic-match` "app.**"
+                unless msg.to `topic-match` @subscriptions
+                    @log.err "Possible coding error: We don't have a route for: ", msg
+                    @log.info "Our subscriptions: ", @subscriptions
                     @send-response msg, {err: "
                         How come the ProxyClient is subscribed a topic
                          that it has no rights to send? This is a DCS malfunction.
@@ -62,13 +58,23 @@ export class ProxyClient extends Actor
                     return
 
                 # debug
-                #@log.log "Transport < DCS: (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                #@log.log "... #{pack msg.payload}"
-                @transport.write (msg
-                    |> @auth.add-token
-                    |> pack)
+                #@log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
+                #@log.log "... #{pack msg.data}"
+                msg
+                |> (m) ~>
+                    if m.re?
+                        response-id = "#{m.to}"
+                        #@log.debug "this is a response message: #{response-id}"
+                        if not m.part? or m.part is -1
+                            #console.log "...last part or has no part, unsubscribing
+                            #    from transient subscription"
+                            @unsubscribe response-id
+                    return m
+                |> @auth.add-token
+                |> pack
+                |> @transport.write
 
-        # transport interface
+        # Transport to DCS
         @m = new MessageBinder!
         @transport
             ..on \connect, ~>
@@ -94,8 +100,25 @@ export class ProxyClient extends Actor
                         @auth.inbox msg
                     else
                         # debug
-                        #@log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                        #@log.log "... #{pack msg.payload}"
+                        #@log.log "  Transport > DCS (route: #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
+                        #@log.log "... #{pack msg.data}"
+                        if msg.req
+                            # subscribe for possible response
+                            response-route = "#{msg.from}"
+                            #@log.debug "Transient subscription to response route: #{response-route}"
+                            @subscribe response-route
+                            #console.log "subscriptions: ", @subscriptions
+                        if msg.re?
+                            # directly pass to message owner
+                            #@log.debug "forwarding a Response message to actor: ", msg
+                            msg.to = msg.to.replace "@#{@session.user}.", ''
+                            if @mgr.find-actor msg.to 
+                                that._inbox msg
+                            if msg.cc
+                                msg2 = clone msg
+                                msg2.to = msg.cc
+                                @send-enveloped msg2
+                            return
                         @send-enveloped msg
 
     login: (credentials, callback) ->
@@ -123,17 +146,8 @@ export class ProxyClient extends Actor
             # error: if present, it means we didn't logged in succesfully.
             unless error
                 @session = res.auth.session
-                @permissions-rw = flatten [@session.permissions.rw]
-                unless empty @permissions-rw
-                    # subscribe only the messages that we have write permissions
-                    # on the remote site (subscribing RO messages in the DCS
-                    # network would be meaningless since they will be dropped
-                    # on the remote even if we forward them.)
-                    for index, topic of @subscriptions
-                        unless topic `topic-match` 'app.**'
-                            @subscriptions.splice index, 1
-                    @subscriptions ++= @permissions-rw
-                @log.info "Remote RW subscriptions: "
+                @subscriptions ++= @session.routes
+                @log.info "Remote route subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
                 @log.info "Emitting app.dcs.connect"
                 @send 'app.dcs.connect', @session
@@ -141,7 +155,7 @@ export class ProxyClient extends Actor
                     # clear plaintext passwords
                     credentials := {token: @session.token}
             else
-                @session = null
+                @trigger \disconnect
 
             if res?auth?session?logout is \yes
                 @trigger \kicked-out
@@ -155,7 +169,7 @@ export class ProxyClient extends Actor
     logout: (callback) ->
         err, res <~ @auth.logout
         @log.info "Logged out; err, res: ", err, res
-        @session = null
+        @trigger \disconnect
         reason = res?auth?error
         @trigger \logged-out, reason
         callback err, res

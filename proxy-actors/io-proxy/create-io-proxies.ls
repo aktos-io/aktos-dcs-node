@@ -38,9 +38,9 @@ export create-io-proxies = (opts) ->
                         null
 
                     #log.log "using driver: ", DeviceDriver.constructor.name
-                    device =
-                        driver: new DeviceDriver driver-opts
-                        io-handles: [(new IoHandle params, "#{curr-namespace}.#{io}") for io, params of sub-table.handles]
+                    device = driver: new DeviceDriver driver-opts
+                    device.io-handles = for io, params of sub-table.handles
+                            new IoHandle params, "@#{opts.node}.#{curr-namespace}.#{io}"
 
                     device-list.push device
                 else

@@ -58,11 +58,11 @@ data-types =
 
 
 export class IoHandle
-    (opts={}, topic)->
+    (opts={}, route)->
         # add all properties as if they exists in IoHandle
         for k, v of opts
             this[k] = v
-        @topic = topic
+        @route = route
 
 
     get-meaningful: (value) ->

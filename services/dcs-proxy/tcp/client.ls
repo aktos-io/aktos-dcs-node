@@ -1,5 +1,6 @@
 require! '../protocol-actor/client': {ProxyClient}
 require! 'dcs/transports/tcp': {TcpTransport}
+require! '../deps': {sleep}
 
 export class DcsTcpClient extends ProxyClient
     (@opts={}) ->
@@ -13,20 +14,16 @@ export class DcsTcpClient extends ProxyClient
             forget-password: no
 
         @on \connect, ~>
-            @log.log "Info: Connected to server..."
+            @log.info "Connected to server..."
 
-        @on \disconnect, ~>
-            @log.log "Info: Disconnected."
+        @on-topic \app.dcs.connect, (msg) ~>
+            @log.info "Tcp Client is logged in into the DCS network."
 
         # A Tcp client should always try re-login (even though credentials are incorrect)
-        /*
-            unless error
-                #@log.log "seems logged in: session:", res.auth.session
-                @trigger \logged-in, res.auth.session
-            else
-                unless error is "EMPTY_CREDENTIALS"
-                    @log.info "ProxyClient will try to reconnect."
-                    if @connected
-                        <~ sleep 3000ms
-                        @trigger \_login, {forget-password: @opts.forget-password}
-        */
+        @on \disconnect, ~>
+            @log.info "Disconnected."
+            @log.info "ProxyClient will try to reconnect."
+            if @connected
+                <~ sleep 3000ms
+                @trigger \_login
+

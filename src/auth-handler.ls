@@ -42,37 +42,39 @@ export class AuthHandler extends EventEmitter
         @session-cache = new SessionCache!
 
         @on \check-auth, (msg) ~>
-            #@log.log "Processing authentication message", msg
+            if msg.debug => @log.log "Processing authentication message", msg
 
             if \user of msg.auth
-                err, doc <~ db.get-user msg.auth.user
-                if err
-                    @log.err "user \"#{msg.auth.user}\" is not found. err: ", pack err
-                    @trigger \to-client, do
-                        auth:
-                            error: err
-                else
-                    if doc.passwd-hash is msg.auth.password
-                        session =
+                try
+                    user = db.get msg.auth.user
+                    if user.passwd-hash is msg.auth.password
+                        @session =
                             token: uuid4!
                             user: msg.auth.user
                             date: Date.now!
-                            permissions: doc.permissions
-                            opening-scene: doc.opening-scene
+                            routes: user.routes
+                            permissions: user.permissions
 
-                        @session-cache.add session
-                        @log.log bg-green "new Login: #{msg.auth.user} (#{session.token})"
+                        @session-cache.add @session
+                        @log.log bg-green "new Login: #{msg.auth.user} (#{@session.token})"
                         @log.log "(...sending with #{@@login-delay}ms delay)"
-                        @trigger \login, session
+                        @trigger \login, @session
                         <~ sleep @@login-delay
                         @trigger \to-client, do
                             auth:
-                                session: session
+                                session: @session
                     else
-                        @log.err "wrong password", doc, msg.auth.password
+                        @log.err "wrong password, tried:
+                            #{msg.auth.user}, #{msg.auth.password}"
                         @trigger \to-client, do
                             auth:
                                 error: "wrong password"
+                catch
+                    @log.err "user \"#{msg.auth.user}\" is not found. err: ", e
+                    @trigger \to-client, do
+                        auth:
+                            error: e
+
 
             else if \logout of msg.auth
                 # session end request
@@ -114,14 +116,34 @@ export class AuthHandler extends EventEmitter
                 @log.err yellow "Can not determine which auth request this was: ", pack msg
 
 
-    check-permissions: (msg) ->
+    check-routes: (msg) ->
         #@log.log yellow "filter-incoming: input: ", pack msg
         session = @session-cache.get msg.token
-        if session?permissions
-            msg.ctx = {user: session.user}
-            for topic in session.permissions.rw
-                if topic `topic-match` msg.topic
+        # remove username from route
+        if session
+            # check if this actor has rights to send to that route
+            for session.routes
+                if .. `topic-match` msg.to
                     delete msg.token
                     return msg
+            # check if this is a response message,
+            if msg.re?
+                # FIXME: provide a token authentication per response message
+                delete msg.token
+                return msg
+
         @log.err (bg-red "filter-incoming dropping unauthorized message!"),
-        throw new AuthError 'unauthorized message'
+        throw new AuthError 'unauthorized message route'
+
+    modify-sender: (msg) ->
+        session = @session-cache.get msg.token
+        unless session
+            throw new AuthError "No appropriate session is found."
+        msg.from = "@#{session.user}.#{msg.from}"
+        return msg
+
+    add-ctx: (msg) ->
+        session = @session-cache.get msg.token
+        msg.permissions = session.permissions
+        msg.user = session.user
+        return msg

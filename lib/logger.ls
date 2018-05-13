@@ -1,5 +1,8 @@
 # for debugging purposes
-require! colors: {green, gray, yellow, bg-red, bg-yellow, cyan, bg-cyan, magenta}
+require! colors: {
+    green, gray, yellow, magenta
+    bg-red, bg-yellow, cyan, bg-cyan, bg-green
+}
 require! moment
 require! 'prelude-ls': {map}
 require! './event-emitter': {EventEmitter}
@@ -80,8 +83,8 @@ export class Logger extends EventEmitter
                 log = Function.prototype.bind.call(console.log, console)
                 log.call console, my, "font-weight: normal;" ..._args
 
-    log-green: ~>
-        @log green ...
+    success: (...args) ~>
+        console.error.apply console, ([@get-prefix bg-green] ++ args)
 
     err: (...args) ~>
         console.error.apply console, ([@get-prefix bg-red] ++ args)
@@ -96,3 +99,6 @@ export class Logger extends EventEmitter
 
     todo: (...args) ~>
         console.info.apply console, [@get-prefix!, magenta('[TODO]')] ++ args
+
+    debug: (...args) ~>
+        console.info.apply console, [@get-prefix!, yellow('[DEBUG]')] ++ args

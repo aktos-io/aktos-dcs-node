@@ -14,9 +14,9 @@ class Io extends Actor
         else
             'io'
 
-        @topic = "#{namespace}.#{@opts.name}"
-        @log.log "Initializing pin number #{@opts.pin} with on topic: #{@topic}"
-        @subscribe @topic
+        @route = "#{namespace}.#{@opts.name}"
+        @log.log "Initializing pin number #{@opts.pin} with on route: #{@route}"
+        @subscribe @route
 
         @prev = null
 
@@ -28,7 +28,7 @@ export class DInput extends Io
         send-value = (value) ~>
             if value isnt @prev
                 @log.log "sending prev: #{@prev} -> curr: #{value}"
-                @send {curr: value, prev: @prev}, @topic
+                @send {curr: value, prev: @prev}, @route
                 @prev = value
             else
                 @log.log "Not changed, not sending. curr: #{value}"
@@ -46,7 +46,7 @@ export class DInput extends Io
         @on \update, ~>
             @log.log "requested update, sending current status..."
             input.read (err, value) ~>
-                @send {curr: @prev}, @topic
+                @send {curr: @prev}, @route
 
         @on \kill, ~>
             <~ input.unexport
@@ -60,7 +60,7 @@ export class DOutput extends Io
 
         send-value = (value, reply-to) ~>
             @log.log "sending prev: #{@prev} -> curr: #{value}"
-            @send {curr: value, prev: @prev}, @topic
+            @send {curr: value, prev: @prev}, @route
             @send-response reply-to, {curr: value, prev: @prev} if reply-to
             @prev = value
 
@@ -71,7 +71,7 @@ export class DOutput extends Io
                 if err
                     @log.err "error while writing! (did you check permissions?)"
                     @kill 'READERR'
-                    @send {error: reason: 'can not write to output'}, @topic
+                    @send {error: reason: 'can not write to output'}, @route
                     return
                 send-value value, reply-to
 
@@ -79,7 +79,7 @@ export class DOutput extends Io
         write (@opts.initial or 0)
 
         @on \data, (msg) ~>
-            write msg.payload.val, msg if msg.payload.val?
+            write msg.data.val, msg if msg.data.val?
 
         @on \update, ~>
             @log.log "requested update, sending current status..."

@@ -8,49 +8,45 @@ require! 'uuid4'
 
 export class IoProxyClient extends Actor
     (opts={}) !->
-        @topic = opts.topic or throw "Topic is required."
+        @route = opts.route or throw "route is required."
         @timeout = opts.timeout or 1000ms
-        super @topic
+        super @route
         @fps = new FpsExec (opts.fps or 20fps), this
-        @reply-signal = new Signal \reply-signal
         @value = undefined
 
-        @on-topic "#{@topic}.read", (msg) ~>
-            #@log.log "#{@topic}.read received: ", msg
-            if @reply-signal.waiting
-                #@c-log "...is redirected to reply-signal..."
-                @reply-signal.go msg.payload
+        #@log.debug "Subscribed to @route: #{@route}, #{@me}"
+        @on-topic "#{@route}.value", (msg) ~>
+            #@log.log "#{@route}.read received: ", msg
+            if msg.data.err
+                @trigger \error, {message: that}
             else
-                if msg.payload.err
-                    @trigger \error, {message: that}
-                else
-                    rec = msg.payload.res
-                    @trigger \read, rec
-                    # detect change
-                    if rec.curr isnt @value
-                        @trigger \change, rec.curr
-                        if @value is off and rec.curr is on
-                            @trigger \r-edge
-                        if @value is on and rec.curr is off
-                            @trigger \f-edge
-                        @value = rec.curr
+                value = msg.data?.val
+                @trigger \read, value
+                # detect change
+                if value isnt @value
+                    @trigger \change, value
+                    if @value is off and value is on
+                        @trigger \r-edge
+                    if @value is on and value is off
+                        @trigger \f-edge
+                    @value = value
 
         @on-topic "app.dcs.connect", (msg) ~>
-            unless @topic `topic-match` msg.payload.permissions.rw
-                @log.warn "We don't have write permissions for #{@topic}"
+            unless @route `topic-match` msg.data.routes
+                @log.warn "We don't have a route for #{@route} in ", msg.data.routes
 
-            @send-request {topic: "#{@topic}.update", timeout: @timeout}, (err, msg) ~>
+            @send-request {route: "#{@route}.update", @timeout}, (err, msg) ~>
                 if err
                     @trigger \error, {message: err}
                 else
-                    #console.warn "received update topic: ", msg
-                    @trigger-topic "#{@topic}.read", msg
+                    #console.warn "received update route: ", msg
+                    @trigger-topic "#{@route}.value", msg
 
         # check if app is logged in
         <~ sleep ((Math.random! * 200ms) + 100ms )
         err, msg <~ @send-request "app.dcs.update"
         unless err
-            if msg.payload is yes
+            if msg.data is yes
                 @log.log "triggering app.dcs.connect on initialization.",
                 @trigger-topic 'app.dcs.connect', msg
 
@@ -75,8 +71,11 @@ export class IoProxyClient extends Actor
         @fps.exec ~> @filtered-write value, callback
 
     filtered-write: (value, callback) !->
-        topic = "#{@topic}.write"
-        err, msg <~ @send-request {topic, timeout: @timeout}, {val: value}
-        error = err or msg?.payload.err
+        route = "#{@route}.value"
+        err, msg <~ @send-request {route, @timeout}, {val: value}
+        error = err or msg?.data.err
+        unless err
+            #@log.debug "Write succeeded."
+            @value = msg.data.res
         if typeof! callback is \Function
             callback error

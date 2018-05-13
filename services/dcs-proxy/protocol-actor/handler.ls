@@ -1,7 +1,8 @@
-require! '../deps': {AuthHandler, pack, unpack, Actor}
+require! '../deps': {AuthHandler, pack, unpack, Actor, topic-match}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-cyan}
 require! 'prelude-ls': {split, flatten, split-at, empty}
 require! './helpers': {MessageBinder}
+require! 'uuid4'
 
 
 export class ProxyHandler extends Actor
@@ -13,35 +14,24 @@ export class ProxyHandler extends Actor
         """
         super opts.name
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        @this-actor-is-a-proxy = yes # THIS IS VERY IMPORTANT
-        # responses to the requests will be silently dropped otherwise
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
+        @request-table = {}
 
         @auth = new AuthHandler opts.db, opts.name
             ..on \to-client, (msg) ~>
-                @transport.write pack @msg-template msg
+                if msg.debug
+                    @log.log "Debugging message: ", msg
+                {from: @me, seq: @msg-seq++} <<< msg
+                |> pack
+                |> @transport.write
 
             ..on \login, (ctx) ~>
                 @log.prefix = ctx.user
                 @subscriptions = []  # renew all subscriptions
-                unless empty (ctx.permissions.ro or [])
-                    @log.info "subscribing readonly: "
-                    for flatten [ctx.permissions.ro] => @log.info "->  #{..}"
-                    @subscribe ctx.permissions.ro
-
-                unless empty (ctx.permissions.rw or [])
-                    @log.info "subscribing read/write: "
-                    for flatten [ctx.permissions.rw] => @log.info "->  #{..}"
-                    @subscribe ctx.permissions.rw
-
-                # debug the subscriptions
-                #@log.info "TOTAL Subscriptions", @subscriptions.length
-                #for @subscriptions => @log.info "___  #{..}"
+                unless empty (ctx.routes or [])
+                    @log.info "subscribing routes: "
+                    for flatten [ctx.routes]
+                        @log.info "->  #{..}"
+                        @subscribe ..
 
             ..on \logout, ~>
                 # logout is specific to browser like environments, where user
@@ -50,18 +40,52 @@ export class ProxyHandler extends Actor
                 # IMPORTANT: SECURITY: Clear subscriptions
                 @subscriptions = []
 
-        # DCS interface
+        # DCS to Transport
         @on do
             receive: (msg) ~>
-                # debug
-                #@log.log "DCS > Transport (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                #@log.log "... #{pack msg.payload}"
-                @transport.write pack msg
+                try
+                    msg
+                    |> (m) ~>
+                        unless m.from `topic-match` "@#{m.user}.**"
+                            message = "Dropping user specific route message"
+                            @log.debug message, m
+                            throw {type: \NORMAL, message}
+
+                        try
+                            if m.re?
+                                # this is a response, check if we were expecting it
+                                #@log.debug "Checking if we are expecting #{m.to}"
+                                response-id = "#{m.to}.#{m.re}"
+                                unless @request-table[response-id]
+                                    error = "Not our response."
+                                    #@log.debug "Dropping response: #{error}, resp: #{response-id}"
+                                    throw {type: \NORMAL, message: error}
+                                else if @request-table[response-id] isnt m.res-token
+                                    message = "Response token is not correct, dropping message.
+                                        expecting #{@request-table[response-id]}, got: #{m.res-token}"
+                                    delete @request-table[response-id]
+                                    throw {type: \HACK, message}
+                                else
+                                    unless m.part? or m.part is -1
+                                        #"Last part of our expected response, removing from table." |> @log.debug
+                                        delete @request-table[response-id]
+                                delete m.res-token  # remove unnecessary data
+                        catch
+                            # still move forward if it has carbon copy attribute
+                            unless m.cc
+                                throw e
+                        return m
+                    |> pack
+                    |> @transport.write
+                catch
+                    switch e.type
+                    | "NORMAL" => null
+                    |_ => @log.err e.message
 
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
 
-        # transport interface
+        # Transport to DCS
         @m = new MessageBinder!
         @transport
             ..on "data", (data) ~>
@@ -69,23 +93,30 @@ export class ProxyHandler extends Actor
                 for msg in @m.append data
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager
+                    if msg.debug
+                        @log.log "Debugging message: ", msg
+
                     if \auth of msg
                         #@log.log green "received auth message: ", msg
                         @auth.trigger \check-auth, msg
                     else
                         try
                             msg
-                            |> @auth.check-permissions
-                            # permission check ok, send to DCS network
-                            #|> (x) -> console.log "permissions okay for #{x.sender}.#{x.msg_id}"; return x
+                            |> @auth.modify-sender
+                            |> @auth.add-ctx
+                            |> (m) ~>
+                                if m.req
+                                    #@log.debug "adding response route and token for #{m.from}"
+                                    token = uuid4!
+                                    @request-table["#{m.from}.#{m.seq}"] = token
+                                    m.res-token = token
+                                return m
+                            |> @auth.check-routes
                             |> @send-enveloped
-
-                            # debug
-                            #@log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                            #@log.log "... #{pack msg.payload}"
                         catch
                             if e.type is \AuthError
                                 @log.warn "Authorization failed, dropping message."
+                                @log.warn "dropped message: ", msg
                             else
                                 throw e
 
