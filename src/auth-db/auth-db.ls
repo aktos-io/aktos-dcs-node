@@ -9,13 +9,20 @@ export class AuthDB
     (users) ->
         return @@instance if @@instance
         @@instance = this
-        @update users
-
-    update: (users) ->
-        @users-db = if typeof! users is \Object
+        @users-db = []
+        @static-users = if typeof! users is \Object
             users |> as-docs
         else
-            users
+            users 
+        @update!
+
+    update: (users) ->
+        if typeof! users is \Object
+            users = users |> as-docs
+        users = [] unless users
+
+        @users-db = users ++ @static-users
+        console.log "Total users in AuthDB: #{@users-db.length}"
 
     get: (username) ->
         user = merge-user-doc username, @users-db
