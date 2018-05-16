@@ -135,23 +135,28 @@ export class CouchDcsServer extends Actor
             @log.log "total ongoing transaction: ", count
             callback count
 
+        insert-chain = (msg, name, timeout, callback) ~>
+            if typeof! timeout is \Function
+                callback = timeout
+                timeout = 20_000ms
+
+            # insert chain
+            if @has-listener name
+                <~ @trigger name, msg
+                callback!
+            else
+                @send-response msg, {+part, timeout, +ack}, null
+                callback!
+
         @on \data, (msg) ~>
             #@log.log "received payload: ", keys(msg.data), "by:", msg.user
             # `put` message
-            if \put of msg.data and msg.data.transaction is on
+            if msg.data.transaction is on
                 # handle the transaction, see ./transactions.md
                 @log.log bg-yellow "Handling transaction..."
                 doc = msg.data.put
 
-                # insert chain
-                <~ :lo(op) ~>
-                    chain = \before-transaction
-                    if @has-listener chain
-                        <~ @trigger chain, msg
-                        return op!
-                    else
-                        return op!
-
+                <~ insert-chain msg, \before-transaction
 
                 # Assign proper doc id
                 err, next-id <~ get-next-id doc._id
@@ -216,6 +221,9 @@ export class CouchDcsServer extends Actor
                 if empty docs
                     return @send-and-echo msg, {err: message: "Empty document", res: null}
 
+                # insert chain
+                <~ insert-chain msg, \before-put
+
                 <~ :lo(op) ~>
                     if @has-listener \before-put
                         <~ @trigger \before-put, msg
@@ -276,12 +284,7 @@ export class CouchDcsServer extends Actor
 
             # `get` message
             else if \get of msg.data
-                <~ :lo(op) ~>
-                    if @has-listener \before-get
-                        <~ @trigger \before-get, msg
-                        return op!
-                    else
-                        return op!
+                <~ insert-chain msg, \before-get
                 multiple = typeof! msg.data.get is \Array # decide response format
                 doc-id = msg.data.get
                 doc-id = [doc-id] if typeof! doc-id is \String
@@ -355,20 +358,14 @@ export class CouchDcsServer extends Actor
 
             # `all-docs` message
             else if \allDocs of msg.data
-                @send-response msg, {+part, timeout: 10_000ms, +ack}, null
+                <~ insert-chain msg, \before-allDocs
                 err, res <~ @db.all-docs msg.data.all-docs
                 @send-and-echo msg, {err: err, res: res or null}
 
             # `view` message
             else if \view of msg.data
                 #@log.log "view message received", pack msg.data
-                <~ :lo(op) ~>
-                    if @has-listener \before-view
-                        <~ @trigger \before-view, msg
-                        return op!
-                    else
-                        @send-response msg, {+part, timeout: 20_000ms, +ack}, null
-                        return op!
+                <~ insert-chain msg, \before-view
                 err, res <~ @db.view msg.data.view, msg.data.opts
                 if @has-listener \view
                     err, res <~ @trigger \view, msg, err, res
@@ -379,19 +376,17 @@ export class CouchDcsServer extends Actor
             # `getAtt` message (for getting attachments)
             else if \getAtt of msg.data
                 @log.log "get attachment message received", msg.data
-                @send-response msg, {+part, timeout: 30_000ms, +ack}, null
+                <~ insert-chain msg, \before-getAtt, 30_000ms
                 q = msg.data.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
-                @send-and-echo msg, {err: err, res: res or null}
+                @send-and-echo msg, {err, res}
 
-            else if \cmd of msg.data
-                cmd = msg.data.cmd
-                @log.warn "got a cmd:", cmd
-
+            else if \custom of msg.data
+                <~ insert-chain msg, \before-custom
+                @log.err "Unhandled custom message:", msg.data
             else
                 err = reason: "Unknown method name: #{pack msg.data}"
-                @send-and-echo msg, {err: err, res: null}
-
+                @send-and-echo msg, {err}
 
     send-and-echo: (orig, _new) ->
         if _new.err
