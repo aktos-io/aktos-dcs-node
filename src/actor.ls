@@ -206,7 +206,6 @@ export class Actor extends EventEmitter
                             @log.debug "this was the last part of the message chain."
                         */
                         return op!
-                <~ sleep 0
                 lo(op)
 
             if @_state.kill-finished

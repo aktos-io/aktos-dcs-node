@@ -25,12 +25,14 @@ export class Signal
         @name = opts.name or arguments.callee.caller.name
         @log = new Logger @name
         @response = []
+        @callback = {ctx: null, handler: null}
         @reset!
 
     reset: ->
         # clear everything like the object is
         # initialized for the first time
-        @callback = null
+        delete @callback.handler
+        delete @callback.ctx
         @should-run = no
         @waiting = no
         try clear-timeout @timer
@@ -44,7 +46,7 @@ export class Signal
         params = unless error then @response else []
         @error = error?.reason
         {handler, ctx} = @callback
-        handler.call ctx, @error, ...params
+        sleep 0, ~> handler.call ctx, @error, ...params
         @reset!
 
     wait: (timeout, callback) ->
