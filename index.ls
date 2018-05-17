@@ -2,7 +2,7 @@
 # ---------
 require! './src/actor': {Actor}
 require! './src/filters': {FpsExec}
-require! './src/signal': {Signal}
+require! './src/signal': {Signal, SignalBranch}
 
 # Connectors
 # ----------
@@ -27,7 +27,7 @@ require! './proxy-actors/io-proxy/io-proxy-client': {IoProxyClient}
 require! './drivers/driver-abstract': {DriverAbstract}
 
 module.exports = {
-    Actor, FpsExec, Signal
+    Actor, FpsExec, Signal, SignalBranch
     CouchDcsClient, CouchDcsServer,
     DcsTcpClient, DcsTcpServer, AuthDB, as-docs
     EventEmitter, Logger, sleep, merge

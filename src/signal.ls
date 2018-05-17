@@ -22,15 +22,15 @@ export class Signal
     (opts={}) ->
         if opts.debug
             @debug = yes
-        @name = arguments.callee.caller.name
+        @name = opts.name or arguments.callee.caller.name
         @log = new Logger @name
+        @response = []
         @reset!
 
     reset: ->
         # clear everything like the object is
         # initialized for the first time
-        @[]callbacks.splice(0, @callbacks.length)
-        @go-params = []
+        @callback = null
         @should-run = no
         @waiting = no
         try clear-timeout @timer
@@ -39,30 +39,26 @@ export class Signal
 
     fire: (error) ->
         #@log.log "trying to fire..."
-        if @waiting and @should-run
-            params = @go-params
-            #@log.log "signal fired with params:", params
-            for let callback in @callbacks
-                <~ sleep 0
-                callback.handler.call callback.ctx, error?.reason, ...params
-            # empty the callbacks
-            @reset!
-
+        return if typeof! @callback?.handler isnt \Function
+        #@log.log "signal fired with params:", @response
+        params = unless error then @response else []
+        @error = error?.reason
+        {handler, ctx} = @callback
+        handler.call ctx, @error, ...params
+        @reset!
 
     wait: (timeout, callback) ->
         # normalize arguments
         if typeof! timeout is \Function
             callback = timeout
             timeout = 0
+        if @waiting
+            debugger
+            ...
+        @error = \UNFINISHED
 
-        if callback.to-string! not in [..handler.to-string! for @callbacks]
-            if @debug => @log.debug "...adding this callback"
-            @callbacks.push {ctx: this, handler: callback}
-        else
-            if @debug
-                @log.debug "this callback seems to be registered already"
-                console.log @callbacks
-
+        if @debug => @log.debug "...adding this callback"
+        @callback = {ctx: this, handler: callback}
         @waiting = yes
         unless is-it-NaN timeout
             if timeout > 0
@@ -85,9 +81,10 @@ export class Signal
             @skip-next = no
             return
         @should-run = yes
-        @go-params = args
-        #@log.log "called 'go!'" #, @go-params
-        @fire!
+        @response = args
+        #@log.log "called 'go!'" , @response
+        if @waiting
+            @fire!
 
     heartbeat: (duration) ->
         #@log.log "Heartbeating..........."
@@ -98,4 +95,52 @@ export class Signal
         @timer = sleep @timeout, ~>
             @should-run = yes
             #@log.log "firing with timeout! timeout: #{@timeout}"
-            @fire {reason: \timeout}
+            if @waiting
+                @fire {reason: \timeout}
+
+
+export class SignalBranch
+    (opts) ->
+        @timeout = opts.timeout or 1000ms
+        @count = 0
+        @main = new Signal
+        @signals = []
+        @error = null
+
+    add: (opts) ->
+        timeout = opts.timeout or @timeout
+        name = opts.name or "#{@count}"
+        #console.log "........signal branch adding: #{name} with timeout #{timeout}"
+        signal = new Signal {name}
+        @signals.push signal
+        @count++
+        signal.wait timeout, (err) ~>
+            #console.log "==== signal is moving, count: #{@count}"
+            if err
+                @error = that
+            if --@count is 0
+                #console.log "+++++letting main go."
+                @main.go @error
+
+        return signal
+
+    joined: (callback) ->
+        @main.wait @timeout, (err) ~>
+            for @signals => ..clear!
+            callback err, @signals
+
+
+if require.main is module
+    log = new Logger \test
+    branch = new SignalBranch timeout: 2000ms
+    for let index, content of <[ hello there foo bar ]>
+        timeout = 1000 + index * Math.random! * 1000
+        log.log "new branch named #{content} at #{index} with #{timeout}ms timeout"
+        s = branch.add {timeout, name: content}
+        <~ sleep (timeout - 20)
+        log.log "joining branch named: #{index}"
+        s.go content
+    err, signals <~ branch.joined
+    log.log "all signals are joined. err: ", err
+    for signals
+        console.log "#{..name}: err: ", ..error, "res: ", ..response
