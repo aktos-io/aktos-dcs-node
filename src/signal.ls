@@ -102,8 +102,8 @@ export class Signal
 
 
 export class SignalBranch
-    (opts) ->
-        @timeout = opts.timeout or 1000ms
+    (opts={}) ->
+        @timeout = opts.timeout or -1
         @count = 0
         @main = new Signal
         @signals = []
