@@ -85,7 +85,6 @@ export class CouchDcsClient extends Actor
         # end of normalization
         timeout = opts.timeout or 5_000ms
         err, msg <~ @__request {timeout}, {put: doc, +transaction}
-
         error = err or msg?.data.err
         response = msg?.data?.res
         unless error

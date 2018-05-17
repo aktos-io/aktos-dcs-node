@@ -145,6 +145,7 @@ export class CouchDcsServer extends Actor
                 <~ @trigger name, msg
                 callback!
             else
+                @log.log "...sending ack with timeout: #{timeout}ms"
                 @send-response msg, {+part, timeout, +ack}, null
                 callback!
 
@@ -208,12 +209,10 @@ export class CouchDcsServer extends Actor
                 doc.transaction = \done
                 err, res <~ @db.put doc
                 unless err
-                    @log.log bg-green "Transaction completed."
+                    @log.log bg-green "Transaction completed: #{doc._id}, #{doc._rev}"
                 else
                     @log.err "Transaction is not completed. id: #{doc._id}"
-
-                @send-and-echo msg, {err: err, res: res or null}
-
+                @send-and-echo msg, {err, res}
 
             else if \put of msg.data
                 msg.data.put = flatten [msg.data.put]
