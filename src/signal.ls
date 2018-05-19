@@ -110,8 +110,8 @@ export class SignalBranch
         @error = null
 
     add: (opts) ->
-        timeout = opts.timeout or @timeout
-        name = opts.name or "#{@count}"
+        timeout = opts?timeout or @timeout
+        name = opts?name or "#{@count}"
         #console.log "........signal branch adding: #{name} with timeout #{timeout}"
         signal = new Signal {name}
         @signals.push signal
