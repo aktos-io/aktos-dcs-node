@@ -3,6 +3,7 @@ require! '../lib': {sleep}
 export class FpsExec
     (opts=20fps) ~>
         fps = if typeof! opts is \Number => opts
+        @debug = (try opts.debug)
         @period = opts.period or (1000ms / fps)
         @timer = null
         @last-exec = 0
@@ -15,7 +16,9 @@ export class FpsExec
         time-to-exec = @period - (@now! - @last-exec)
         if time-to-exec < 0
             time-to-exec = 0
-        try clear-timeout @timer
+        try
+            clear-timeout @timer
+            if @debug => console.info "FpsExec is skipping an execution."
         @timer = sleep time-to-exec, ~>
             func ...args
             @last-exec = @now!

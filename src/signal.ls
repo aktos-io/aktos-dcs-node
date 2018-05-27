@@ -26,6 +26,7 @@ export class Signal
         @log = new Logger @name
         @response = []
         @callback = {ctx: null, handler: null}
+        if @debug => @log.debug "Initialized new signal."
         @reset!
 
     reset: ->
@@ -42,11 +43,16 @@ export class Signal
     fire: (error) ->
         #@log.log "trying to fire..."
         return if typeof! @callback?.handler isnt \Function
-        #@log.log "signal fired with params:", @response
         params = unless error then @response else []
         @error = error?.reason
         {handler, ctx} = @callback
-        sleep 0, ~> handler.call ctx, @error, ...params
+        if @debug => @log.debug "signal is being fired with err: ", @error, "res: ", ...params
+        due-date = Date.now!
+        sleep 0, ~>
+            handler.call ctx, @error, ...params
+            if @debug => @log.debug "signal is actually fired."
+            if Date.now! - due-date > 100ms 
+                @log.warn "System seems busy now? Actual firing took place after #{Date.now! - due-date}ms"
         @reset!
 
     wait: (timeout, callback) ->
@@ -59,7 +65,7 @@ export class Signal
             ...
         @error = \UNFINISHED
 
-        if @debug => @log.debug "...adding this callback"
+        #if @debug => @log.debug "...adding this callback"
         @callback = {ctx: this, handler: callback}
         @waiting = yes
         unless is-it-NaN timeout

@@ -29,11 +29,16 @@ export class ActorManager
         @actors = reject (.id is actor.id), @actors
 
     distribute: (msg, sender) ->
+        if msg.debug => @log.debug "Distributing message: ", msg
+        due-date = Date.now!
         for actor in @actors when actor.id isnt sender
             #@log.log "looking for #{msg.to} to be matched in #{actor.subscriptions}"
             for route in actor.subscriptions
                 if msg.to `route-match` route
                     #@log.log "putting message: #{msg.from}.#{msg.seq} -> actor: #{actor.id}"
+                    delay = Date.now! - due-date
+                    if delay > 100ms
+                        @log.warn "System load is high? Message is delivered after #{delay}ms"
                     actor._inbox msg
                     break
             else

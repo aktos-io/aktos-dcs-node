@@ -142,10 +142,11 @@ export class CouchDcsServer extends Actor
 
             # insert chain
             if @has-listener name
+                @log.log "...using listener which is already defined: #{name}"
                 <~ @trigger name, msg
                 callback!
             else
-                @log.log "...sending ack with timeout: #{timeout}ms"
+                @log.log "...sending ack with timeout: #{timeout}ms as if defined #{name}"
                 @send-response msg, {+part, timeout, +ack}, null
                 callback!
 

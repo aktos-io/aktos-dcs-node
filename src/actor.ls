@@ -130,7 +130,15 @@ export class Actor extends EventEmitter
     send-request: (opts, data, callback) ->
         # normalize parameters
         meta = {}
-        timeout = 1000ms
+
+        # FIXME:
+        # this timeout should be maximum 1000ms but when system load is high,
+        # "sleep 0" is executed 1600ms after actual set date. fix this high
+        # load problem, produce appropriate warnings and then set this timeout
+        # to 1000ms (or even 500ms)
+        timeout = 5000ms
+        # /FIXME
+
         if typeof! opts is \String
             meta.to = opts
         else
@@ -174,7 +182,7 @@ export class Actor extends EventEmitter
                     last-part-sent := yes
 
         do
-            response-signal = new Signal!
+            response-signal = new Signal {debug: enveloped.debug, name: "Req Sig:#{enveloped.seq}"}
             #@log.debug "Adding request id #{request-id} to request queue: ", @request-queue
             @request-queue[request-id] = response-signal
             error = null
@@ -192,7 +200,9 @@ export class Actor extends EventEmitter
                     #@log.debug "GOT RESPONSE SIGNAL in ", msg.timestamp - enveloped.timestamp
                     part-handler msg
                     if msg.timeout
-                        @log.debug "New timeout is set from target: #{that}ms"
+                        if enveloped.debug
+                            @log.debug "New timeout is set from target: #{that}
+                                ms for request seq: #{enveloped.seq}"
                         timeout := that
                     if msg.merge? and msg.merge is false
                         merge-method-manual := yes
@@ -212,8 +222,7 @@ export class Actor extends EventEmitter
                 @log.warn "Got response activity after killed?", error, message
                 return
             if error is \timeout
-                @log.warn "Request is timed out. Timeout was #{timeout/1000}s, seq: #{enveloped.seq}
-                    Be careful. req was:", enveloped, "state is: ", @_state
+                @log.warn "Request is timed out. Timeout was #{timeout}ms, seq: #{enveloped.seq}. req was:", enveloped
                 #debugger
             # Got the full messages (or error) at this point.
             @unsubscribe meta.to
@@ -226,7 +235,7 @@ export class Actor extends EventEmitter
             complete-handler error, message
             if typeof! callback is \Function
                 callback error, message
-
+        if meta.debug => @log.debug "Sending request seq: #{enveloped.seq}"
         @send-enveloped enveloped
         return reg-part-handlers
 
@@ -246,7 +255,9 @@ export class Actor extends EventEmitter
 
     send-response: (req, meta, data) ->
         unless req.req
-            return @log.debug "No request is required, doing nothing."
+            @log.err "No request is required, doing nothing."
+            debugger
+            return
 
         # normalize parameters
         if typeof! data is \Undefined
@@ -264,14 +275,14 @@ export class Actor extends EventEmitter
             res-token: req.res-token
         } <<< meta
 
-        if enveloped.debug
-            debugger
-        #@log.debug "sending the response for request: ", enveloped
+
+        if req.debug or meta.debug
+            @log.debug "sending the response for request: ", enveloped
         @send-enveloped enveloped
 
     _inbox: (msg) ->
         #@log.log "Got message to inbox:", (JSON.stringify msg).length
-        if @debug or msg.debug => @log.debug "Got message: ", msg
+        if @debug or msg.debug => @log.debug "Got msg to inbox: ", msg
 
         if @_state.kill-finished
             debugger
@@ -288,7 +299,7 @@ export class Actor extends EventEmitter
                 @request-queue[msg.re]?.go msg
             else
                 @log.err "This is not a message we were expecting (or interested in)?
-                    (killed: #{@_state.kill-finished}. is it timed out already? I'm #{@me})", msg
+                     is it timed out already? I'm #{@me})", msg
                 if @debug => @log.warn "Current request queue: ", @request-queue
 
             # Sink the messages here. Let only its request function handles the response.

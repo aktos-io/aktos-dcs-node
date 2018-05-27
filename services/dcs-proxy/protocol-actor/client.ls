@@ -38,7 +38,9 @@ export class ProxyClient extends Actor
                 @transport.write pack msg
 
         @on-topic \app.dcs.update, (msg) ~>
-            @send-response msg, @session
+            debug = no
+            if debug => @log.debug "Received connection status update: ", msg
+            @send-response msg, {debug}, @session
 
         @on \disconnect, ~>
             @subscriptions = reject (~> it `topic-match` @session?.routes), @subscriptions
@@ -46,7 +48,6 @@ export class ProxyClient extends Actor
 
         # DCS to Transport
         @on \receive, (msg) ~>
-            if msg.debug => debugger
             unless msg.to `topic-match` "app.**"
                 unless msg.to `topic-match` @subscriptions
                     @log.err "Possible coding error: We don't have a route for: ", msg
@@ -69,6 +70,8 @@ export class ProxyClient extends Actor
                             #console.log "...last part or has no part, unsubscribing
                             #    from transient subscription"
                             @unsubscribe response-id
+                        if m.debug
+                            @log.debug "Sending msg to transport: ", m
                     return m
                 |> @auth.add-token
                 |> pack
@@ -112,7 +115,7 @@ export class ProxyClient extends Actor
                             # directly pass to message owner
                             #@log.debug "forwarding a Response message to actor: ", msg
                             msg.to = msg.to.replace "@#{@session.user}.", ''
-                            if @mgr.find-actor msg.to 
+                            if @mgr.find-actor msg.to
                                 that._inbox msg
                             if msg.cc
                                 msg2 = clone msg
