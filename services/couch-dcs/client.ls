@@ -34,7 +34,7 @@ export class CouchDcsClient extends Actor
         else
             #timeout = opts.timeout or 5000ms
             #@log.debug "request timeout: ", timeout
-            @send-request {@route, debug: data.opts.debug}, data, callback
+            @send-request {@route, debug: data.opts?.debug}, data, callback
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
