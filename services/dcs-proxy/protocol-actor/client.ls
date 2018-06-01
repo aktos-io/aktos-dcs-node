@@ -39,7 +39,9 @@ export class ProxyClient extends Actor
 
         @on-topic \app.dcs.update, (msg) ~>
             debug = no
-            if debug => @log.debug "Received connection status update: ", msg
+            if debug
+                @log.debug "Received connection status update: ", msg
+            #@log.debug "Sending session information: ", @session
             @send-response msg, {debug}, @session
 
         @on \disconnect, ~>

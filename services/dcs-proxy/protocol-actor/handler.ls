@@ -46,11 +46,6 @@ export class ProxyHandler extends Actor
                 try
                     msg
                     |> (m) ~>
-                        unless m.from `topic-match` "@#{m.user}.**"
-                            message = "Dropping user specific route message"
-                            @log.debug message, m
-                            throw {type: \NORMAL, message}
-
                         try
                             if m.re?
                                 # this is a response, check if we were expecting it
@@ -70,10 +65,18 @@ export class ProxyHandler extends Actor
                                         #"Last part of our expected response, removing from table." |> @log.debug
                                         delete @request-table[response-id]
                                 delete m.res-token  # remove unnecessary data
+
+                                return m
                         catch
                             # still move forward if it has carbon copy attribute
                             unless m.cc
                                 throw e
+
+                        unless m.from `topic-match` "@#{m.user}.**"
+                            message = "Dropping user specific route message"
+                            @log.debug message, m
+                            throw {type: \NORMAL, message}
+
                         return m
                     |> pack
                     |> @transport.write
@@ -94,7 +97,7 @@ export class ProxyHandler extends Actor
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager
                     if msg.debug
-                        @log.log "Debugging message: ", msg
+                        @log.debug "Debugging message: ", msg
 
                     if \auth of msg
                         #@log.log green "received auth message: ", msg
