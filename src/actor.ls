@@ -387,8 +387,6 @@ export class Actor extends EventEmitter
             #@log.info "requesting app.dcs.connect state:"
             if not err and msg?data
                 callback msg
-            else
-                @log.warn "invalid response: ", msg
 
 if require.main is module
     console.log "initializing actor test"
