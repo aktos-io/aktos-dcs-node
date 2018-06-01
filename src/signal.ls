@@ -51,7 +51,7 @@ export class Signal
         sleep 0, ~>
             handler.call ctx, @error, ...params
             if @debug => @log.debug "signal is actually fired."
-            if Date.now! - due-date > 100ms 
+            if Date.now! - due-date > 100ms
                 @log.warn "System seems busy now? Actual firing took place after #{Date.now! - due-date}ms"
         @reset!
 
@@ -61,8 +61,8 @@ export class Signal
             callback = timeout
             timeout = 0
         if @waiting
-            debugger
-            ...
+            console.error "We were waiting already. Why hit here?"
+            return
         @error = \UNFINISHED
 
         #if @debug => @log.debug "...adding this callback"
