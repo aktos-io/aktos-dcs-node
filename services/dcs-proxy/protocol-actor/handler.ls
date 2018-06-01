@@ -18,9 +18,11 @@ export class ProxyHandler extends Actor
 
         @auth = new AuthHandler opts.db, opts.name
             ..on \to-client, (msg) ~>
-                if msg.debug
-                    @log.log "Debugging message: ", msg
                 {from: @me, seq: @msg-seq++} <<< msg
+                |> (m) ~>
+                    if m.debug
+                        @log.debug "Sending to transport by AuthHandler:", m
+                    return m
                 |> pack
                 |> @transport.write
 
@@ -45,6 +47,10 @@ export class ProxyHandler extends Actor
             receive: (msg) ~>
                 try
                     msg
+                    |> (m) ~>
+                        if m.debug
+                            @log.debug "Forwarding from DCS to Transport: ", m
+                        return m 
                     |> (m) ~>
                         try
                             if m.re?
@@ -97,7 +103,7 @@ export class ProxyHandler extends Actor
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager
                     if msg.debug
-                        @log.debug "Debugging message: ", msg
+                        @log.debug "Transport to DCS:", msg
 
                     if \auth of msg
                         #@log.log green "received auth message: ", msg

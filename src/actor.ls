@@ -201,9 +201,9 @@ export class Actor extends EventEmitter
                     part-handler msg
                     if msg.timeout
                         if enveloped.debug
-                            @log.debug "New timeout is set from target: #{that}
+                            @log.debug "New timeout is set from target: #{msg.timeout}
                                 ms for request seq: #{enveloped.seq}"
-                        timeout := that
+                        timeout := msg.timeout
                     if msg.merge? and msg.merge is false
                         merge-method-manual := yes
                     unless merge-method-manual

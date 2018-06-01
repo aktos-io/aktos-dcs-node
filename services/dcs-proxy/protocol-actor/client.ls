@@ -65,6 +65,8 @@ export class ProxyClient extends Actor
                 #@log.log "... #{pack msg.data}"
                 msg
                 |> (m) ~>
+                    if m.debug
+                        @log.debug "Forwarding DCS to transport: ", m
                     if m.re?
                         response-id = "#{m.to}"
                         #@log.debug "this is a response message: #{response-id}"
@@ -72,8 +74,6 @@ export class ProxyClient extends Actor
                             #console.log "...last part or has no part, unsubscribing
                             #    from transient subscription"
                             @unsubscribe response-id
-                        if m.debug
-                            @log.debug "Sending msg to transport: ", m
                     return m
                 |> @auth.add-token
                 |> pack
@@ -104,9 +104,8 @@ export class ProxyClient extends Actor
                         #@log.log "received auth message, forwarding to AuthRequest."
                         @auth.inbox msg
                     else
-                        # debug
-                        #@log.log "  Transport > DCS (route: #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
-                        #@log.log "... #{pack msg.data}"
+                        if msg.debug 
+                            @log.debug "Forwarding Transport to DCS:", msg
                         if msg.req
                             # subscribe for possible response
                             response-route = "#{msg.from}"
