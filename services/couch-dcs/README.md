@@ -18,17 +18,22 @@ new CouchDcsServer do
     password: 'your-password'
   url: "IP-OR-ADDRESS-OF-YOUR-COUCHDB-INSTANCE"
   database: 'your-db-name'
+  subscribe: '@dbuser'
 ```
 
 2. Create a `CouchDcsClient` instance use it as if it was a regular CouchDB driver:
 
 ```ls
-db = new CouchDcsClient 'document-type'
+db = new CouchDcsClient {route: '@dbuser'}
 
 console.log "getting the document with 'your-document-id':"
 err, res <~ db.get 'your-document-id'
 console.log "response is: ", res
 ```
+
+`err` is a truthy value if there is any kind of problem with the CouchDcsServer
+    or CouchDB itself
+`res` is the exact response of the request.
 
 3. In order to make it work, ensure that your user have `db.document-type.**` permissions.
 

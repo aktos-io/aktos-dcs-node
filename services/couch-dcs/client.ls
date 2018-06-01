@@ -17,24 +17,21 @@ unless err
 export class CouchDcsClient extends Actor
     (opts) ->
         super if opts.name => "CouchDcs #{opts.name}" else "CouchDcsClient"
-        unless opts.route => throw new CodingError "Route is required."
+        if opts.route
+            @route = that
+        else
+            throw new CodingError "Route is required."
 
         @on-every-login (msg) ~>
             if msg.data.routes `topic-match` opts.route
                 @route = opts.route
                 #@log.info "setting route as #{@route}"
             else
-                @log.err "We won't be able to connect to #{opts.route},
+                @log.warn "We won't be able to connect to #{opts.route},
                     not found in ", msg.data.routes
 
-    __request: (opts={}, data, callback) ->
-        unless @route
-            debugger
-            @log.err "No route is defined (yet?). Dropping request:", data
-        else
-            #timeout = opts.timeout or 5000ms
-            #@log.debug "request timeout: ", timeout
-            @send-request {@route, debug: data.opts?.debug}, data, callback
+    __request: (data, callback) ->
+        @send-request {@route, debug: data.opts?.debug}, data, callback
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
@@ -42,8 +39,7 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-        timeout = opts.timeout or 10_000ms
-        err, msg <~ @__request {timeout}, {get: doc-id, opts: opts}
+        err, msg <~ @__request {get: doc-id, opts: opts}
         res = msg?.data?.res
         err = err or msg?.data.err
         if err
@@ -56,8 +52,7 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-        timeout = opts.timeout or 15000ms
-        err, msg <~ @__request {timeout}, {allDocs: opts}
+        err, msg <~ @__request {allDocs: opts}
         callback (err or msg?.data.err), msg?.data?.res
 
     put: (doc, opts, callback) ->
@@ -67,8 +62,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        timeout = opts.timeout or 5_000ms
-        err, msg <~ @__request {timeout}, {put: doc}
+        err, msg <~ @__request {put: doc}
 
         error = err or msg?.data.err
         response = msg?.data?.res
@@ -83,8 +77,7 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-        timeout = opts.timeout or 5_000ms
-        err, msg <~ @__request {timeout}, {put: doc, +transaction}
+        err, msg <~ @__request {put: doc, +transaction}
         error = err or msg?.data.err
         response = msg?.data?.res
         unless error
@@ -98,8 +91,7 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-        timeout = opts.timeout or 10_000ms
-        err, msg <~ @__request {timeout, opts.debug}, {view: viewName, opts: opts}
+        err, msg <~ @__request {view: viewName, opts: opts}
         callback (err or msg?.data.err), msg?.data?.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->
@@ -109,9 +101,7 @@ export class CouchDcsClient extends Actor
             opts = {}
         # end of normalization
 
-        timeout = opts.timeout or 5000ms
-
-        err, msg <~ @__request {timeout}, do
+        err, msg <~ @__request do
             getAtt:
                 doc-id: doc-id
                 att-name: att-name
@@ -120,9 +110,8 @@ export class CouchDcsClient extends Actor
         callback (err or msg?.data.err), msg?.data?.res
 
     follow: (opts={}, callback) ->
-        timeout = opts.timeout or 5000ms
         #@log.log "route is: ", route
-        err, msg <~ @__request {@route, timeout}, {follow: opts}
+        err, msg <~ @__request {follow: opts}
         if typeof! callback is \Function
             callback (err or msg?.data.err), msg?.data?.res
 
