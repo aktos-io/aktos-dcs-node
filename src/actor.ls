@@ -288,7 +288,8 @@ export class Actor extends EventEmitter
             debugger
 
         msg.permissions = msg.permissions or []
-        ####<~ sleep 0  # IMPORTANT: this fixes message sequences
+        ####<~ sleep 0
+        <~ set-immediate  # IMPORTANT: this fixes message sequences
         if msg.re? and message-owner(msg) is @me
             # this is a response to this actor.
             if @request-queue[msg.re]
@@ -361,7 +362,7 @@ export class Actor extends EventEmitter
         unless msg.to or (\auth of msg)
             debugger
             return @log.err "send-enveloped: Message has no route. Not sending.", msg
-        <~ sleep 0
+        <~ set-immediate
         unless msg.timestamp
             msg.timestamp = Date.now!
         if @debug => @log.debug "sending message: ", msg

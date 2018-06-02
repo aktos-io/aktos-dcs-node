@@ -48,12 +48,13 @@ export class Signal
         {handler, ctx} = @callback
         if @debug => @log.debug "signal is being fired with err: ", @error, "res: ", ...params
         due-date = Date.now!
-        sleep 0, ~>
-            handler.call ctx, @error, ...params
+        err = @error
+        @reset!
+        set-immediate ~>
+            handler.call ctx, err, ...params
             if @debug => @log.debug "signal is actually fired."
             if Date.now! - due-date > 100ms
                 @log.warn "System seems busy now? Actual firing took place after #{Date.now! - due-date}ms"
-        @reset!
 
     wait: (timeout, callback) ->
         # normalize arguments

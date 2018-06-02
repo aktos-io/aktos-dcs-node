@@ -68,7 +68,8 @@ export class EventEmitter
 
         """
         if @_events[type]
-            for handler in that
+            for let handler in that
+                <~ set-immediate
                 handler.cb ...args
 
         if @_one_time_events[type]
