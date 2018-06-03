@@ -132,11 +132,9 @@ export class Actor extends EventEmitter
         meta = {}
 
         # FIXME:
-        # this timeout should be maximum 1000ms but when system load is high,
-        # "sleep 0" is executed 1600ms after actual set date. fix this high
-        # load problem, produce appropriate warnings and then set this timeout
-        # to 1000ms (or even 500ms)
-        timeout = 5000ms
+        # this timeout should be maximum 1000ms but when another blocking data
+        # receive operation is taking place, this timeout is exceeded
+        timeout = 30_000ms # longest duration
         # /FIXME
 
         if typeof! opts is \String
@@ -189,6 +187,7 @@ export class Actor extends EventEmitter
             prev-pieces = {}
             message = {}
             merge-method-manual = no
+            request-date = Date.now! # for debugging (benchmarking) purposes
             <~ :lo(op) ~>
                 #@log.debug "Request timeout is: #{timeout}"
                 err, msg <~ response-signal.wait timeout
@@ -199,6 +198,13 @@ export class Actor extends EventEmitter
                 else
                     #@log.debug "GOT RESPONSE SIGNAL in ", msg.timestamp - enveloped.timestamp
                     part-handler msg
+
+                    if request-date?
+                        if request-date + 1000ms < Date.now!
+                            @log.debug "First response is too late for seq:#{enveloped.seq} latency:
+                            #{Date.now! - request-date}ms"
+                        request-date := undefined # disable checking
+
                     if msg.timeout
                         if enveloped.debug
                             @log.debug "New timeout is set from target: #{msg.timeout}
