@@ -142,7 +142,7 @@ export class CouchDcsServer extends Actor
 
             # insert chain
             if @has-listener name
-                @log.log "...using listener which is already defined: #{name}"
+                #@log.log "...using listener which is already defined: #{name}"
                 <~ @trigger name, msg
                 callback!
             else
