@@ -326,7 +326,7 @@ export class CouchNano extends EventEmitter
                 callback changes
 
             ..on \error, (error) ~>
-                @log.log "error is: ", error
+                @log.error "error is: ", error
 
             ..follow!
 
