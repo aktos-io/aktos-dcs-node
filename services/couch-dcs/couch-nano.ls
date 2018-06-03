@@ -326,9 +326,13 @@ export class CouchNano extends EventEmitter
                 callback changes
 
             ..on \error, (error) ~>
-                @log.error "error is: ", error
+                @log.err "error is: ", error
 
             ..follow!
+
+        @on \refresh-cookie, ~>
+            @log.debug "Cookie is refreshed. We will re-follow!"
+            feed.follow!
 
     get-all-views: (callback) ->
         views = []
