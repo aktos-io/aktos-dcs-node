@@ -224,13 +224,6 @@ export class CouchDcsServer extends Actor
                 # insert chain
                 <~ insert-chain msg, \before-put
 
-                <~ :lo(op) ~>
-                    if @has-listener \before-put
-                        <~ @trigger \before-put, msg
-                        return op!
-                    else
-                        return op!
-
                 # Apply server side attributes
                 # ---------------------------
                 i = 0;
