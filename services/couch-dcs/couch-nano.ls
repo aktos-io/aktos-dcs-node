@@ -327,6 +327,8 @@ export class CouchNano extends EventEmitter
 
             ..on \error, (error) ~>
                 @log.err "error is: ", error
+                @log.debug "We have an error, re-following."
+                feed.follow!
 
             ..follow!
 
