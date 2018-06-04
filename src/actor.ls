@@ -338,12 +338,12 @@ export class Actor extends EventEmitter
                                 #@log.log "received a message to concatenate: ", msg
                                 message `merge` msg
                                 if msg.part is LAST_PART
-                                    handler message
+                                    handler.call this, message
                                     delete @_request_concat_cache[request-id]
                     @_request_concat_cache[request-id] msg
                 else
                     # simple message, forward as is
-                    handler msg
+                    handler.call this, msg
 
         # for "trigger-topic" method to work
         @_route_handlers[][route].push handler
