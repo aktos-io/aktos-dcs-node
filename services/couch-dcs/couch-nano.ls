@@ -333,8 +333,8 @@ export class CouchNano extends EventEmitter
             ..follow!
 
         @on \refresh-cookie, ~>
-            @log.debug "Cookie is refreshed. We will re-follow!"
-            feed.follow!
+            @log.debug "Cookie is refreshed. Can we still follow?"
+            #feed.follow!
 
     get-all-views: (callback) ->
         views = []
