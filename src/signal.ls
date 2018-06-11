@@ -46,15 +46,14 @@ export class Signal
         params = unless error then @response else []
         @error = error?.reason
         {handler, ctx} = @callback
-        if @debug => @log.debug "signal is being fired with err: ", @error, "res: ", ...params
-        due-date = Date.now!
+        t0 = Date.now!
         err = @error
         @reset!
         set-immediate ~>
             handler.call ctx, err, ...params
-            if @debug => @log.debug "signal is actually fired."
-            if Date.now! - due-date > 100ms
-                @log.warn "System seems busy now? Actual firing took place after #{Date.now! - due-date}ms"
+            if @debug => @log.debug "...signal has been fired."
+            if Date.now! - t0 > 100ms
+                @log.warn "System seems busy now? Actual firing took place after #{Date.now! - t0}ms"
 
     wait: (timeout, callback) ->
         # normalize arguments
