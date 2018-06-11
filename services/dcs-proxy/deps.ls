@@ -1,4 +1,5 @@
 require! '../../lib': {sleep, pack, unpack, Logger, clone}
+require! '../../lib/debug-tools': {brief}
 require! '../../src/auth-request': {AuthRequest}
 require! '../../src/signal':{Signal}
 require! '../../src/actor': {Actor}
@@ -11,4 +12,5 @@ module.exports = {
     AuthRequest, AuthHandler
     topic-match, Actor
     Signal
+    brief
 }

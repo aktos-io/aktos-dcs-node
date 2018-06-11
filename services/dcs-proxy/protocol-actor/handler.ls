@@ -1,4 +1,4 @@
-require! '../deps': {AuthHandler, pack, unpack, Actor, topic-match}
+require! '../deps': {AuthHandler, pack, unpack, Actor, topic-match, brief}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-cyan}
 require! 'prelude-ls': {split, flatten, split-at, empty}
 require! './helpers': {MessageBinder}
@@ -46,11 +46,12 @@ export class ProxyHandler extends Actor
         @on do
             receive: (msg) ~>
                 try
+                    aaa = Date.now!
                     msg
                     |> (m) ~>
                         if m.debug
-                            @log.debug "Forwarding from DCS to Transport: ", m
-                        return m 
+                            @log.debug "Forwarding from DCS to Transport: ", brief m
+                        return m
                     |> (m) ~>
                         try
                             if m.re?
@@ -85,7 +86,18 @@ export class ProxyHandler extends Actor
 
                         return m
                     |> pack
+                    |> (s) ~>
+                        @log.debug "writing size: #{s.length}"
+                        /*
+                        {size: s.length}
+                        |> pack
+                        |> @transport.write
+                        */
+                        return s
                     |> @transport.write
+
+                    if msg.debug
+                        @log.debug "sending took: #{Date.now! - aaa}ms"
                 catch
                     switch e.type
                     | "NORMAL" => null
@@ -98,12 +110,12 @@ export class ProxyHandler extends Actor
         @m = new MessageBinder!
         @transport
             ..on "data", (data) ~>
-                #@log.log "________data:", data.to-string!
+                #@log.debug "________data: #{parse-int data.to-string!.length/1024}KB"
                 for msg in @m.append data
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager
                     if msg.debug
-                        @log.debug "Transport to DCS:", msg
+                        @log.debug "Transport to DCS:", brief msg
 
                     if \auth of msg
                         #@log.log green "received auth message: ", msg
@@ -125,7 +137,7 @@ export class ProxyHandler extends Actor
                         catch
                             if e.type is \AuthError
                                 @log.warn "Authorization failed, dropping message."
-                                @log.warn "dropped message: ", msg
+                                @log.warn "dropped message: ", brief msg
                             else
                                 throw e
 

@@ -22,6 +22,10 @@ function unpack-telegrams data
     catch
         throw e
 
+    if _first-telegram?.size
+        console.log "_first telegram is: ", _first-telegram
+        throw
+
     packets = flatten [_first-telegram, unpack-telegrams _rest]
     return packets
 
@@ -61,4 +65,5 @@ export class MessageBinder
         catch
             #@log.err bg-red "Problem while unpacking data, trying to cache.", e
             []
+
         return res

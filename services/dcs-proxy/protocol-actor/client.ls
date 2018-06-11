@@ -1,6 +1,6 @@
 require! '../deps': {
     AuthRequest, sleep, pack, unpack
-    Signal, Actor, topic-match, clone
+    Signal, Actor, topic-match, clone, brief
 }
 require! 'colors': {bg-red, red, bg-yellow, green, bg-green}
 require! 'prelude-ls': {split, flatten, split-at, empty, reject}
@@ -22,6 +22,9 @@ Takes a transport, transparently connects two DCS networks with each other.
 on login: emit "app.dcs.connect" message.
 
 '''
+
+
+
 export class ProxyClient extends Actor
     (@transport, @opts) ->
         super (@opts.name  or \ProxyClient)
@@ -66,7 +69,7 @@ export class ProxyClient extends Actor
                 msg
                 |> (m) ~>
                     if m.debug
-                        @log.debug "Forwarding DCS to transport: ", m
+                        @log.debug "Forwarding DCS to transport: ", brief m
                     if m.re?
                         response-id = "#{m.to}"
                         #@log.debug "this is a response message: #{response-id}"
@@ -77,10 +80,18 @@ export class ProxyClient extends Actor
                     return m
                 |> @auth.add-token
                 |> pack
+                |> (s) ~>
+                    /*
+                    {size: s.length}
+                    |> pack
+                    |> @transport.write
+                    */
+                    return s
                 |> @transport.write
 
         # Transport to DCS
         @m = new MessageBinder!
+        total-delay = 0
         @transport
             ..on \connect, ~>
                 @connected = yes
@@ -97,15 +108,23 @@ export class ProxyClient extends Actor
                 @send 'app.dcs.disconnect'
 
             ..on "data", (data) ~>
-                for msg in @m.append data
+                a = Date.now!
+                len = data.to-string!.length/1024
+                @log.debug "___received chunK: #{len}KB"
+                x = @m.append data
+                total-delay := total-delay + (Date.now! - a)
+                for msg in x
+                    @log.debug "....time spent for concatenating: #{total-delay}ms"
+                    total-delay := 0
+
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager
                     if \auth of msg
                         #@log.log "received auth message, forwarding to AuthRequest."
                         @auth.inbox msg
                     else
-                        if msg.debug 
-                            @log.debug "Forwarding Transport to DCS:", msg
+                        if msg.debug
+                            @log.debug "Forwarding Transport to DCS:", brief msg
                         if msg.req
                             # subscribe for possible response
                             response-route = "#{msg.from}"
