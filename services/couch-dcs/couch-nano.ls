@@ -4,6 +4,7 @@ require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
 require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
 require! 'cloudant-follow': follow
 require! '../../src/signal': {Signal}
+require! 'request'
 
 UNAUTHORIZED = 401
 FORBIDDEN = 403
@@ -41,7 +42,6 @@ export class CouchNano extends EventEmitter
 
         @retry-timeout = 100ms
         @max-delay = 12_000ms
-
         @security-is-okay = no
 
     request: (opts, callback) ~>
@@ -141,6 +141,8 @@ export class CouchNano extends EventEmitter
             if headers['set-cookie']
                 # connection is successful
                 @cookie = that
+                @trigger \refresh-cookie
+
         callback err
 
     invalidate: ->
@@ -290,13 +292,22 @@ export class CouchNano extends EventEmitter
             <~ sleep 2000ms
             lo(op)
 
+        j = request.jar!
         default-opts =
             db: "#{@cfg.url}/#{@db-name}"
             headers:
                 'X-CouchDB-WWW-Authenticate': 'Cookie'
-                cookie: @cookie
+                cookie: 'somegarbage'
             feed: 'continuous'
             since: 'now'
+            http-agent:
+                jar: j
+
+        do update-cookie = ~>
+            url = @cfg.url
+            cookie = request.cookie @cookie.0
+            #@log.debug "Setting cookie for ", url
+            j.set-cookie cookie, url
 
         options = default-opts `merge` opts
         feed = new follow.Feed options
@@ -327,14 +338,13 @@ export class CouchNano extends EventEmitter
 
             ..on \error, (error) ~>
                 @log.err "error is: ", error
-                err <~ @connect
-                @log.debug "We had an error, re-following."
-
-            ..follow!
 
         @on \refresh-cookie, ~>
-            @log.debug "Cookie is refreshed. Can we still follow?"
-            #feed.follow!
+            #@log.debug "Cookie is refreshed. We should be still able to follow."
+            update-cookie!
+
+        update-cookie!
+        feed.follow!
 
     get-all-views: (callback) ->
         views = []
