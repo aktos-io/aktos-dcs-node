@@ -1,6 +1,7 @@
 require! 'prelude-ls': {reject, find}
 require! './topic-match': {topic-match: route-match}
 require! '../lib': {Logger, sleep, hex}
+require! '../lib/debug-tools': {brief}
 
 
 export class ActorManager
@@ -29,7 +30,7 @@ export class ActorManager
         @actors = reject (.id is actor.id), @actors
 
     distribute: (msg, sender) ->
-        if msg.debug => @log.debug "Distributing message: ", msg
+        if msg.debug => @log.debug "Distributing message: ", brief msg
         due-date = Date.now!
         for actor in @actors when actor.id isnt sender
             #@log.log "looking for #{msg.to} to be matched in #{actor.subscriptions}"

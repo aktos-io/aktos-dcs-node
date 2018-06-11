@@ -1,4 +1,5 @@
 require! '../lib': {sleep, pack, EventEmitter, Logger, merge}
+require! '../lib/debug-tools': {brief}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
 require! 'prelude-ls': {split, flatten, keys, unique, is-it-NaN}
@@ -279,16 +280,17 @@ export class Actor extends EventEmitter
             data
             re: req.seq
             res-token: req.res-token
+            debug: req.debug
         } <<< meta
 
 
         if req.debug or meta.debug
-            @log.debug "sending the response for request: ", enveloped
+            @log.debug "sending the response for request: ", brief enveloped
         @send-enveloped enveloped
 
     _inbox: (msg) ->
         #@log.log "Got message to inbox:", (JSON.stringify msg).length
-        if @debug or msg.debug => @log.debug "Got msg to inbox: ", msg
+        if @debug or msg.debug => @log.debug "Got msg to inbox: ", brief msg
 
         if @_state.kill-finished
             debugger
