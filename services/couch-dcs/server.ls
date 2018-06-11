@@ -94,12 +94,16 @@ export class CouchDcsServer extends Actor
             ..start-heartbeat!
 
         get-next-id = (template, callback) ~>
+            # returns
+            #   * Next available ID there is a template supplied
+
             # returns the next available `_id`
             # if template format is applicable for autoincrementing, return the incremented id
             # if template format is not correct, return the `_id` as is
             unless template
                 return callback err={
                     reason: "No template is supplied for autoincrement"
+                    code: 'NOTPL'
                     }, null
             # handle autoincrement values here.
             autoinc = template.split /#{4,}/
@@ -224,14 +228,21 @@ export class CouchDcsServer extends Actor
                 # insert chain
                 <~ insert-chain msg, \before-put
 
+                err = null
+                res = null
                 # Apply server side attributes
                 # ---------------------------
                 i = 0;
                 <~ :lo(op) ~>
                     return op! if i > (docs.length - 1)
-                    err, next-id <~ get-next-id docs[i]._id
-                    unless err
+                    _err, next-id <~ get-next-id docs[i]._id
+                    if _err and _err.code isnt \NOTPL
+                        err := _err
+                        return op!
+
+                    unless _err 
                         docs[i]._id = next-id
+
 
                     # FIXME: "Set unless null" strategy can be hacked in the client
                     # (client may set it to any value) but the original value is kept
@@ -253,9 +264,8 @@ export class CouchDcsServer extends Actor
                     i++
                     lo(op)
 
+                if err then return @send-and-echo msg, {err, res}
                 # Write to database
-                err = null
-                res = null
                 <~ :lo(op) ~>
                     if docs.length is 1
                         _err, _res <~ @db.put docs.0
