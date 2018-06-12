@@ -1,33 +1,37 @@
 require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! '../deps': {pack, unpack, Logger}
-require! 'prelude-ls': {split, flatten, split-at}
+require! 'prelude-ls': {split, flatten, split-at, compact}
 
 
 function unpack-telegrams data
     """
-    Search for valid JSON parts recursively
+    Search for valid JSON telegrams recursively
     """
-    if typeof! data isnt \String
-        return []
-
     boundary = data.index-of '}{'
-    if boundary > -1
-        [_first, _rest] = split-at (boundary + 1), data
-    else
-        _first = data
-        _rest = null
+    [_first, _rest] = compact split-at (boundary + 1), data
+    #console.log "first len: #{_first.length}, rest length: #{_rest?length}"
 
-    _first-telegram = try
-        unpack _first
+    next-size = 0
+    try
+        _first-telegram = unpack _first
     catch
-        throw e
+        #console.log "we don't have the whole telegram? ", data
+        return [[], data, next-size]
 
-    if _first-telegram?.size
-        console.log "_first telegram is: ", _first-telegram
-        throw
+    if _first-telegram?size
+        next-size = that
+        #console.log "size is: #{that}"
 
-    packets = flatten [_first-telegram, unpack-telegrams _rest]
-    return packets
+    [rest-telegram, rest-str, a] = if _rest
+        #console.log "there was a rest...................", _rest.length
+        unpack-telegrams _rest
+    else
+        [[], '', 0]
+
+    #console.log "rest telegram: ", rest-telegram, "rest string is: ", rest-str
+
+    packets = flatten [_first-telegram, rest-telegram]
+    return [packets, rest-str, next-size]
 
 export class MessageBinder
     ->
@@ -37,6 +41,7 @@ export class MessageBinder
         @heartbeat = 0
         const @timeout = 400ms
         @max-try = 1200_chunks
+        @next-size = 0
 
     append: (data) ->
         if typeof! data is \Uint8Array
@@ -45,11 +50,16 @@ export class MessageBinder
 
         if @heartbeat < Date.now! - @timeout
             # there is a long time since last data arrived. do not cache anything
-            @cache = data
+            @cache = ''
             @i = 0
-        else
-            @cache += data
-            @i++
+
+        @cache += data
+        if @next-size > 0
+            if @cache.length < @next-size
+                return []
+            else
+                @next-size = 0 
+        @i++
 
         if @i > @max-try
             @log.err bg-red "Caching isn't enough, giving up."
@@ -57,13 +67,14 @@ export class MessageBinder
             @cache = data
 
         @heartbeat = Date.now!
-        res = try
-            x = unpack-telegrams @cache
-            @cache = ""
-            @i = 0
-            x
-        catch
-            #@log.err bg-red "Problem while unpacking data, trying to cache.", e
-            []
+
+        [res, y, size] = unpack-telegrams @cache
+        #console.log "rest of cache is: ", y
+        #console.log "unpacked: ", x
+        console.log "Next size is: #{size}"
+        if size > 0
+            @next-size = size
+        @cache = y
+        @i = 0
 
         return res

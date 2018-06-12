@@ -81,11 +81,9 @@ export class ProxyClient extends Actor
                 |> @auth.add-token
                 |> pack
                 |> (s) ~>
-                    /*
                     {size: s.length}
                     |> pack
                     |> @transport.write
-                    */
                     return s
                 |> @transport.write
 
@@ -109,8 +107,8 @@ export class ProxyClient extends Actor
 
             ..on "data", (data) ~>
                 a = Date.now!
-                len = data.to-string!.length/1024
-                @log.debug "___received chunK: #{len}KB"
+                #len = data.to-string!.length/1024
+                #@log.debug "___received chunk: #{len}KB"
                 x = @m.append data
                 total-delay := total-delay + (Date.now! - a)
                 for msg in x

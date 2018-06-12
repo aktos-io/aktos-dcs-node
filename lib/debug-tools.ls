@@ -3,5 +3,6 @@ export brief = (msg) ->
     for k, v of msg
         continue if k is \data
         s[k] = v
-    s.data = "..."
+    if msg.data
+        s.data = "...#{JSON.stringify msg.data .length}..."
     return s

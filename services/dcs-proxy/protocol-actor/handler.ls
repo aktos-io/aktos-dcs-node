@@ -87,12 +87,10 @@ export class ProxyHandler extends Actor
                         return m
                     |> pack
                     |> (s) ~>
-                        @log.debug "writing size: #{s.length}"
-                        /*
+                        #@log.debug "writing size: #{s.length}"
                         {size: s.length}
                         |> pack
                         |> @transport.write
-                        */
                         return s
                     |> @transport.write
 
