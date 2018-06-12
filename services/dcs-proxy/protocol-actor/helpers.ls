@@ -2,6 +2,22 @@ require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
 require! '../deps': {pack, unpack, Logger}
 require! 'prelude-ls': {split, flatten, split-at, compact}
 
+'''
+Method: Concatenated JSON + Lenght Prefixed JSON (https://en.wikipedia.org/wiki/JSON_streaming)
+
+Concatenated JSON is valid:
+
+    {"from":"...",to:"...",...}{"from":"...",to:"...",...}
+
+Magic packet prefixes is also valid:
+
+    {size:12345}{"from":"...",to:"...",...}
+
+...where the "{size: xxx}" packet tells the following JSON length, which dramatically
+saves the time and CPU power for large messages.
+
+'''
+
 
 function unpack-telegrams data
     """
@@ -20,7 +36,8 @@ function unpack-telegrams data
 
     if _first-telegram?size
         next-size = that
-        #console.log "size is: #{that}"
+        # this is a magic packet, not a real packet, remove it
+        _first-telegram = null
 
     [rest-telegram, rest-str, a] = if _rest
         #console.log "there was a rest...................", _rest.length
@@ -30,7 +47,7 @@ function unpack-telegrams data
 
     #console.log "rest telegram: ", rest-telegram, "rest string is: ", rest-str
 
-    packets = flatten [_first-telegram, rest-telegram]
+    packets = compact flatten [_first-telegram, rest-telegram]
     return [packets, rest-str, next-size]
 
 export class MessageBinder
@@ -58,7 +75,7 @@ export class MessageBinder
             if @cache.length < @next-size
                 return []
             else
-                @next-size = 0 
+                @next-size = 0
         @i++
 
         if @i > @max-try
@@ -71,7 +88,7 @@ export class MessageBinder
         [res, y, size] = unpack-telegrams @cache
         #console.log "rest of cache is: ", y
         #console.log "unpacked: ", x
-        console.log "Next size is: #{size}"
+        #console.log "Next size is: #{size}"
         if size > 0
             @next-size = size
         @cache = y

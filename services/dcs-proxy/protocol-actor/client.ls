@@ -106,13 +106,14 @@ export class ProxyClient extends Actor
                 @send 'app.dcs.disconnect'
 
             ..on "data", (data) ~>
-                a = Date.now!
+                t0 = Date.now!
                 #len = data.to-string!.length/1024
                 #@log.debug "___received chunk: #{len}KB"
                 x = @m.append data
-                total-delay := total-delay + (Date.now! - a)
+                total-delay := total-delay + (Date.now! - t0)
                 for msg in x
-                    @log.debug "....time spent for concatenating: #{total-delay}ms"
+                    if total-delay > 100ms
+                        @log.debug "....time spent for concatenating: #{total-delay}ms"
                     total-delay := 0
 
                     # in "client mode", authorization checks are disabled
