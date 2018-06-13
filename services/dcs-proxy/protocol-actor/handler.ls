@@ -15,7 +15,7 @@ export class ProxyHandler extends Actor
         super opts.name
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
         @request-table = {}
-        @_transport_busy = no 
+        @_transport_busy = no
 
         @auth = new AuthHandler opts.db, opts.name
             ..on \to-client, (msg) ~>
@@ -29,6 +29,7 @@ export class ProxyHandler extends Actor
 
             ..on \login, (ctx) ~>
                 @log.prefix = ctx.user
+                @user = ctx.user
                 @subscriptions = []  # renew all subscriptions
                 unless empty (ctx.routes or [])
                     @log.info "subscribing routes: "
@@ -53,16 +54,14 @@ export class ProxyHandler extends Actor
                     sleep 500ms, ~>
                         @trigger \receive, msg
                     return
-                @_transport_busy = yes
 
                 try
-                    aaa = Date.now!
+                    @_transport_busy = yes
+                    t0 = Date.now!
                     msg
                     |> (m) ~>
                         if m.debug
                             @log.debug "Forwarding from DCS to Transport: ", brief m
-                        return m
-                    |> (m) ~>
                         try
                             if m.re?
                                 # this is a response, check if we were expecting it
@@ -91,9 +90,17 @@ export class ProxyHandler extends Actor
 
                         unless m.from `topic-match` "@#{m.user}.**"
                             message = "Dropping user specific route message"
-                            @log.debug message, m
+                            if m.debug
+                                @log.debug message, brief m
                             throw {type: \NORMAL, message}
 
+                        if m.to.0 is \@
+                            # this is a username specific route
+                            unless m.to `topic-match` "@#{@user}.**"
+                                message = "Dropping user specific route message (to: #{m.to}, user: #{@user})"
+                                if m.debug
+                                    @log.debug message #, brief m
+                                throw {type: \NORMAL, message}
                         return m
                     |> pack
                     |> (s) ~>
@@ -104,13 +111,15 @@ export class ProxyHandler extends Actor
                         return s
                     |> @transport.write
 
-                    @_transport_busy = no
                     if msg.debug
-                        @log.debug "sending took: #{Date.now! - aaa}ms"
+                        @log.debug "sending took: #{Date.now! - t0}ms"
                 catch
                     switch e.type
                     | "NORMAL" => null
                     |_ => @log.err e.message
+
+                finally
+                    @_transport_busy = no
 
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"

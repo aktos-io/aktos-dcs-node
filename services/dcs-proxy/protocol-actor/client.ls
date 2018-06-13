@@ -34,7 +34,7 @@ export class ProxyClient extends Actor
         @role = \client
         @connected = no
         @session = null
-        @_transport_busy = no 
+        @_transport_busy = no
 
         # Authentication protocol
         @auth = new AuthRequest @name
@@ -139,7 +139,8 @@ export class ProxyClient extends Actor
                         if msg.req
                             # subscribe for possible response
                             response-route = "#{msg.from}"
-                            #@log.debug "Transient subscription to response route: #{response-route}"
+                            if msg.debug
+                                @log.debug "Transient subscription to response route: #{response-route}"
                             @subscribe response-route
                             #console.log "subscriptions: ", @subscriptions
                         if msg.re?
@@ -180,6 +181,8 @@ export class ProxyClient extends Actor
             # error: if present, it means we didn't logged in succesfully.
             unless error
                 @session = res.auth.session
+                #@log.debug "Current @session.routes: ", @subscriptions
+                #@log.debug "Routes from server: ", @session.routes
                 @subscriptions ++= @session.routes
                 @log.info "Remote route subscriptions: "
                 for flatten [@subscriptions] => @log.info "->  #{..}"
