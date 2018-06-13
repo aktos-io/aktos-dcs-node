@@ -1,4 +1,4 @@
-require! '../deps': {AuthHandler, pack, unpack, Actor, topic-match, brief}
+require! '../deps': {AuthHandler, pack, unpack, Actor, topic-match, brief, sleep}
 require! 'colors': {bg-red, red, bg-yellow, green, bg-cyan}
 require! 'prelude-ls': {split, flatten, split-at, empty}
 require! './helpers': {MessageBinder}
