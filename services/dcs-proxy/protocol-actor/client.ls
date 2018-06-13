@@ -34,6 +34,7 @@ export class ProxyClient extends Actor
         @role = \client
         @connected = no
         @session = null
+        @_transport_busy = no 
 
         # Authentication protocol
         @auth = new AuthRequest @name
@@ -66,6 +67,15 @@ export class ProxyClient extends Actor
                 # debug
                 #@log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
                 #@log.log "... #{pack msg.data}"
+                if @_transport_busy
+                    @log.err "Transport was busy, we shouldn't try to send ", msg
+                    @log.info "...will retry to write to transport in 500ms."
+                    debugger
+                    sleep 500ms, ~>
+                        @trigger \receive, msg
+                    return
+
+                @_transport_busy = yes
                 msg
                 |> (m) ~>
                     if m.debug
@@ -86,6 +96,8 @@ export class ProxyClient extends Actor
                     |> @transport.write
                     return s
                 |> @transport.write
+
+                @_transport_busy = no
 
         # Transport to DCS
         @m = new MessageBinder!

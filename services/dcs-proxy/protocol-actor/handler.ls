@@ -15,6 +15,7 @@ export class ProxyHandler extends Actor
         super opts.name
         @log.log ">>=== New connection from the client is accepted. name: #{@name}"
         @request-table = {}
+        @_transport_busy = no 
 
         @auth = new AuthHandler opts.db, opts.name
             ..on \to-client, (msg) ~>
@@ -45,6 +46,15 @@ export class ProxyHandler extends Actor
         # DCS to Transport
         @on do
             receive: (msg) ~>
+                if @_transport_busy
+                    @log.err "Transport was busy, we shouldn't try to send ", msg
+                    @log.info "...will retry to write to transport in 500ms."
+                    debugger
+                    sleep 500ms, ~>
+                        @trigger \receive, msg
+                    return
+                @_transport_busy = yes
+
                 try
                     aaa = Date.now!
                     msg
@@ -94,6 +104,7 @@ export class ProxyHandler extends Actor
                         return s
                     |> @transport.write
 
+                    @_transport_busy = no
                     if msg.debug
                         @log.debug "sending took: #{Date.now! - aaa}ms"
                 catch
