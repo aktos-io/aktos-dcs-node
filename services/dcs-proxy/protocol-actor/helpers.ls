@@ -69,6 +69,7 @@ export class MessageBinder
             # there is a long time since last data arrived. do not cache anything
             @cache = ''
             @i = 0
+            @next-size = 0
 
         @cache += data
         if @next-size > 0
@@ -82,6 +83,7 @@ export class MessageBinder
             @log.err bg-red "Caching isn't enough, giving up."
             @i = 0
             @cache = data
+            @next-size = 0
 
         @heartbeat = Date.now!
 
