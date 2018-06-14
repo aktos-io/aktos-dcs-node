@@ -29,7 +29,7 @@ export class ProxyHandler extends Actor
 
             ..on \login, (ctx) ~>
                 @log.prefix = ctx.user
-                @user = ctx.user
+                @myuser = ctx.user
                 @subscriptions = []  # renew all subscriptions
                 unless empty (ctx.routes or [])
                     @log.info "subscribing routes: "
@@ -85,11 +85,14 @@ export class ProxyHandler extends Actor
                                 return m
                         catch
                             # still move forward if it has carbon copy attribute
-                            unless m.cc
+                            if m.cc
+                                null
+                            else
                                 throw e
 
+                        # Check that
                         unless m.from `topic-match` "@#{m.user}.**"
-                            message = "Dropping user specific route message"
+                            message = "Hacking? #{m.from} can' come from #{m.user}"
                             throw {type: \NORMAL, message}
 
                         # any user can send its own domain messages to
@@ -98,9 +101,9 @@ export class ProxyHandler extends Actor
                         #   @db can't send to user foo's @cca route (because @db is a different user from @foo)
                         #   @db _can_ send to user foo's @db route
                         if m.to.0 is \@
-                            if (not (m.to `topic-match` "@#{@user}.**")  # not sending to own user
-                                and not (m.to `topic-match` "@#{m.user}.**")) # message owner is not target route prefix
-                                message = "Dropping user specific route message (to: #{m.to}, user: #{@user})"
+                            if (not (m.to `topic-match` "@#{@myuser}.**")  # not sending to own user
+                                and not (m.to `topic-match` "@#{m.user}.**")) # not sending to own route
+                                message = "Dropping user specific route message (to: #{m.to}, user: #{@myuser})"
                                 throw {type: \NORMAL, message}
                         return m
                     |> pack
