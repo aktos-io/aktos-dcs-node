@@ -89,7 +89,7 @@ export class CouchDcsServer extends Actor
                         topic = "#{@params.subscribe}.change.view.#{view}"
                         @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
                         @log.todo "Take authorization into account while publishing changes!"
-                        @send topic, change
+                        @send {to: topic, -debug}, change
 
             ..start-heartbeat!
 
@@ -240,7 +240,7 @@ export class CouchDcsServer extends Actor
                         err := _err
                         return op!
 
-                    unless _err 
+                    unless _err
                         docs[i]._id = next-id
 
 

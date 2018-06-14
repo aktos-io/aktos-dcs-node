@@ -123,9 +123,10 @@ export class Actor extends EventEmitter
         @subscriptions.splice (@subscriptions.index-of route), 1
 
     send: (route, data) ~>
-        if typeof! route isnt \String
-            throw new TopicTypeError "Topic is not a string?", route
-        enveloped = {from: @me, to: route, data, seq: @msg-seq++}
+        if typeof! route is \String
+            route = {to: route}
+
+        enveloped = {from: @me, data, seq: @msg-seq++} <<< route
         @send-enveloped enveloped
 
     send-request: (opts, data, callback) ->

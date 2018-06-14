@@ -90,16 +90,17 @@ export class ProxyHandler extends Actor
 
                         unless m.from `topic-match` "@#{m.user}.**"
                             message = "Dropping user specific route message"
-                            if m.debug
-                                @log.debug message, brief m
                             throw {type: \NORMAL, message}
 
+                        # any user can send its own domain messages to
+                        # any listener that has been subscribed to its messages. eg:
+                        #
+                        #   @db can't send to user foo's @cca route (because @db is a different user from @foo)
+                        #   @db _can_ send to user foo's @db route
                         if m.to.0 is \@
-                            # this is a username specific route
-                            unless m.to `topic-match` "@#{@user}.**"
+                            if (not (m.to `topic-match` "@#{@user}.**")  # not sending to own user
+                                and not (m.to `topic-match` "@#{m.user}.**")) # message owner is not target route prefix
                                 message = "Dropping user specific route message (to: #{m.to}, user: #{@user})"
-                                if m.debug
-                                    @log.debug message #, brief m
                                 throw {type: \NORMAL, message}
                         return m
                     |> pack
@@ -113,7 +114,7 @@ export class ProxyHandler extends Actor
                 catch
                     switch e.type
                     | "NORMAL" =>
-                        if msg.debug => @log.debug "Dropping message (it's normal.)", brief msg
+                        if msg.debug => @log.debug "Dropping message (it's normal.)", e.message, brief msg
                     |_ => @log.err e.message
 
                 finally
