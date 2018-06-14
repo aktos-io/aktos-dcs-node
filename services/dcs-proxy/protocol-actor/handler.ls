@@ -105,21 +105,20 @@ export class ProxyHandler extends Actor
                     |> pack
                     |> (s) ~>
                         #@log.debug "writing size: #{s.length}"
-                        {size: s.length}
-                        |> pack
-                        |> @transport.write
-                        return s
+                        return (pack {size: s.length}) + s
                     |> @transport.write
 
                     if msg.debug
                         @log.debug "sending took: #{Date.now! - t0}ms"
                 catch
                     switch e.type
-                    | "NORMAL" => null
+                    | "NORMAL" =>
+                        if msg.debug => @log.debug "Dropping message (it's normal.)", brief msg
                     |_ => @log.err e.message
 
                 finally
                     @_transport_busy = no
+
 
             kill: (reason, e) ~>
                 @log.log "Killing actor. Reason: #{reason}"
@@ -128,7 +127,6 @@ export class ProxyHandler extends Actor
         @m = new MessageBinder!
         @transport
             ..on "data", (data) ~>
-                #@log.debug "________data: #{parse-int data.to-string!.length/1024}KB"
                 for msg in @m.append data
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager

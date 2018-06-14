@@ -229,7 +229,7 @@ export class Actor extends EventEmitter
                 @log.warn "Got response activity after killed?", error, message
                 return
             if error is \timeout
-                @log.warn "Request is timed out. Timeout was #{timeout}ms, seq: #{enveloped.seq}. req was:", enveloped
+                @log.warn "Request is timed out. Timeout was #{timeout}ms, seq: #{enveloped.seq}. req was:", brief enveloped
                 #debugger
             # Got the full messages (or error) at this point.
             @unsubscribe meta.to
@@ -296,7 +296,6 @@ export class Actor extends EventEmitter
             debugger
 
         msg.permissions = msg.permissions or []
-        ####<~ sleep 0
         <~ set-immediate  # IMPORTANT: this fixes message sequences
         if msg.re? and message-owner(msg) is @me
             # this is a response to this actor.

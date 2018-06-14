@@ -91,12 +91,13 @@ export class ProxyClient extends Actor
                 |> @auth.add-token
                 |> pack
                 |> (s) ~>
-                    {size: s.length}
-                    |> pack
-                    |> @transport.write
-                    return s
+                    if msg.debug
+                        @log.debug "Sending #{msg.seq}->#{msg.to} size: #{s.length}"
+                    return (pack {size: s.length}) + s
                 |> @transport.write
 
+                if msg.debug
+                    @log.debug "Data is sent."
                 @_transport_busy = no
 
         # Transport to DCS
@@ -119,8 +120,6 @@ export class ProxyClient extends Actor
 
             ..on "data", (data) ~>
                 t0 = Date.now!
-                #len = data.to-string!.length/1024
-                #@log.debug "___received chunk: #{len}KB"
                 x = @m.append data
                 total-delay := total-delay + (Date.now! - t0)
                 for msg in x

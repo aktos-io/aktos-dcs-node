@@ -287,11 +287,6 @@ export class CouchNano extends EventEmitter
             callback = opts
             opts = {}
 
-        <~ :lo(op) ~>
-            return op! if @connected
-            <~ sleep 2000ms
-            lo(op)
-
         j = request.jar!
         default-opts =
             db: "#{@cfg.url}/#{@db-name}"
@@ -328,7 +323,7 @@ export class CouchNano extends EventEmitter
             else
                 return op!
 
-        @log.log "___feeding #{options.view or '/'}"
+        #@log.log "___feeding #{options.view or '/'}"
         feed
             ..on \change, (changes) ~>
                 if options.view-function
