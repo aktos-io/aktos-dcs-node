@@ -39,11 +39,14 @@ function unpack-telegrams data
         # this is a magic packet, not a real packet, remove it
         _first-telegram = null
 
-    [rest-telegram, rest-str, a] = if _rest
+    rest-telegram = []
+    rest-str = ''
+    if _rest
         #console.log "there was a rest...................", _rest.length
-        unpack-telegrams _rest
-    else
-        [[], '', 0]
+        [rest-telegram, rest-str, a] = unpack-telegrams _rest
+        if next-size > 0 and rest-telegram.length > 0
+            next-size = 0
+
 
     #console.log "rest telegram: ", rest-telegram, "rest string is: ", rest-str
 
@@ -65,8 +68,18 @@ export class MessageBinder
             data = data.to-string!
         #@log.log "got message from network interface: ", data, (typeof! data)
 
+        # len = data.to-string!.length
+        # lens = if len < 200
+        #     data.to-string!
+        # else if len < 1000
+        #     "#{len} Bytes"
+        # else
+        #     "#{len/1024}KB"
+        # console.log "________data from transport: #{lens}"
+
         if @heartbeat < Date.now! - @timeout
             # there is a long time since last data arrived. do not cache anything
+            #console.log "dropping current cache:", @cache
             @cache = ''
             @i = 0
             @next-size = 0
@@ -74,6 +87,7 @@ export class MessageBinder
         @cache += data
         if @next-size > 0
             if @cache.length < @next-size
+                #console.log "cache isnt enough, returning: cache.length: #{@cache.length}, ns: #{@next-size}"
                 return []
             else
                 @next-size = 0
@@ -88,9 +102,9 @@ export class MessageBinder
         @heartbeat = Date.now!
 
         [res, y, size] = unpack-telegrams @cache
-        #console.log "rest of cache is: ", y
-        #console.log "unpacked: ", x
-        #console.log "Next size is: #{size}"
+        # console.log "rest of cache is: ", y
+        # console.log "unpacked: ", res
+        # console.log "Next size is: #{size}"
         if size > 0
             @next-size = size
         @cache = y
