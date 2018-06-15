@@ -35,8 +35,9 @@ export class DcsTcpServer
         server
             ..on \error, (e) ~>
                 if e.code is 'EADDRINUSE'
-                    @log.warn "Address in use, giving up."
+                    @log.err "Address in use, giving up."
                     server.close!
+                    throw "DCS server port (#{@port}) MUST be available."
 
             ..listen @port, ~>
                 @log.log "TCP DCS Server started on port #{bg-green @port}."

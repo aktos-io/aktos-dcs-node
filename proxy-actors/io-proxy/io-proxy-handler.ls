@@ -47,44 +47,34 @@ class LineUp
     (driver) ->
         if find (.driver is driver), @@drivers
             #console.log "Returning exitsting singular driver for: ", driver
-            return that.singular
+            return that.driver
         else
             #console.log "Initialized new Lined up driver for: ", driver
-            singular = new SingularDriver driver
-            @@drivers.push {driver, singular}
-            return singular
+            #singular = new SingularDriver driver
+            @@drivers.push {driver}
+            return driver
 
 
 export class IoProxyHandler extends Actor
     (handle, driver) ->
         unless handle.constructor.name is \IoHandle
             throw new CodingError "handle should be an instance of IoHandle class"
-        topic = handle.topic
-        topic or throw new CodingError "A topic MUST be provided to IoProxyHandler."
-        super topic
-        #@log.info "Initializing #{handle.topic}"
-        @subscribe "#{@name}.**"
-        @subscribe "app.logged-in"
-
-        /*
-        @on \kill, (reason) ~>
-            @log.log "KILLING ACTOR!!!"
-        */
+        route = handle.route
+        route or throw new CodingError "A route MUST be provided to IoProxyHandler."
+        super route
+        #@log.info "Initializing #{handle.route}"
 
         prev = null
-        RESPONSE_FORMAT = (err, curr) ->
-            {err, res: {curr, prev}}
-
         broadcast-value = (err, value) ~>
             #@log.log "Broadcasting err: ", err , "value: ", value
-            @send "#{@name}.read", RESPONSE_FORMAT(err, value)
+            @send "#{@name}.value", {err, val: value}
             if not err and value isnt prev
                 #@log.log "Store previous (broadcast) value (from #{prev} to #{curr})"
                 prev := value
 
         response-value = (msg) ~>
             (err, value) ~>
-                @send-response msg, RESPONSE_FORMAT(err, value)
+                @send-response msg, {err, val: value}
                 if not err and value isnt prev
                     #@log.log "Store previous (resp.) value (from #{prev} to #{curr})"
                     prev := value
@@ -109,42 +99,51 @@ export class IoProxyHandler extends Actor
                 @log.info "Watching for changes."
                 driver.watch-changes handle, broadcast-value
 
-
-        @on-topic "#{@name}.read", (msg) ~>
-            # send response directly to requester
-            #@log.warn "triggering response 'read'."
-            @trigger \read, handle, response-value(msg)
-
-        @on-topic "#{@name}.write", (msg) ~>
-            #@log.warn "triggering 'write'."
-            new-value = msg.payload.val
-            @trigger \write, handle, new-value, (err) ~>
-                if err
-                    # write failed, send response directly to the requester
-                    @send-response msg, {err: err}
-                else
-                    # write succeeded, broadcast the value
-                    broadcast-value err=null, new-value
+        @on-topic "#{@name}.value", (msg) ~>
+            if msg.data?.val?
+                #@log.debug "triggering 'write'."
+                new-value = msg.data.val
+                @trigger \write, handle, new-value, (err) ~>
+                    meta = {}
+                    data = {err}
+                    unless err
+                        #"write succeeded, broadcast the value" |> @log.debug
+                        meta.cc = "#{@name}.value"
+                        data.val = new-value
+                        prev := new-value
+                    @send-response msg, meta, data
+            else
+                "this is a read request" |> @log.debug
+                @trigger \read, handle, response-value(msg)
 
         @on-topic "#{@name}.update", (msg) ~>
             # send response directly to requester
             #@log.warn "triggering 'read' because update requested."
             @trigger \read, handle, response-value(msg)
 
-        @on-topic "app.logged-in", (msg) ~>
+        @on-topic "app.dcs.connect", (msg) ~>
             # broadcast the status
             #@log.warn "triggering broadcast 'read' because we are logged in."
-            @trigger \read, handle, broadcast-value
-
+            @trigger \_try_broadcast_state
 
         driver.on \connect, ~>
-            @log.info "Driver is connected, broadcasting current status"
-            @trigger \read, handle, broadcast-value
+            #@log.info "Driver is connected, broadcasting current status"
+            @trigger \_try_broadcast_state
+
 
         driver.on \disconnect, ~>
-            @log.info "Driver is disconnected, publish the error"
+            #@log.info "Driver is disconnected, publish the error"
             broadcast-value err="Target is disconnected."
 
-        # broadcast update on "power up"
-        #@log.warn "triggering broadcast 'read' because we are initialized now."
-        @trigger \read, handle, broadcast-value
+        @on '_try_broadcast_state', ~>
+            if driver.connected
+                @trigger \read, handle, broadcast-value
+            else
+                @log.info "Driver is not connected, skipping broadcasting."
+
+
+        # workaround till heartbeat implementation
+        <~ :lo(op) ~>
+            @trigger \read, handle, broadcast-value
+            <~ sleep 2000 + (Math.random! * 1000)  # wait between 2000ms and 3000ms
+            lo(op)

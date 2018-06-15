@@ -14,6 +14,44 @@ dump = (name, doc) ->
     console.log "#{name} :", JSON.stringify(doc, null, 2)
 
 
+/*------------------------------------------------------------------------------
+
+Topic is calculated (and validated) in the following way:
+
+    1. selector =
+        prefix
+        + doc.type or view name (kind of filter function)
+        + method (get, put, view, change, etc...)
+        + filter function
+        + ...more filter functions
+    2. find the best match in the opts.permissions with
+        "#{prefix}.#{method}.#{doc-type or view-name}.**"
+    3. use that match as the message topic.
+
+Example selector:
+
+    db.order.get -> db.order.get.full
+    db.order.put
+        # => put a document as is if its "type is order"
+    db.order.put.as-client
+        # => put a document if its type is order and passed through
+        "as-client" filter
+    db.view.orders/getOrders -> db.view.orders/getOrders.match-own-company
+        # => filter with "match-company" function
+    db.view.orders/getOrders -> db.view.orders/getOrders
+        # => get whole view
+    db.change.view.orders/getOrders
+
+    Example permissions:
+
+    db.put.order.as-client
+    db.*.order.as-client
+    db.*.order (which means full access to "type is order" document)
+
+
+-------------------------------------------------------------------------------*/
+
+
 export class CouchDcsServer extends Actor
     (@params) ->
         super (@params.name or \CouchDcsServer)
@@ -38,29 +76,34 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
+            /*
             ..follow (change) ~>
                 @log.log (bg-green "<<<<<<>>>>>>"), "publishing change on #{@name}:", change.id
-                for let topic in @subscriptions
-                    @send "#{topic}.changes.all", change
+                @send "#{event-route}.change.all"
+            */
 
             ..get-all-views (err, res) ~>
                 for let view in res
                     @log.log (bg-green "<<<_view_>>>"), "following view: #{view}"
                     @db.follow {view, +include_rows}, (change) ~>
-                        for let subs in @subscriptions
-                            topic = "#{subs}.changes.view.#{view}"
-                            @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
-                            @send topic, change
+                        topic = "#{@params.subscribe}.change.view.#{view}"
+                        @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
+                        @log.todo "Take authorization into account while publishing changes!"
+                        @send {to: topic, -debug}, change
 
             ..start-heartbeat!
 
         get-next-id = (template, callback) ~>
+            # returns
+            #   * Next available ID there is a template supplied
+
             # returns the next available `_id`
             # if template format is applicable for autoincrementing, return the incremented id
             # if template format is not correct, return the `_id` as is
             unless template
                 return callback err={
                     reason: "No template is supplied for autoincrement"
+                    code: 'NOTPL'
                     }, null
             # handle autoincrement values here.
             autoinc = template.split /#{4,}/
@@ -88,169 +131,169 @@ export class CouchDcsServer extends Actor
             else
                 return callback err=no, template
 
-        transaction-count = (callback) ~>
-            transaction-timeout = 10_000ms
-            err, res <~ @db.view "transactions/ongoing", {startkey: Date.now! - transaction-timeout, endkey: {}}
+        transaction-count = (timeout, callback) ~>
+            # transaction count must be handled by
+            date-limit = Date.now! - timeout
+            err, res <~ @db.view "transactions/ongoing", {startkey: date-limit, endkey: {}}
             count = (try res.0.value) or 0
             @log.log "total ongoing transaction: ", count
             callback count
 
+        insert-chain = (msg, name, timeout, callback) ~>
+            if typeof! timeout is \Function
+                callback = timeout
+                timeout = 20_000ms
+
+            # insert chain
+            if @has-listener name
+                #@log.log "...using listener which is already defined: #{name}"
+                <~ @trigger name, msg
+                callback!
+            else
+                @log.log "...sending ack with timeout: #{timeout}ms as if defined #{name}"
+                @send-response msg, {+part, timeout, +ack}, null
+                callback!
+
         @on \data, (msg) ~>
-            #@log.log "received payload: ", keys(msg.payload), "from ctx:", msg.ctx
+            #@log.log "received payload: ", keys(msg.data), "by:", msg.user
             # `put` message
-            if msg.payload.put?.type is \transaction
-                # handle the transaction
-                '''
-                Transaction follows this path:
-
-                  1. (Roundtrip 1) Check if there is an ongoing transaction. Fail if there is any.
-                  2. (Roundtrip 2) If there is no ongoing transaction, mark the transaction document as 'ongoing' and save
-                  3. (Roundtrip 3) At this step, there should be only 1 ongoing transaction. Fail if there are more than 1 ongoing
-                    transaction. (More than 1 ongoing transaction means more than one process checked and saw no
-                    ongoing transaction at the same time, and then put their ongoing transaction files concurrently)
-                  4. (Roundtrip 4 - Rollback Case) Perform any business logic here. If any stuff can't be less than zero or something like that, fail.
-                    Mark the transaction document state as `failed` (or something like that) to clear it from ongoing transactions
-                    list (to prevent performance impact of waiting transaction timeouts). This step is optional and there is
-                    no problem if it fails.
-                  5. (Roundtrip 4 - Commit Case) If everything is okay, mark transaction document state as 'done'.
-
-                This algorithm uses the following views:
-
-                        # _design/transactions
-                        views:
-                            ongoing:
-                                map: (doc) ->
-                                    if (doc.type is \transaction) and (doc.state is \ongoing)
-                                        emit doc.timestamp, 1
-
-                                reduce: (keys, values) ->
-                                    sum values
-
-                            balance:
-                                map: (doc) ->
-                                    if doc.type is \transaction and doc.state is \done
-                                        emit doc.from, (doc.amount * -1)
-                                        emit doc.to, doc.amount
-
-                                reduce: (keys, values) ->
-                                    sum values
-                '''
-
+            if msg.data.transaction is on
+                # handle the transaction, see ./transactions.md
                 @log.log bg-yellow "Handling transaction..."
-                doc = msg.payload.put
+                doc = msg.data.put
 
-                # Check if transaction document format is correct
-                unless (doc.from and doc.to) or doc.transactions
-                    return @send-and-echo msg, {err: "Missing source or destination", res: null}
-                @log.log "transaction doc is: ", doc
+                <~ insert-chain msg, \before-transaction
 
-                # Check if there is any ongoing transaction (step 1)
-                count <~ transaction-count
+                # Assign proper doc id
+                err, next-id <~ get-next-id doc._id
+                unless err => doc._id = next-id
+                unless doc._rev
+                    doc.timestamp = Date.now!
+                    doc.owner = (try msg.user) or \_process
+                doc.{}meta.modified = Date.now!
+
+
+                # Step 1: Check if there is any ongoing transaction
+                transaction-timeout = 10_000ms
+                count <~ transaction-count transaction-timeout
                 if count > 0
-                    @log.err bg-red "There is an ongoing transaction, giving up"
-                    return @send-and-echo msg, {err: "Ongoing transaction exists", res: null}
+                    err = "There is an ongoing transaction already, aborting...
+                        TODO: DO NOT FAIL IMMEDIATELY, ADD THIS TRANSACTION
+                        TO THE QUEUE."
+                    return @send-and-echo msg, {err}
 
-                # Put the ongoing transaction file to the db (step 2)
-                doc <<<< do
-                    state: \ongoing
-                    timestamp: Date.now!
-
+                # Step 2: Put the ongoing transaction file to the db
+                doc.transaction = \ongoing
                 err, res <~ @db.put doc
-                if err
-                    return @send-and-echo msg, {err: err, res: res or null}
+                if err => return @send-and-echo msg, {err, res}
+                doc <<< {_id: res.id, _rev: res.rev}
 
-                # update the document
-                doc <<<< {_id: res.id, _rev: res.rev}
+                if doc._deleted
+                    return @send-and-echo msg, {err, res}
 
-                # Ensure that there is no concurrent ongoing transactions (step 3)
-                count <~ transaction-count
+                # Step 3: Ensure that there is no concurrent ongoing transactions
+                count <~ transaction-count transaction-timeout
                 if count > 1
-                    return @send-and-echo msg, {err: "There are more than one ongoing?", res: res or null}
+                    err = "There can't be more than one ongoing transaction."
+                    return @send-and-echo msg, {err}
 
-                # Perform the business logic, rollback actively if needed. (step 4)
-                <~ :lo(op) ~>
-                    if doc.from isnt \outside
-                        # stock can not be less than zero
-                        err, res <~ @db.view 'transactions/balance', {key: doc.from}
-                        curr-amount = (try res.0.value) or 0
-                        if doc.amount > curr-amount
-                            err = "#{doc.from} can not be < 0 (curr: #{curr-amount}, wanted: #{doc.amount})"
-                            @send-and-echo msg, {err, res: null}
-                            doc.state = \failed
-                            err, res <~ @db.put doc
-                            if err => @log.warn "Failed to actively rollback. This will cause performance impacts only."
-                            @log.log bg-yellow "Transaction ROLLED BACK."
-                            return
+                # Step 4: Perform the business logic here
+                err <~ @trigger \transaction, @db, doc
+
+                # Step 5: Commit or abort the transaction
+                if err
+                    @send-and-echo msg, {err}
+                    doc.transaction = \failed
+                    return @db.put doc, (err, res) ~>
+                        if err
+                            @log.info "Failed to actively rollback.
+                                This will cause performance impacts only."
                         else
-                            return op!
-                    else
-                        return op!
+                            @log.info "Transaction ROLLED BACK."
 
-                # Commit the transaction (step 5)
-                doc.state = \done
+                doc.transaction = \done
                 err, res <~ @db.put doc
                 unless err
-                    @log.log bg-green "Transaction completed."
+                    @log.log bg-green "Transaction completed: #{doc._id}, #{doc._rev}"
                 else
                     @log.err "Transaction is not completed. id: #{doc._id}"
+                @send-and-echo msg, {err, res}
 
-                @send-and-echo msg, {err: err, res: res or null}
-
-
-            else if \put of msg.payload
-                docs = flatten [msg.payload.put]
+            else if \put of msg.data
+                msg.data.put = flatten [msg.data.put]
+                docs = msg.data.put
                 if empty docs
                     return @send-and-echo msg, {err: message: "Empty document", res: null}
 
+                # insert chain
+                <~ insert-chain msg, \before-put
+
+                err = null
+                res = null
                 # Apply server side attributes
                 # ---------------------------
-                # FIXME: "Set unless null" strategy can be hacked in the client
-                # (client may set it to any value) but the original value is kept
-                # in the first revision . Fetch the first version on request.
                 i = 0;
                 <~ :lo(op) ~>
                     return op! if i > (docs.length - 1)
-                    err, next-id <~ get-next-id docs[i]._id
-                    unless err
+                    _err, next-id <~ get-next-id docs[i]._id
+                    if _err and _err.code isnt \NOTPL
+                        err := _err
+                        return op!
+
+                    unless _err
                         docs[i]._id = next-id
 
-                    unless docs[i].timestamp
+
+                    # FIXME: "Set unless null" strategy can be hacked in the client
+                    # (client may set it to any value) but the original value is kept
+                    # in the first revision . Fetch the first version on request.
+                    unless docs[i]._rev
                         docs[i].timestamp = Date.now!
+                        docs[i].owner = (try msg.user) or \_process
+
+                    unless docs[i].timestamp
+                        @log.warn "Why don't we have a timestamp???"
+                        docs[i].timestamp = Date.now!
+
                     unless docs[i].owner
-                        docs[i].owner = if msg.ctx => that.user else \_process
+                        @log.warn "Why don't we have an owner???"
+                        docs[i].owner = (try msg.user) or \_process
+                    # End of FIXME
+
+                    docs[i].{}meta.modified = Date.now!
                     i++
                     lo(op)
 
+                if err then return @send-and-echo msg, {err, res}
                 # Write to database
-                if docs.length is 1
-                    err, res <~ @db.put docs.0
-                    @send-and-echo msg, {err: err, res: res or null}
-                else
-                    err, res <~ @db.bulk-docs docs
-
-                    if typeof! res is \Array and not err
-                        for res
-                            if ..error
-                                err = {error: message: 'Errors occurred, see the response'}
-                                break
-
-                    @send-and-echo msg, {err: err, res: res or null}
+                <~ :lo(op) ~>
+                    if docs.length is 1
+                        _err, _res <~ @db.put docs.0
+                        err := _err
+                        res := _res
+                        return op!
+                    else
+                        _err, _res <~ @db.bulk-docs docs
+                        err := _err
+                        res := _res
+                        if typeof! res is \Array and not err
+                            for res
+                                if ..error
+                                    err := {error: message: 'Errors occurred, see the response'}
+                                    break
+                        return op!
+                # send the response
+                @send-and-echo msg, {err, res}
 
             # `get` message
-            else if \get of msg.payload
-                if msg.payload.opts.custom
-                    # this message will be handled custom
-                    @trigger \custom-get, @db, msg.payload, (err, res) ~>
-                        console.log "...handled by custom handler"
-                        @send-and-echo msg, {err, res}
-                    return
-
-                multiple = typeof! msg.payload.get is \Array # decide response format
-                doc-id = msg.payload.get
+            else if \get of msg.data
+                <~ insert-chain msg, \before-get
+                multiple = typeof! msg.data.get is \Array # decide response format
+                doc-id = msg.data.get
                 doc-id = [doc-id] if typeof! doc-id is \String
                 doc-id = doc-id |> unique-by JSON.stringify
                 {String: doc-id, Array: older-revs} = doc-id |> group-by (-> typeof! it)
-                opts = msg.payload.opts or {}
+                opts = msg.data.opts or {}
                 opts.keys = doc-id or []
                 opts.include_docs = yes
                 #dump 'opts: ', opts
@@ -308,43 +351,50 @@ export class CouchDcsServer extends Actor
                 unless multiple
                     response := response?.0
                     error := error?.0
-                @send-and-echo msg, {err: error, res: response}
 
+                # perform the business logic here
+                if @has-listener \get
+                    err, res <~ @trigger \get, msg, error, response
+                    @send-and-echo msg, {err, res}
+                else
+                    @send-and-echo msg, {err, res}
 
             # `all-docs` message
-            else if \allDocs of msg.payload
-                err, res <~ @db.all-docs msg.payload.all-docs
+            else if \allDocs of msg.data
+                <~ insert-chain msg, \before-allDocs
+                err, res <~ @db.all-docs msg.data.all-docs
                 @send-and-echo msg, {err: err, res: res or null}
 
             # `view` message
-            else if \view of msg.payload
-                @log.log "view message received", pack msg.payload
-                err, res <~ @db.view msg.payload.view, msg.payload.opts
-                @send-and-echo msg, {err: err, res: (res or null)}
+            else if \view of msg.data
+                #@log.log "view message received", pack msg.data
+                <~ insert-chain msg, \before-view
+                err, res <~ @db.view msg.data.view, msg.data.opts
+                if @has-listener \view
+                    err, res <~ @trigger \view, msg, err, res
+                    @send-and-echo msg, {err, res}
+                else
+                    @send-and-echo msg, {err, res}
 
             # `getAtt` message (for getting attachments)
-            else if \getAtt of msg.payload
-                @log.log "get attachment message received", msg.payload
-                q = msg.payload.getAtt
+            else if \getAtt of msg.data
+                @log.log "get attachment message received", msg.data
+                <~ insert-chain msg, \before-getAtt, 30_000ms
+                q = msg.data.getAtt
                 err, res <~ @db.get-attachment q.doc-id, q.att-name, q.opts
-                @send-and-echo msg, {err: err, res: res or null}
+                @send-and-echo msg, {err, res}
 
-            else if \cmd of msg.payload
-                cmd = msg.payload.cmd
-                @log.warn "got a cmd:", cmd
-
-            else if \follow of msg.payload
-                @log.warn "DEPRECATED: follow message:", msg.payload
-                return
-
+            else if \custom of msg.data
+                <~ insert-chain msg, \before-custom
+                @log.err "Unhandled custom message:", msg.data
             else
-                err = reason: "Unknown method name: #{pack msg.payload}"
-                @send-and-echo msg, {err: err, res: null}
-
+                err = reason: "Unknown method name: #{pack msg.data}"
+                @send-and-echo msg, {err}
 
     send-and-echo: (orig, _new) ->
         if _new.err
              @log.log "error was : #{pack _new.err}"
         else
-            @log.log (green ">>>"), "responding for #{orig.topic}: #{pack _new .length} bytes"
+            @log.log (green ">>>"), "responding to #{orig.from}:#{orig.seq} (
+                #{pack _new .length} bytes)"
         @send-response orig, _new

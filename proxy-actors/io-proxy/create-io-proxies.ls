@@ -1,9 +1,13 @@
-require! '../../drivers'
 require! 'prelude-ls': {keys, first, compact, join}
 require! '../../lib/memory-map': {IoHandle}
 require! '../../lib/logger': {Logger}
 require! './io-proxy-handler': {IoProxyHandler}
 require! './io-proxy-client': {IoProxyClient}
+require! '../../src/errors': {CodingError}
+
+# default drivers (null by default)
+#require! '../../drivers'
+drivers = {}
 
 export create-io-proxies = (opts) ->
     log = new Logger \IoProxyCreator
@@ -24,19 +28,19 @@ export create-io-proxies = (opts) ->
                         driver-name = sub-table.driver |> keys |> first
                         driver-opts = sub-table.driver[driver-name]
 
-                    DeviceDriver = if driver-name of drivers
+                    DeviceDriver = if driver-name of (drivers or {})
                         drivers[driver-name]
-                    else if driver-name of opts.extra-drivers
-                        opts.extra-drivers[driver-name]
+                    else if driver-name of (opts.drivers or {})
+                        opts.drivers[driver-name]
                     else
                         #drivers['IoSimulatorDriver']
-                        throw new CodingError "Driver is required."
+                        throw new CodingError "Can not find #{driver-name}. Driver is required."
                         null
 
                     #log.log "using driver: ", DeviceDriver.constructor.name
-                    device =
-                        driver: new DeviceDriver driver-opts
-                        io-handles: [(new IoHandle params, "#{curr-namespace}.#{io}") for io, params of sub-table.handles]
+                    device = driver: new DeviceDriver driver-opts
+                    device.io-handles = for io, params of sub-table.handles
+                            new IoHandle params, "@#{opts.node}.#{curr-namespace}.#{io}"
 
                     device-list.push device
                 else
@@ -54,7 +58,7 @@ export create-io-proxies = (opts) ->
 ## Example Usage
 ->
     create-io-proxies do
-        extra-drivers: {TankSimulatorDriver}
+        drivers: {TankSimulatorDriver}
         devices:
             io:
                 'tank-simulator':

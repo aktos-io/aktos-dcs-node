@@ -1,0 +1,3 @@
+# Raspberry notes: 
+
+`npm rebuild`

@@ -16,6 +16,12 @@ export class SiemensS7Driver extends DriverAbstract
         @watches = {}
         @start!
         @log.todo "When do we stop?"
+        @connected = no
+        @on \connect, ~>
+            @connected = yes
+
+        @on \disconnect, ~>
+            @connected = no
 
     prepare-one-read: (address) ->
         @conn.removeItems!  # remove all items to prepare one reading
@@ -36,7 +42,7 @@ export class SiemensS7Driver extends DriverAbstract
         if @opts.readonly
             error = "READONLY, not writing the following: #{handle.address} <= #{value}"
             @log.warn error
-            return callback err
+            return callback error
         err <~ @conn.writeItems handle.address, value
         callback err
 
@@ -58,23 +64,26 @@ export class SiemensS7Driver extends DriverAbstract
             err, data <~ @conn.readAllItems
             if err
                 @log.log "something went wrong while reading values"
+                if @connected => @trigger \disconnect
             else
+                @log.info "Read some data: ", data 
+                unless @connected => @trigger \connect
                 # detect and send changes
                 for addr, _value of data
                     {handle, callback} = @watches[addr]
                     value = handle.get-meaningful _value
-                    #@log.log "value: ", handle.topic, handle.address, value
+                    #@log.log "value: ", handle.route, handle.address, value
                     if handle.prev? and abs(handle.prev - value) / value < (handle.threshold or 0.001)
                         #@log.info "Considered No-change: #{handle.prev} -> #{value}"
                         null
                     else
-                        #@log.log "#{handle.topic}  is changed: -> #{value}"
+                        #@log.log "#{handle.route}  is changed: -> #{value}"
                         callback err=null, value
                         handle.prev = value
             <~ sleep (@opts.period or 1500ms)
             lo(op)
 
     watch-changes: (handle, callback) ->
-        @log.log "Adding address of #{handle.topic} (#{handle.address}) to the read poll."
+        @log.log "Adding address of #{handle.route} (#{handle.address}) to the read poll."
         @watches[handle.address] = {handle, callback}
         @conn.addItems handle.address

@@ -1,15 +1,15 @@
 require! '../deps': {
     AuthRequest, sleep, pack, unpack
-    Signal, Actor, topic-match
+    Signal, Actor, topic-match, clone, brief
 }
 require! 'colors': {bg-red, red, bg-yellow, green, bg-green}
-require! 'prelude-ls': {split, flatten, split-at, empty}
+require! 'prelude-ls': {split, flatten, split-at, empty, reject}
 require! './helpers': {MessageBinder}
 
-"""
+'''
 Description
 -------------
-This is a Protocol Actor: A Connector without transport
+This is a Protocol Actor: A service without transport
 
     * Message format: Transparent,
     * Has Actor,
@@ -17,10 +17,14 @@ This is a Protocol Actor: A Connector without transport
 
 Takes a transport, transparently connects two DCS networks with each other.
 
+## Events:
 
-on login: emit "app.logged-in"
+on login: emit "app.dcs.connect" message.
 
-"""
+'''
+
+
+
 export class ProxyClient extends Actor
     (@transport, @opts) ->
         super (@opts.name  or \ProxyClient)
@@ -29,86 +33,131 @@ export class ProxyClient extends Actor
         # actor behaviours
         @role = \client
         @connected = no
-        @permissions-rw = []
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        @this-actor-is-a-proxy = yes # THIS IS VERY IMPORTANT
-        # responses to the requests will be silently dropped otherwise
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
+        @session = null
+        @_transport_busy = no
 
         # Authentication protocol
         @auth = new AuthRequest @name
-            ..on \to-server, (msg) ~>
+            ..write = (msg) ~>
                 @transport.write pack msg
 
-            ..on \login, (permissions) ~>
-                @permissions-rw = flatten [permissions.rw]
-                unless empty @permissions-rw
-                    # subscribe only the messages that we have write permissions
-                    # on the remote site (subscribing RO messages in the DCS
-                    # network would be meaningless since they will be dropped
-                    # on the remote even if we forward them.)
-                    @subscriptions = @permissions-rw
-                else
-                    @log.warn "Logged in, but there is no rw permissions found."
+        @on-topic \app.dcs.update, (msg) ~>
+            debug = no
+            if debug
+                @log.debug "Received connection status update: ", msg
+            #@log.debug "Sending session information: ", @session
+            @send-response msg, {debug}, @session
 
-                @log.info "Remote RW subscriptions: "
-                for flatten [@subscriptions] => @log.info "->  #{..}"
+        @on \disconnect, ~>
+            @subscriptions = reject (~> it `topic-match` @session?.routes), @subscriptions
+            @session = null
 
-        # DCS interface
+        # DCS to Transport
         @on \receive, (msg) ~>
-            unless msg.topic `topic-match` @permissions-rw
-                @log.warn "We don't have permission for: ", msg
-                @send-response msg, {err: "
-                    How come the ProxyClient is subscribed a topic
-                    that it has no rights to send? This is a DCS malfunction.
-                    "}
-                return
+            unless msg.to `topic-match` "app.**"
+                unless msg.to `topic-match` @subscriptions
+                    @log.err "Possible coding error: We don't have a route for: ", msg
+                    @log.info "Our subscriptions: ", @subscriptions
+                    @send-response msg, {err: "
+                        How come the ProxyClient is subscribed a topic
+                         that it has no rights to send? This is a DCS malfunction.
+                        "}
+                    return
 
-            # debug
-            #@log.log "Transport < DCS: (topic : #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-            #@log.log "... #{pack msg.payload}"
-            @transport.write (msg
+                # debug
+                #@log.log "Transport < DCS: (topic : #{msg.to}) msg id: #{msg.from}.#{msg.msg_id}"
+                #@log.log "... #{pack msg.data}"
+                if @_transport_busy
+                    @log.err "Transport was busy, we shouldn't try to send ", msg
+                    @log.info "...will retry to write to transport in 500ms."
+                    debugger
+                    sleep 500ms, ~>
+                        @trigger \receive, msg
+                    return
+
+                @_transport_busy = yes
+                msg
+                |> (m) ~>
+                    if m.debug
+                        @log.debug "Forwarding DCS to transport: ", brief m
+                    if m.re?
+                        response-id = "#{m.to}"
+                        #@log.debug "this is a response message: #{response-id}"
+                        if not m.part? or m.part is -1
+                            #console.log "...last part or has no part, unsubscribing
+                            #    from transient subscription"
+                            @unsubscribe response-id
+                    return m
                 |> @auth.add-token
-                |> pack)
+                |> pack
+                |> (s) ~>
+                    if msg.debug
+                        @log.debug "Sending #{msg.seq}->#{msg.to} size: #{s.length}"
+                    return (pack {size: s.length}) + s
+                |> @transport.write
 
-        @on \logged-in, ~>
-            @log.info "Emitting app.logged-in"
-            @send 'app.logged-in', {}
+                if msg.debug
+                    @log.debug "Data is sent."
+                @_transport_busy = no
 
-
-        # transport interface
+        # Transport to DCS
         @m = new MessageBinder!
+        total-delay = 0
         @transport
             ..on \connect, ~>
                 @connected = yes
-                @log.log bg-green "My transport is connected."
+                @log.log bg-green "My transport is connected, re-logging-in."
+                #@send \app.server.connect
                 @transport-ready = yes
-                err, res <~ @trigger \_login, {forget-password: @opts.forget-password}  # triggering procedures on (re)login
-                @subscribe "public.**"
+                @trigger \connect
+                @trigger \_login  # triggering procedures on (re)login
 
             ..on \disconnect, ~>
                 @connected = no
                 @log.log bg-yellow "My transport is disconnected."
+                @trigger \disconnect
+                @send 'app.dcs.disconnect'
 
             ..on "data", (data) ~>
-                for msg in @m.append data
+                t0 = Date.now!
+                x = @m.append data
+                total-delay := total-delay + (Date.now! - t0)
+                for msg in x
+                    if total-delay > 100ms
+                        @log.debug "....time spent for concatenating: #{total-delay}ms"
+                    total-delay := 0
+
                     # in "client mode", authorization checks are disabled
                     # message is only forwarded to manager
                     if \auth of msg
                         #@log.log "received auth message, forwarding to AuthRequest."
-                        @auth.trigger \from-server, msg
+                        @auth.inbox msg
                     else
-                        # debug
-                        #@log.log "  Transport > DCS (topic: #{msg.topic}) msg id: #{msg.sender}.#{msg.msg_id}"
-                        #@log.log "... #{pack msg.payload}"
+                        if msg.debug
+                            @log.debug "Forwarding Transport to DCS:", brief msg
+                        if msg.req
+                            # subscribe for possible response
+                            response-route = "#{msg.from}"
+                            if msg.debug
+                                @log.debug "Transient subscription to response route: #{response-route}"
+                            @subscribe response-route
+                            #console.log "subscriptions: ", @subscriptions
+                        if msg.re?
+                            # directly pass to message owner
+                            #@log.debug "forwarding a Response message to actor: ", msg
+                            msg.to = msg.to.replace "@#{@session.user}.", ''
+                            if @mgr.find-actor msg.to
+                                that._inbox msg
+                            if msg.cc
+                                msg2 = clone msg
+                                msg2.to = msg.cc
+                                @send-enveloped msg2
+                            return
                         @send-enveloped msg
 
     login: (credentials, callback) ->
         # normalize parameters
+        # ----------------------------------------------------
         if typeof! credentials is \Function
             callback = credentials
             credentials = null
@@ -121,24 +170,42 @@ export class ProxyClient extends Actor
                     @log.err bg-red "Wrong credentials?"
                 else
                     @log.log bg-green "Logged in into the DCS network."
+        # end of parameter normalization
 
         @off \_login
         @on \_login, (opts) ~>
             @log.log "sending credentials..."
             err, res <~ @auth.login credentials
-            if opts?.forget-password
-                #@log.warn "forgetting password"
-                credentials := token: try
-                    res.auth.session.token
-                catch
-                    null
-            unless err
-                @trigger \logged-in
+            error = err or res?auth?error or (res?auth?session?logout is \yes)
+            # error: if present, it means we didn't logged in succesfully.
+            unless error
+                @session = res.auth.session
+                #@log.debug "Current @session.routes: ", @subscriptions
+                #@log.debug "Routes from server: ", @session.routes
+                @subscriptions ++= @session.routes
+                @log.info "Remote route subscriptions: "
+                for flatten [@subscriptions] => @log.info "->  #{..}"
+                @log.info "Emitting app.dcs.connect"
+                @send 'app.dcs.connect', @session
+                @trigger \logged-in, @session, ~>
+                    # clear plaintext passwords
+                    credentials := {token: @session.token}
+            else
+                @trigger \disconnect
 
-            callback err, res
+            if res?auth?session?logout is \yes
+                @trigger \kicked-out
 
-        if @connected
-            @trigger \_login, {forget-password: @opts.forget-password}
+            # re-trigger the login handler, on every re-login
+            callback error, res
+
+        # trigger logging in if we are connected already.
+        if @connected => @trigger \_login
 
     logout: (callback) ->
-        @auth.logout callback
+        err, res <~ @auth.logout
+        @log.info "Logged out; err, res: ", err, res
+        @trigger \disconnect
+        reason = res?auth?error
+        @trigger \logged-out, reason
+        callback err, res

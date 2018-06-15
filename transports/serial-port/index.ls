@@ -1,6 +1,5 @@
 require! 'serialport': SerialPort
-require! '../..': {Actor, sleep, EventEmitter, Logger}
-require! '../../lib': {pack}
+require! '../../lib': {pack, sleep, EventEmitter, Logger}
 
 
 export class SerialPortTransport extends EventEmitter
@@ -104,8 +103,8 @@ if require.main is module
             logger.log "app says disconnected "
 
     <~ :lo(op) ~>
-        logger.log "sending something..."
-        err <~ port.write ('something' * 40) + '\n'
+        logger.log "sending \"something * 5\"..."
+        err <~ port.write ('something' * 5) + '\n'
         if err
             logger.err "something went wrong while writing, waiting for resolution..."
             <~ err.resolved

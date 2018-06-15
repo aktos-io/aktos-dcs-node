@@ -7,9 +7,9 @@ export class IoSimulatorDriver extends DriverAbstract
 
     read: (handle, callback) ->
         #console.log "IoSimulatorDriver: read from address: ", address, "amount: ", amount
-        callback err=null, (@memory[handle.topic] or false)
+        callback err=null, (@memory[handle.route] or false)
 
     write: (handle, value, callback) ->
-        @memory[handle.topic] = value
-        console.log "IoSimulatorDriver: write to address: ", handle.topic, "value: ", value
+        @memory[handle.route] = value
+        console.log "IoSimulatorDriver: write to address: ", handle.route, "value: ", value
         callback err=null

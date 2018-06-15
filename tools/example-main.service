@@ -1,0 +1,9 @@
+#!/bin/bash
+DIR="$(dirname "$(readlink -f "$0")")"
+cd $DIR
+. $DIR/dcs/tools/service-runner/tmux-launch
+launch-service $(calc-session-name "$0")
+
+# run commands in tmux session
+run-in-tmux "./run-ls dcs/tools/create-tunnel/bring-dcs-server-here.ls 5589"
+run-in-tmux "./run-ls reader-service.ls "

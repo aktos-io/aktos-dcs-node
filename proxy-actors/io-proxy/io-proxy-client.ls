@@ -2,78 +2,80 @@ require! '../../src/actor': {Actor}
 require! '../../src/signal': {Signal}
 require! '../../lib/sleep': {sleep}
 require! '../../src/filters': {FpsExec}
+require! '../../src/topic-match': {topic-match}
+require! 'uuid4'
 
 
 export class IoProxyClient extends Actor
-    (opts={}) ->
-        @topic = opts.topic or throw "Topic is required."
+    (opts={}) !->
+        @route = opts.route or throw "route is required."
         @timeout = opts.timeout or 1000ms
-        super @topic
+        super @route
         @fps = new FpsExec (opts.fps or 20fps), this
-        @reply-signal = new Signal \reply-signal
+        @value = undefined
 
-        # handle realtime events
-        #@actor = new RactiveActor this, name=topic
-
-        @on-topic "#{@topic}.read", (msg) ~>
-            #@log.log "#{@topic}.read received: ", msg
-            if @reply-signal.waiting
-                #@c-log "...is redirected to reply-signal..."
-                @reply-signal.go msg.payload
+        #@log.debug "Subscribed to @route: #{@route}, #{@me}"
+        @on-topic "#{@route}.value", (msg) ~>
+            #@log.log "#{@route}.read received: ", msg
+            if msg.data.err
+                @trigger \error, {message: that}
             else
-                if msg.payload?
-                    '''
-                    # if has no payload, then it probably comes from
-                    # another actor's request-update!
-                    # FIXME: this shouldn't receive the other actors'
-                    # update messages in the first place.
-                    '''
-                    if msg.payload.err
-                        @trigger \error, {message: that}
-                    else
-                        try
-                            @trigger \read, msg.payload.res
-                        catch
-                            @trigger \error, {message: e}
+                value = msg.data?.val
+                @trigger \read, value
+                # detect change
+                if value isnt @value
+                    @trigger \change, value
+                    if @value is off and value is on
+                        @trigger \r-edge
+                    if @value is on and value is off
+                        @trigger \f-edge
+                    @value = value
 
-        @on-topic "app.logged-in", ~>
-            #@request-update!
-            @send-request {topic: "#{@topic}.update", timeout: @timeout}, (err, msg) ~>
+        @on-topic "app.dcs.connect", (msg) ~>
+            unless @route `topic-match` msg.data.routes
+                @log.warn "We don't have a route for #{@route} in ", msg.data.routes
+
+            @send-request {route: "#{@route}.update", @timeout}, (err, msg) ~>
                 if err
                     @trigger \error, {message: err}
                 else
-                    #console.warn "received update topic: ", msg
-                    @trigger-topic "#{@topic}.read", msg
+                    #console.warn "received update route: ", msg
+                    @trigger-topic "#{@route}.value", msg
 
-
-        @send-request {topic: "#{@topic}.update", timeout: @timeout}, (err, msg) ~>
-            if err
-                @trigger \error, {message: err}
-            else
-                #console.warn "received update topic: ", msg
-                @trigger-topic "#{@topic}.read", msg
-
-
-    write: (...args) ->
-        @fps.exec ~> @filtered-write ...args
-
-    filtered-write: (value, callback) ->
-        acceptable-delay = 100ms
-        x = sleep acceptable-delay, ~>
-            # do not show "doing" state for if all request-response
-            # finishes within the acceptable delay
-            #@set 'check-state', \doing
-        topic = "#{@topic}.write"
-        #@c-log "sending: ", topic
-        @send topic, {val: value}
-        @reply-signal.clear!
-        _err, data <~ @reply-signal.wait @timeout
-        err = _err or data?.err
+        # check if app is logged in
+        <~ sleep ((Math.random! * 200ms) + 100ms )
+        err, msg <~ @send-request "app.dcs.update"
         unless err
-            try clear-timeout x
-            @trigger \read, {curr: value, prev: undefined}
-        else
-            @trigger \error, {message: err}
+            if msg.data is yes
+                @log.log "triggering app.dcs.connect on initialization.",
+                @trigger-topic 'app.dcs.connect', msg
 
+    r-edge: (callback) !->
+        @once \r-edge, callback
+
+    f-edge: (callback) !->
+        @once \f-edge, callback
+
+    when: (filter-func, callback) !->
+        name = uuid4!
+        #console.log "adding 'when' with name: #{name}"
+        @on \change, name, (value) ~>
+            #console.log "#{name}: comparing with value: #{value}"
+            if filter-func value
+                #console.log "...passed from filter function: #{value}"
+                <~ sleep 0  # !important!
+                callback value
+                @cancel name
+
+    write: (value, callback) !->
+        @fps.exec ~> @filtered-write value, callback
+
+    filtered-write: (value, callback) !->
+        route = "#{@route}.value"
+        err, msg <~ @send-request {route, @timeout}, {val: value}
+        error = err or msg?.data.err
+        unless err
+            #@log.debug "Write succeeded."
+            @value = msg.data.res
         if typeof! callback is \Function
-            callback err
+            callback error

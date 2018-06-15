@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "sha": "^2.0.1",
-    "socket.io": "^2.0.3"
+    "socket.io": "^2.1.0",
+    "uws": "^9.14.0"
   }
 }

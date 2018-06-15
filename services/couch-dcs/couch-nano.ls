@@ -4,6 +4,7 @@ require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
 require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
 require! 'cloudant-follow': follow
 require! '../../src/signal': {Signal}
+require! 'request'
 
 UNAUTHORIZED = 401
 FORBIDDEN = 403
@@ -41,7 +42,6 @@ export class CouchNano extends EventEmitter
 
         @retry-timeout = 100ms
         @max-delay = 12_000ms
-
         @security-is-okay = no
 
     request: (opts, callback) ~>
@@ -74,7 +74,6 @@ export class CouchNano extends EventEmitter
                 reason: err.reason
                 name: err.name
                 message: err.reason or err.error
-                orig: err
         if headers?
             if headers['set-cookie']
                 @cookie = that
@@ -102,8 +101,11 @@ export class CouchNano extends EventEmitter
             if err
                 @log.err "Heartbeat failed: ", err
             else
-                @log.info "Heartbeat OK: #{res.db_name} is successful, disk_size
-                    : #{parse-int res.disk_size / 1024}K"
+                size = parse-int res.disk_size / 1024
+                size-str = "#{parse-int size} K"
+                if size / 1024 > 1
+                    size-str = "#{parse-int size / 1024} M"
+                #@log.info "Heartbeat: #{res.db_name}: #{size-str}"
             <~ sleep 1000ms_per_s * 60s_per_min * 2min
             lo(op)
 
@@ -139,6 +141,8 @@ export class CouchNano extends EventEmitter
             if headers['set-cookie']
                 # connection is successful
                 @cookie = that
+                @trigger \refresh-cookie
+
         callback err
 
     invalidate: ->
@@ -283,18 +287,22 @@ export class CouchNano extends EventEmitter
             callback = opts
             opts = {}
 
-        <~ :lo(op) ~>
-            return op! if @connected
-            <~ sleep 2000ms
-            lo(op)
-
+        j = request.jar!
         default-opts =
             db: "#{@cfg.url}/#{@db-name}"
             headers:
                 'X-CouchDB-WWW-Authenticate': 'Cookie'
-                cookie: @cookie
+                cookie: 'somegarbage'
             feed: 'continuous'
             since: 'now'
+            http-agent:
+                jar: j
+
+        do update-cookie = ~>
+            url = @cfg.url
+            cookie = request.cookie @cookie.0
+            #@log.debug "Setting cookie for ", url
+            j.set-cookie cookie, url
 
         options = default-opts `merge` opts
         feed = new follow.Feed options
@@ -315,7 +323,7 @@ export class CouchNano extends EventEmitter
             else
                 return op!
 
-        @log.log "___feeding #{options.view or '/'}"
+        #@log.log "___feeding #{options.view or '/'}"
         feed
             ..on \change, (changes) ~>
                 if options.view-function
@@ -324,9 +332,14 @@ export class CouchNano extends EventEmitter
                 callback changes
 
             ..on \error, (error) ~>
-                @log.log "error is: ", error
+                @log.err "error is: ", error
 
-            ..follow!
+        @on \refresh-cookie, ~>
+            #@log.debug "Cookie is refreshed. We should be still able to follow."
+            update-cookie!
+
+        update-cookie!
+        feed.follow!
 
     get-all-views: (callback) ->
         views = []
