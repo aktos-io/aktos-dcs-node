@@ -136,7 +136,7 @@ export class Actor extends EventEmitter
         # FIXME:
         # this timeout should be maximum 1000ms but when another blocking data
         # receive operation is taking place, this timeout is exceeded
-        timeout = 30_000ms # longest duration
+        timeout = 5_000ms # maximum timeout without target's first response
         # /FIXME
 
         if typeof! opts is \String
@@ -202,9 +202,9 @@ export class Actor extends EventEmitter
                     part-handler msg
 
                     if request-date?
-                        if request-date + 1000ms < Date.now!
+                        if request-date + 200ms < Date.now!
                             @log.debug "First response is too late for seq:#{enveloped.seq} latency:
-                            #{Date.now! - request-date}ms"
+                            #{Date.now! - request-date}ms, req: ", enveloped
                         request-date := undefined # disable checking
 
                     if msg.timeout
