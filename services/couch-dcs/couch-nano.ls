@@ -352,3 +352,18 @@ export class CouchNano extends EventEmitter
                 for let view-name of eval ..doc.javascript .views
                     views.push "#{name}/#{view-name}"
         callback err, views
+
+    update-all-views: (callback) ->
+        error = null
+        err, views <~ @get-all-views
+        i = 0
+        <~ :lo(op) ~>
+            @log.info "...updating view: #{views[i]}"
+            err, res <~ @view views[i], {limit: 1}
+            if err
+                error := err
+            #@log.debug "err is: ", err, "res is: ", JSON.stringify res
+            i++
+            return op! if i is views.length
+            lo(op)
+        callback error

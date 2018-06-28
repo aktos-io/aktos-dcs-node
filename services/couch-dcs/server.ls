@@ -93,6 +93,14 @@ export class CouchDcsServer extends Actor
 
             ..start-heartbeat!
 
+        do
+            <~ @db.once \connected
+            <~ :lo(op) ~>
+                @log.debug "Updating all views."
+                <~ @db.update-all-views
+                <~ sleep (1_hour * 3600_000_ms_per_hour)
+                lo(op)
+
         get-next-id = (template, callback) ~>
             # returns
             #   * Next available ID there is a template supplied
