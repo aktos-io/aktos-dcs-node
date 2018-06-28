@@ -133,6 +133,9 @@ export class SignalBranch
         return signal
 
     joined: (callback) ->
+        if @count is 0
+            @main.go null
+
         @main.wait @timeout, (err) ~>
             for @signals => ..clear!
             callback err, @signals
