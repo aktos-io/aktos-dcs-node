@@ -1,4 +1,4 @@
-require! 'prelude-ls': {flatten, join, split}
+require! 'prelude-ls': {flatten, join, split, compact}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
 require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
@@ -351,18 +351,21 @@ export class CouchNano extends EventEmitter
                 #@log.log "all design documents: ", ..doc
                 for let view-name of eval ..doc.javascript .views
                     views.push "#{name}/#{view-name}"
-        callback err, views
+
+        callback err, compact views
 
     update-all-views: (callback) ->
         error = null
         err, views <~ @get-all-views
         i = 0
         <~ :lo(op) ~>
-            @log.info "...updating view: #{views[i]}"
+            #@log.info "...updating view: #{views[i]}"
             err, res <~ @view views[i], {limit: 1}
             if err
                 error := err
-            #@log.debug "err is: ", err, "res is: ", JSON.stringify res
+                @log.err "err is: ", err
+                return sleep 1000ms, ~>
+                    lo(op)
             i++
             return op! if i is views.length
             lo(op)

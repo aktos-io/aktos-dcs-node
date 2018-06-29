@@ -94,11 +94,13 @@ export class CouchDcsServer extends Actor
             ..start-heartbeat!
 
         do
+            # poll all views
             <~ @db.once \connected
             <~ :lo(op) ~>
                 @log.debug "Updating all views."
-                <~ @db.update-all-views
-                <~ sleep (1_hour * 3600_000_ms_per_hour)
+                err <~ @db.update-all-views
+                @log.info "...updating all views done. err: ", err
+                <~ sleep (2_minute * 60_000_ms_per_minute)
                 lo(op)
 
         get-next-id = (template, callback) ~>
