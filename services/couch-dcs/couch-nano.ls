@@ -346,11 +346,14 @@ export class CouchNano extends EventEmitter
         err, res <~ @all-docs {startkey: "_design/", endkey: "_design0", +include_docs}
         unless err
             for res
-                name = ..id.split '/' .1
-                continue if name is \autoincrement
-                #@log.log "all design documents: ", ..doc
-                for let view-name of eval ..doc.javascript .views
-                    views.push "#{name}/#{view-name}"
+                try
+                    name = ..id.split '/' .1
+                    continue if name is \autoincrement
+                    #@log.log "all design documents: ", ..doc
+                    for let view-name of eval ..doc.javascript .views
+                        views.push "#{name}/#{view-name}"
+                catch
+                    @log.err "Something went wrong with ", .., e  
 
         callback err, compact views
 
