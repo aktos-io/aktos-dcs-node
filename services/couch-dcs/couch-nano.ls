@@ -197,7 +197,13 @@ export class CouchNano extends EventEmitter
         # ------------------------------------
         # normalize parameters
         # ------------------------------------
-        [ddoc, viewname] = split '/', ddoc-viewname
+        try
+            [ddoc, viewname] = split '/', ddoc-viewname
+        catch
+            @log.debug "We have an error in @view: ", e
+            @log.debug "...view name: ", ddoc-viewname
+            return callback e, null
+            
         if typeof! opts is \Function
             callback = opts
             opts = {}
@@ -353,7 +359,7 @@ export class CouchNano extends EventEmitter
                     for let view-name of eval ..doc.javascript .views
                         views.push "#{name}/#{view-name}"
                 catch
-                    @log.err "Something went wrong with ", .., e  
+                    @log.err "Something went wrong with ", .., e
 
         callback err, compact views
 
