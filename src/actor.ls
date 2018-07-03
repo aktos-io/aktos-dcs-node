@@ -105,6 +105,7 @@ export class Actor extends EventEmitter
         @_state = {}
         @_partial_msg_states = {}
         @_request_concat_cache = {}
+        @_last_login = 0
         @mgr.register-actor this
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
@@ -388,14 +389,19 @@ export class Actor extends EventEmitter
             @_state.kill-finished = yes
 
     on-every-login: (callback) ->
+        min-period = 1000ms
         @on-topic 'app.dcs.connect', (msg) ~>
-            callback msg
+            if @_last_login + min-period < Date.now!
+                callback msg
+                @_last_login = Date.now!
 
         # request dcs login state on init
         @send-request 'app.dcs.update', (err, msg) ~>
             #@log.info "requesting app.dcs.connect state:"
             if not err and msg?data
-                callback msg
+                if @_last_login + min-period < Date.now! 
+                    callback msg
+                    @_last_login = Date.now!
 
 if require.main is module
     console.log "initializing actor test"

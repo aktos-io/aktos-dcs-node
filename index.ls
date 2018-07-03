@@ -23,6 +23,7 @@ require! './lib': {
 require! './src/topic-match': {topic-match}
 
 require! './proxy-actors/io-proxy/io-proxy-client': {IoProxyClient}
+require! './proxy-actors/io-proxy/io-proxy-handler': {IoProxyHandler}
 
 require! './drivers/driver-abstract': {DriverAbstract}
 
@@ -32,7 +33,7 @@ module.exports = {
     DcsTcpClient, DcsTcpServer, AuthDB, as-docs
     EventEmitter, Logger, sleep, merge
     pack, unpack, clone, diff
-    IoProxyClient
+    IoProxyClient, IoProxyHandler
     DriverAbstract
     topic-match
 }

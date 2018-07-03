@@ -1,22 +1,34 @@
 require! '../lib/event-emitter': {EventEmitter}
 
 export class DriverAbstract extends EventEmitter
-    ->
-        super!
-    write: (handle, value, callback) ->
+    write: (handle, value, respond) ->
+        # respond(err)
+        # if there is no error returned, broadcasting is the new value
+        # is handled by io-proxy-handler
         ...
 
-    read: (handle, callback) ->
+    read: (handle, respond) ->
+        # respond(err, res)
         ...
 
-    watch-changes: (handle, callback) ->
+    watch-changes: (handle, emit) ->
+        # if handle.watch is true, this method is called on initialization.
+        # emit(err, res)
         ...
 
     start: ->
-        ...
+        console.log "...driver is requested to start, but doing nothing."
 
     stop: ->
-        ...
+        console.log "...driver is requested to stop, but doing nothing."
+
+    started: ->
+        @trigger \connect
+        @connected = yes
+
+    stopped: ->
+        @trigger \disconnect
+        @connected = no 
 
     parse-addr: (addr) ->
         /* return type:

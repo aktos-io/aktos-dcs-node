@@ -1,4 +1,4 @@
-require! 'prelude-ls': {flatten, join, split}
+require! 'prelude-ls': {flatten, join, split, compact}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
 require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
@@ -197,7 +197,13 @@ export class CouchNano extends EventEmitter
         # ------------------------------------
         # normalize parameters
         # ------------------------------------
-        [ddoc, viewname] = split '/', ddoc-viewname
+        try
+            [ddoc, viewname] = split '/', ddoc-viewname
+        catch
+            @log.debug "We have an error in @view: ", e
+            @log.debug "...view name: ", ddoc-viewname
+            return callback e, null
+            
         if typeof! opts is \Function
             callback = opts
             opts = {}
@@ -346,9 +352,30 @@ export class CouchNano extends EventEmitter
         err, res <~ @all-docs {startkey: "_design/", endkey: "_design0", +include_docs}
         unless err
             for res
-                name = ..id.split '/' .1
-                continue if name is \autoincrement
-                #@log.log "all design documents: ", ..doc
-                for let view-name of eval ..doc.javascript .views
-                    views.push "#{name}/#{view-name}"
-        callback err, views
+                try
+                    name = ..id.split '/' .1
+                    continue if name is \autoincrement
+                    #@log.log "all design documents: ", ..doc
+                    for let view-name of eval ..doc.javascript .views
+                        views.push "#{name}/#{view-name}"
+                catch
+                    @log.err "Something went wrong with ", .., e
+
+        callback err, compact views
+
+    update-all-views: (callback) ->
+        error = null
+        err, views <~ @get-all-views
+        i = 0
+        <~ :lo(op) ~>
+            #@log.info "...updating view: #{views[i]}"
+            err, res <~ @view views[i], {limit: 1}
+            if err
+                error := err
+                @log.err "err is: ", err
+                return sleep 1000ms, ~>
+                    lo(op)
+            i++
+            return op! if i is views.length
+            lo(op)
+        callback error
