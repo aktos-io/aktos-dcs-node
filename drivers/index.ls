@@ -6,4 +6,5 @@ module.exports = {
     IoSimulatorDriver
     OmronFinsDriver
     SiemensS7Driver
+    #DriverAbstract already exposed in dcs module
 }
