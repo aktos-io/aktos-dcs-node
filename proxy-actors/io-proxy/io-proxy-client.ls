@@ -33,7 +33,7 @@ export class IoProxyClient extends Actor
 
                 @last-update = Date.now!
                 @value = value
-                @trigger \read, value
+                @trigger \read, value, msg
 
         update = (callback) ~>
             unless callback then callback = (->)

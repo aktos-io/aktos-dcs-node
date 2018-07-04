@@ -37,6 +37,8 @@ class TwitterDriver extends DriverAbstract
     write: (handle, value, respond) ->
         # we got a write request to the target
         console.log "we got ", value, "to write as ", handle
+
+        # if responds without an error, broadcasting is handled by proxy-handler
         respond err=null
 
     read: (handle, respond) ->
@@ -49,11 +51,18 @@ class TwitterDriver extends DriverAbstract
         else
             respond err=null, value={some-value: 1234}
 
+    watch-changes: (handle, emit) ->
+        if handle.watch
+            <~ :lo(op) ~>
+                err, res <~ @read handle
+                emit err, res
+                <~ sleep handle.watch
+                lo(op)
 
 # Handle may have any format that its driver is able to understand.
 handle =
     name: 'ballot-totals'
 
 driver = new TwitterDriver
-io = new IoProxyHandler handle, "@twitter-service.ballot2", driver
+new IoProxyHandler handle, "@twitter-service.ballot2", driver
 ```

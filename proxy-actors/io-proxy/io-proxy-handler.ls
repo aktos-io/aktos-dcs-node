@@ -98,7 +98,7 @@ export class IoProxyHandler extends Actor
             # assign handlers internally
             @on \read, (handle, respond) ~>
                 #console.log "requested read!"
-                err, value <~ safe-driver.read handle
+                err, value <~ safe-driver._safe_read handle
                 #console.log "responding read value: ", err, value
                 respond err, value
 
@@ -109,9 +109,7 @@ export class IoProxyHandler extends Actor
                 respond err
 
             # driver decides whether to watch changes of this handle or not.
-            if handle.watch
-                @log.info "Watching for changes."
-                driver.watch-changes handle, broadcast-value
+            driver.watch-changes handle, broadcast-value
 
         @on-topic "#{@name}.write", (msg) ~>
             #@log.debug "triggering 'write'."
