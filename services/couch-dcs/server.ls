@@ -103,7 +103,7 @@ export class CouchDcsServer extends Actor
                 err <~ @db.update-all-views
                 #@log.info "...updating all views done. err: ", err
                 if err
-                    @log.error "...error occurred while updating all views: ", err 
+                    @log.error "...error occurred while updating all views: ", err
                 <~ sleep (poll-period * 60_000_ms_per_minute)
                 lo(op)
 
@@ -167,6 +167,14 @@ export class CouchDcsServer extends Actor
                 @log.log "...sending ack with timeout: #{timeout}ms as if defined #{name}"
                 @send-response msg, {+part, timeout, +ack}, null
                 callback!
+
+        insert-after = (name, msg, error, response) ~>
+            if @has-listener name
+                err, res <~ @trigger name, msg, error, response
+                @send-and-echo msg, {err, res}
+            else
+                @send-and-echo msg, {err, res}
+
 
         @on \data, (msg) ~>
             #@log.log "received payload: ", keys(msg.data), "by:", msg.user
@@ -237,7 +245,8 @@ export class CouchDcsServer extends Actor
                 msg.data.put = flatten [msg.data.put]
                 docs = msg.data.put
                 if empty docs
-                    return @send-and-echo msg, {err: message: "Empty document", res: null}
+                    insert-after \put, msg, {message: "Empty document"}, null
+                    return
 
                 # insert chain
                 <~ insert-chain msg, \before-put
@@ -278,7 +287,10 @@ export class CouchDcsServer extends Actor
                     i++
                     lo(op)
 
-                if err then return @send-and-echo msg, {err, res}
+                if err
+                    insert-after \put, msg, err, res
+                    return
+
                 # Write to database
                 <~ :lo(op) ~>
                     if docs.length is 1
@@ -297,7 +309,8 @@ export class CouchDcsServer extends Actor
                                     break
                         return op!
                 # send the response
-                @send-and-echo msg, {err, res}
+                console.log "sending put response: ", err, res 
+                insert-after \put, msg, err, res
 
             # `get` message
             else if \get of msg.data
@@ -367,11 +380,7 @@ export class CouchDcsServer extends Actor
                     error := error?.0
 
                 # perform the business logic here
-                if @has-listener \get
-                    err, res <~ @trigger \get, msg, error, response
-                    @send-and-echo msg, {err, res}
-                else
-                    @send-and-echo msg, {err, res}
+                insert-after \get, msg, error, response
 
             # `all-docs` message
             else if \allDocs of msg.data
@@ -384,11 +393,7 @@ export class CouchDcsServer extends Actor
                 #@log.log "view message received", pack msg.data
                 <~ insert-chain msg, \before-view
                 err, res <~ @db.view msg.data.view, msg.data.opts
-                if @has-listener \view
-                    err, res <~ @trigger \view, msg, err, res
-                    @send-and-echo msg, {err, res}
-                else
-                    @send-and-echo msg, {err, res}
+                insert-after \view, msg, err, res
 
             # `getAtt` message (for getting attachments)
             else if \getAtt of msg.data
