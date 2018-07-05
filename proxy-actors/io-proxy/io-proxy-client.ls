@@ -13,42 +13,50 @@ export class IoProxyClient extends Actor
         super @route
         @fps = new FpsExec (opts.fps or 20fps), this
         @value = undefined
+        @last-update = 0
 
         #@log.debug "Subscribed to @route: #{@route}, #{@me}"
-        @on-topic "#{@route}.value", (msg) ~>
-            #@log.log "#{@route}.read received: ", msg
+        @on-topic "#{@route}.write", (msg) ~>
+            #@log.log "#{@route}.write received: ", msg
             if msg.data.err
                 @trigger \error, {message: that}
             else
-                value = msg.data?.val
-                @trigger \read, value
-                # detect change
-                if value isnt @value
+                value = msg.data.val
+                if JSON.stringify(value) isnt JSON.stringify(@value)
                     @trigger \change, value
-                    if @value is off and value is on
-                        @trigger \r-edge
-                    if @value is on and value is off
-                        @trigger \f-edge
-                    @value = value
+                    if typeof! value is \Boolean
+                        # detect edge
+                        if @value is off and value is on
+                            @trigger \r-edge
+                        if @value is on and value is off
+                            @trigger \f-edge
 
-        @on-topic "app.dcs.connect", (msg) ~>
-            unless @route `topic-match` msg.data.routes
-                @log.warn "We don't have a route for #{@route} in ", msg.data.routes
+                @last-update = Date.now!
+                @value = value
+                @trigger \read, value, msg
 
-            @send-request {route: "#{@route}.update", @timeout}, (err, msg) ~>
+        update = (callback) ~>
+            unless callback then callback = (->)
+            err, msg <~ @send-request {route: "#{@route}.update", @timeout}
+            if err or msg.err
+                @trigger \error, {message: err}
+                callback err
+            else
+                #console.warn "received update route: ", msg
+                @trigger-topic "#{@route}.write", msg
+                callback null
+
+        @on-every-login (msg) ~>
+            #@log.debug "Seems logged in right now."
+            <~ :lo(op) ~>
+                err <~ update
                 if err
-                    @trigger \error, {message: err}
+                    @log.warn "Update error, retrying..."
+                    <~ sleep 1000ms
+                    lo(op)
                 else
-                    #console.warn "received update route: ", msg
-                    @trigger-topic "#{@route}.value", msg
+                    return op!
 
-        # check if app is logged in
-        <~ sleep ((Math.random! * 200ms) + 100ms )
-        err, msg <~ @send-request "app.dcs.update"
-        unless err
-            if msg.data is yes
-                @log.log "triggering app.dcs.connect on initialization.",
-                @trigger-topic 'app.dcs.connect', msg
 
     r-edge: (callback) !->
         @once \r-edge, callback
@@ -63,16 +71,16 @@ export class IoProxyClient extends Actor
             #console.log "#{name}: comparing with value: #{value}"
             if filter-func value
                 #console.log "...passed from filter function: #{value}"
-                <~ sleep 0  # !important!
+                <~ set-immediate  # !important!
                 callback value
                 @cancel name
 
     write: (value, callback) !->
-        @fps.exec ~> @filtered-write value, callback
+        @fps.exec ~>
+            @filtered-write value, callback
 
     filtered-write: (value, callback) !->
-        route = "#{@route}.value"
-        err, msg <~ @send-request {route, @timeout}, {val: value}
+        err, msg <~ @send-request {route: "#{@route}.write", @timeout}, {val: value}
         error = err or msg?.data.err
         unless err
             #@log.debug "Write succeeded."

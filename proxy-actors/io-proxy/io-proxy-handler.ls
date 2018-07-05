@@ -1,5 +1,9 @@
-require! 'dcs': {EventEmitter, Actor, sleep, Logger}
+require! '../../src/actor': {Actor}
+require! '../../lib/event-emitter': {EventEmitter}
+require! '../../lib/sleep': {sleep}
+require! '../../lib/logger': {Logger}
 require! '../../src/errors': {CodingError}
+require! '../../lib/memory-map': {IoHandle}
 
 require! 'prelude-ls': {find}
 
@@ -56,21 +60,30 @@ class LineUp
 
 
 export class IoProxyHandler extends Actor
-    (handle, driver) ->
-        unless handle.constructor.name is \IoHandle
-            throw new CodingError "handle should be an instance of IoHandle class"
+    (handle, _route, driver) ->
+        if driver is null
+            driver = _route
+            _route = null
+            unless handle?.constructor?.name is \IoHandle
+                throw new CodingError "handle should be an instance of IoHandle class"
+        else
+            # handle is an object to convert into an IoHandle instance
+            handle = new IoHandle handle, _route
+
         route = handle.route
         route or throw new CodingError "A route MUST be provided to IoProxyHandler."
         super route
         #@log.info "Initializing #{handle.route}"
 
         prev = null
+        age = 0
         broadcast-value = (err, value) ~>
             #@log.log "Broadcasting err: ", err , "value: ", value
-            @send "#{@name}.value", {err, val: value}
+            @send "#{@name}.write", {err, val: value}
             if not err and value isnt prev
                 #@log.log "Store previous (broadcast) value (from #{prev} to #{curr})"
                 prev := value
+                age := Date.now!
 
         response-value = (msg) ~>
             (err, value) ~>
@@ -78,13 +91,14 @@ export class IoProxyHandler extends Actor
                 if not err and value isnt prev
                     #@log.log "Store previous (resp.) value (from #{prev} to #{curr})"
                     prev := value
+                    age := Date.now!
 
         if driver?
             safe-driver = new LineUp driver
             # assign handlers internally
             @on \read, (handle, respond) ~>
                 #console.log "requested read!"
-                err, value <~ safe-driver.read handle
+                err, value <~ safe-driver._safe_read handle
                 #console.log "responding read value: ", err, value
                 respond err, value
 
@@ -95,33 +109,38 @@ export class IoProxyHandler extends Actor
                 respond err
 
             # driver decides whether to watch changes of this handle or not.
-            if handle.watch
-                @log.info "Watching for changes."
-                driver.watch-changes handle, broadcast-value
+            driver.watch-changes handle, broadcast-value
 
-        @on-topic "#{@name}.value", (msg) ~>
-            if msg.data?.val?
-                #@log.debug "triggering 'write'."
-                new-value = msg.data.val
-                @trigger \write, handle, new-value, (err) ~>
-                    meta = {}
-                    data = {err}
-                    unless err
-                        #"write succeeded, broadcast the value" |> @log.debug
-                        meta.cc = "#{@name}.value"
-                        data.val = new-value
-                        prev := new-value
-                    @send-response msg, meta, data
-            else
-                "this is a read request" |> @log.debug
-                @trigger \read, handle, response-value(msg)
+        @on-topic "#{@name}.write", (msg) ~>
+            #@log.debug "triggering 'write'."
+            new-value = msg.data.val
+            @trigger \write, handle, new-value, (err) ~>
+                meta = {cc: "#{@name}.write"}
+                data = {err}
+                unless err
+                    #@log.debug "write succeeded, broadcast the value"
+                    data.val = new-value
+                    prev := new-value
+                @send-response msg, meta, data
 
-        @on-topic "#{@name}.update", (msg) ~>
+        @on-topic "#{@name}.read", (msg) ~>
             # send response directly to requester
             #@log.warn "triggering 'read' because update requested."
             @trigger \read, handle, response-value(msg)
 
-        @on-topic "app.dcs.connect", (msg) ~>
+        @on-topic "#{@name}.update", (msg) ~>
+            # send response directly to requester
+            #@log.debug "update requested."
+
+            max-age = 10min * 60_000_ms_per_min
+            if max-age + age < Date.now!
+                #@log.debug "...value is too old, reading again."
+                @trigger \read, handle, response-value(msg)
+            else
+                #@log.debug "...value is fresh, responding from cache."
+                response-value(msg) err=null, value=prev
+
+        @on-every-login (msg) ~>
             # broadcast the status
             #@log.warn "triggering broadcast 'read' because we are logged in."
             @trigger \_try_broadcast_state
@@ -140,10 +159,3 @@ export class IoProxyHandler extends Actor
                 @trigger \read, handle, broadcast-value
             else
                 @log.info "Driver is not connected, skipping broadcasting."
-
-
-        # workaround till heartbeat implementation
-        <~ :lo(op) ~>
-            @trigger \read, handle, broadcast-value
-            <~ sleep 2000 + (Math.random! * 1000)  # wait between 2000ms and 3000ms
-            lo(op)
