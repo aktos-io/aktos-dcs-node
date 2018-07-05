@@ -203,7 +203,7 @@ export class CouchNano extends EventEmitter
             @log.debug "We have an error in @view: ", e
             @log.debug "...view name: ", ddoc-viewname
             return callback e, null
-            
+
         if typeof! opts is \Function
             callback = opts
             opts = {}
@@ -366,16 +366,13 @@ export class CouchNano extends EventEmitter
     update-all-views: (callback) ->
         error = null
         err, views <~ @get-all-views
+        if views.length is 0
+            return callback "No views can be found."
         i = 0
         <~ :lo(op) ~>
-            #@log.info "...updating view: #{views[i]}"
-            err, res <~ @view views[i], {limit: 1}
-            if err
-                error := err
-                @log.err "err is: ", err
-                return sleep 1000ms, ~>
-                    lo(op)
-            i++
-            return op! if i is views.length
+            name = views[i]
+            #@log.info "...updating view: #{name}"
+            err, res <~ @view name, {limit: 1}
+            return op! if ++i is views.length
             lo(op)
         callback error
