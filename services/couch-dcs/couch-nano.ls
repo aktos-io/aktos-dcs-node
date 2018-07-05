@@ -305,10 +305,13 @@ export class CouchNano extends EventEmitter
                 jar: j
 
         do update-cookie = ~>
-            url = @cfg.url
-            cookie = request.cookie @cookie.0
-            #@log.debug "Setting cookie for ", url
-            j.set-cookie cookie, url
+            try
+                url = @cfg.url
+                cookie = request.cookie @cookie.0
+                #@log.debug "Setting cookie for ", url
+                j.set-cookie cookie, url
+            catch
+                console.log "Error while updating cookie for follow.js: ", e 
 
         options = default-opts `merge` opts
         feed = new follow.Feed options
