@@ -1,5 +1,4 @@
 require! '../lib': {sleep, Logger}
-require! 'uuid4'
 require! 'prelude-ls': {is-it-NaN}
 
 '''
