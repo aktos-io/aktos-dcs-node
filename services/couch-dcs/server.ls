@@ -309,7 +309,6 @@ export class CouchDcsServer extends Actor
                                     break
                         return op!
                 # send the response
-                console.log "sending put response: ", err, res 
                 insert-after \put, msg, err, res
 
             # `get` message
@@ -357,7 +356,7 @@ export class CouchDcsServer extends Actor
                     if empty opts.keys
                         #@log.log bg-yellow "no doc-id is requested"
                         return op!
-                    @log.log "Docs are requested: #{opts.keys.join ', '}"
+                    #@log.log "Docs are requested: #{opts.keys.join ', '}"
                     err, res <~ @db.all-docs opts
                     _errors = []
                     unless err
