@@ -26,6 +26,7 @@ export class CouchDcsClient extends Actor
             if msg.data.routes `topic-match` opts.route
                 @route = opts.route
                 #@log.info "setting route as #{@route}"
+                @trigger \logged-in
             else
                 @log.warn "We won't be able to connect to #{opts.route},
                     not found in ", msg.data.routes
