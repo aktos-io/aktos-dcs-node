@@ -54,10 +54,10 @@ export class OmronFinsDriver extends DriverAbstract
         @client.on \reply, (msg) ~>
             if msg.command is \0101
                 #@log.log "........got read reply: ", msg, @read-signal.waiting, @read-signal.should-run
-                @read-signal.go msg
+                @read-signal.go null, msg
             else if msg.command is \0102
                 #@log.log "....got write reply: ", msg
-                @write-signal.go msg
+                @write-signal.go null, msg
             else
                 @log.warn "unknown msg.command: #{msg.command}"
                 #@log.log "reply: ", pack msg

@@ -306,7 +306,7 @@ export class Actor extends EventEmitter
                 if @debug
                     @log.debug "We were expecting this response: ", msg
                     @log.debug "Current request queue: ", @request-queue
-                @request-queue[msg.re]?.go msg
+                @request-queue[msg.re]?.go null, msg
             else
                 @log.err "This is not a message we were expecting (or interested in)?
                      is it timed out already? I'm #{@me})", msg
@@ -399,7 +399,7 @@ export class Actor extends EventEmitter
         @send-request 'app.dcs.update', (err, msg) ~>
             #@log.info "requesting app.dcs.connect state:"
             if not err and msg?data
-                if @_last_login + min-period < Date.now! 
+                if @_last_login + min-period < Date.now!
                     callback msg
                     @_last_login = Date.now!
 

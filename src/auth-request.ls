@@ -12,7 +12,7 @@ export class AuthRequest
         @reply-signal = new Signal!
 
     inbox: (msg) ->
-        @reply-signal.go msg
+        @reply-signal.go null, msg
 
     login: (_credentials={}, callback) ->
         # credentials might be one of the following:
