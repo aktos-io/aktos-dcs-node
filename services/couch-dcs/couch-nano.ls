@@ -354,7 +354,7 @@ export class CouchNano extends EventEmitter
         views = []
         err, res <~ @all-docs {startkey: "_design/", endkey: "_design0", +include_docs}
         unless err
-            for res
+            for res or []
                 try
                     name = ..id.split '/' .1
                     continue if name is \autoincrement
