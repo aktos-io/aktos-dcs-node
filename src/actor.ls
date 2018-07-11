@@ -183,7 +183,7 @@ export class Actor extends EventEmitter
                     last-part-sent := yes
 
         do
-            response-signal = new Signal {debug: enveloped.debug, name: "Req Sig:#{enveloped.seq}"}
+            response-signal = new Signal {debug: enveloped.debug, name: "ReqSig:#{enveloped.seq}"}
             #@log.debug "Adding request id #{request-id} to request queue: ", @request-queue
             @request-queue[request-id] = response-signal
             error = null
@@ -193,6 +193,10 @@ export class Actor extends EventEmitter
             request-date = Date.now! # for debugging (benchmarking) purposes
             <~ :lo(op) ~>
                 #@log.debug "Request timeout is: #{timeout}"
+                # -------------------------------------------------------
+                # IMPORTANT: DO NOT remove this line to prevent "UNFINISHED" error
+                response-signal.clear!
+                # -------------------------------------------------------
                 err, msg <~ response-signal.wait timeout
                 if err
                     #@log.err "We have timed out"
