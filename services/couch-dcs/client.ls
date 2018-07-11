@@ -62,8 +62,10 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-
-        err, msg <~ @__request {put: doc}
+        cmd = {put: doc}
+        if opts.debug
+            cmd <<< {opts: debug: true}
+        err, msg <~ @__request cmd
 
         error = err or msg?.data.err
         response = msg?.data?.res
