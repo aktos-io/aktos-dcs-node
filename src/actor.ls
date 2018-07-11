@@ -234,11 +234,12 @@ export class Actor extends EventEmitter
             if @_state.kill-finished
                 @log.warn "Got response activity after killed?", error, message
                 return
-            if error is \timeout
+            if error is \TIMEOUT
                 @log.warn "Request is timed out. Timeout was #{timeout}ms, seq: #{enveloped.seq}. req was:", brief enveloped
                 #debugger
             # Got the full messages (or error) at this point.
             @unsubscribe meta.to
+
             #@log.debug "Removing request id: #{request-id}"
             delete @request-queue[request-id]
 
@@ -307,9 +308,9 @@ export class Actor extends EventEmitter
             # this is a response to this actor.
             if @request-queue[msg.re]
                 # this is a response
-                if @debug
+                if @debug or msg.debug
                     @log.debug "We were expecting this response: ", msg
-                    @log.debug "Current request queue: ", @request-queue
+                    @log.debug "Current request queue: ", keys @request-queue
                 @request-queue[msg.re]?.go null, msg
             else
                 @log.err "This is not a message we were expecting (or interested in)?
