@@ -12,8 +12,10 @@ export class AuthDB
         @users-db = []
         @static-users = if typeof! users is \Object
             users |> as-docs
+        else if typeof! users is \Array
+            users
         else
-            users 
+            []
         @update!
 
     update: (users) ->
