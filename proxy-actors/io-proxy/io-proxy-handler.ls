@@ -61,7 +61,7 @@ class LineUp
 
 export class IoProxyHandler extends Actor
     (handle, _route, driver) ->
-        if driver is null
+        if not driver
             driver = _route
             _route = null
             unless handle?.constructor?.name is \IoHandle
