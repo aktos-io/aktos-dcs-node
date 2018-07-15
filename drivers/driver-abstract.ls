@@ -1,5 +1,7 @@
 require! '../lib/event-emitter': {EventEmitter}
+require! '../src/signal': {Signal}
 require! '../lib/sleep': {sleep}
+require! 'prelude-ls': {empty}
 
 export class DriverAbstract extends EventEmitter
     ->
@@ -13,14 +15,21 @@ export class DriverAbstract extends EventEmitter
         ...
 
     _safe_read: (handle, respond) ->
-        unless @rq[handle.route]
-            #console.log "creating first queue item"
+        if empty (@rq[handle.route] or [])
+            #console.log "creating first queue item: ", handle.route
             @rq[handle.route] = [respond]
-            <~ set-immediate
-            err, res <~ @read handle
-            for let r in @rq[handle.route]
-                r err, res
-            @rq[handle.route] = null
+            s = new Signal
+            @read handle, (err, res) ~>
+                s.go err, res
+            err, res <~ s.wait 2000ms
+            try
+                for let @rq[handle.route]
+                    .. err, res
+            catch
+                console.log "errrrrrrrrrrrrrr"
+
+            #console.log "removing #{handle.route} handler from @rq"
+            delete @rq[handle.route]
         else
             console.log "appending rest of read requests to the safe read queue"
             @rq[handle.route].push respond
