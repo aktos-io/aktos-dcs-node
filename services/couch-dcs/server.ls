@@ -173,7 +173,7 @@ export class CouchDcsServer extends Actor
                 err, res <~ @trigger name, msg, error, response
                 @send-and-echo msg, {err, res}
             else
-                @send-and-echo msg, {err, res}
+                @send-and-echo msg, {err: error, res: response}
 
 
         @on \data, (msg) ~>
