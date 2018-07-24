@@ -12,8 +12,6 @@ require! './services/couch-dcs/server': {CouchDcsServer}
 
 # Dcs Proxy
 require! './services/dcs-proxy/tcp/client': {DcsTcpClient}
-require! './services/dcs-proxy/tcp/server': {DcsTcpServer}
-require! './src/auth-db': {AuthDB, as-docs}
 
 require! './lib': {
     EventEmitter, Logger, sleep, merge
@@ -30,7 +28,7 @@ require! './drivers/driver-abstract': {DriverAbstract}
 module.exports = {
     Actor, FpsExec, Signal, SignalBranch
     CouchDcsClient, CouchDcsServer,
-    DcsTcpClient, DcsTcpServer, AuthDB, as-docs
+    DcsTcpClient
     EventEmitter, Logger, sleep, merge
     pack, unpack, clone, diff
     IoProxyClient, IoProxyHandler

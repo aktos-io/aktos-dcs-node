@@ -79,7 +79,7 @@ export class IoProxyHandler extends Actor
         age = 0
         broadcast-value = (err, value) ~>
             #@log.log "Broadcasting err: ", err , "value: ", value
-            @send "#{@name}.write", {err, val: value}
+            @send "#{@name}", {err, val: value}
             if not err and value isnt prev
                 #@log.log "Store previous (broadcast) value (from #{prev} to #{curr})"
                 prev := value
@@ -111,34 +111,34 @@ export class IoProxyHandler extends Actor
             # driver decides whether to watch changes of this handle or not.
             driver.watch-changes handle, broadcast-value
 
-        @on-topic "#{@name}.write", (msg) ~>
-            #@log.debug "triggering 'write'."
-            new-value = msg.data.val
-            @trigger \write, handle, new-value, (err) ~>
-                meta = {cc: "#{@name}.write"}
-                data = {err}
-                unless err
-                    #@log.debug "write succeeded, broadcast the value"
-                    data.val = new-value
-                    prev := new-value
-                @send-response msg, meta, data
+        @on-topic "#{@name}", (msg) ~>
+            if \val of msg.data
+                #@log.debug "triggering 'write'."
+                new-value = msg.data.val
+                @trigger \write, handle, new-value, (err) ~>
+                    meta = {cc: "#{@name}"}
+                    data = {err}
+                    unless err
+                        #@log.debug "write succeeded, broadcast the value"
+                        data.val = new-value
+                        prev := new-value
+                    @send-response msg, meta, data
+            else if \update of msg.data
+                # send response directly to requester
+                #@log.debug "update requested."
 
-        @on-topic "#{@name}.read", (msg) ~>
-            # send response directly to requester
-            #@log.warn "triggering 'read' because update requested."
-            @trigger \read, handle, response-value(msg)
-
-        @on-topic "#{@name}.update", (msg) ~>
-            # send response directly to requester
-            #@log.debug "update requested."
-
-            max-age = 10min * 60_000_ms_per_min
-            if max-age + age < Date.now!
-                #@log.debug "...value is too old, reading again."
-                @trigger \read, handle, response-value(msg)
+                max-age = 10min * 60_000_ms_per_min
+                if max-age + age < Date.now!
+                    #@log.debug "...value is too old, reading again."
+                    @trigger \read, handle, response-value(msg)
+                else
+                    #@log.debug "...value is fresh, responding from cache."
+                    response-value(msg) err=null, value=prev
             else
-                #@log.debug "...value is fresh, responding from cache."
-                response-value(msg) err=null, value=prev
+                # consider this a read
+                # send response directly to requester
+                #@log.warn "triggering 'read' because update requested."
+                @trigger \read, handle, response-value(msg)
 
         @on-every-login (msg) ~>
             # broadcast the status

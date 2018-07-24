@@ -3,7 +3,10 @@ require! '../../src/signal': {Signal}
 require! '../../lib/sleep': {sleep}
 require! '../../src/filters': {FpsExec}
 require! '../../src/topic-match': {topic-match}
-require! 'uuid4'
+
+_x = 0
+uuid4 = -> "some-random-#{_x++}"
+#require! 'uuid4'
 
 
 export class IoProxyClient extends Actor
@@ -16,7 +19,7 @@ export class IoProxyClient extends Actor
         @last-update = 0
 
         #@log.debug "Subscribed to @route: #{@route}, #{@me}"
-        @on-topic "#{@route}.write", (msg) ~>
+        @on-topic "#{@route}", (msg) ~>
             #@log.log "#{@route}.write received: ", msg
             if msg.data.err
                 @trigger \error, {message: that}
@@ -37,13 +40,13 @@ export class IoProxyClient extends Actor
 
         update = (callback) ~>
             unless callback then callback = (->)
-            err, msg <~ @send-request {route: "#{@route}.update", @timeout}
+            err, msg <~ @send-request {route: "#{@route}"}, {+update}
             if err or msg.err
                 @trigger \error, {message: err}
                 callback err
             else
                 #console.warn "received update route: ", msg
-                @trigger-topic "#{@route}.write", msg
+                @trigger-topic "#{@route}", msg
                 callback null
 
         @on-every-login (msg) ~>
@@ -79,8 +82,12 @@ export class IoProxyClient extends Actor
         @fps.exec ~>
             @filtered-write value, callback
 
+    read: (callback) !->
+        err, msg <~ @send-request {route: "#{@route}"}, {+read}
+        callback err, msg
+
     filtered-write: (value, callback) !->
-        err, msg <~ @send-request {route: "#{@route}.write", @timeout}, {val: value}
+        err, msg <~ @send-request {route: "#{@route}"}, {val: value}
         error = err or msg?.data.err
         unless err
             #@log.debug "Write succeeded."

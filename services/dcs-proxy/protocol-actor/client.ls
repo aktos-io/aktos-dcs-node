@@ -2,9 +2,9 @@ require! '../deps': {
     AuthRequest, sleep, pack, unpack
     Signal, Actor, topic-match, clone, brief
 }
-require! 'colors': {bg-red, red, bg-yellow, green, bg-green}
 require! 'prelude-ls': {split, flatten, split-at, empty, reject}
 require! './helpers': {MessageBinder}
+
 
 '''
 Description
@@ -106,7 +106,7 @@ export class ProxyClient extends Actor
         @transport
             ..on \connect, ~>
                 @connected = yes
-                @log.log bg-green "My transport is connected, re-logging-in."
+                @log.success "My transport is connected, re-logging-in."
                 #@send \app.server.connect
                 @transport-ready = yes
                 @trigger \connect
@@ -114,7 +114,7 @@ export class ProxyClient extends Actor
 
             ..on \disconnect, ~>
                 @connected = no
-                @log.log bg-yellow "My transport is disconnected."
+                @log.warn "My transport is disconnected."
                 @trigger \disconnect
                 @send 'app.dcs.disconnect'
 
@@ -165,11 +165,11 @@ export class ProxyClient extends Actor
             # default callback
             callback = (err, res) ~>
                 if err
-                    @log.err bg-red "Something went wrong while login: ", pack(err)
+                    @log.err "Something went wrong while login: ", pack(err)
                 else if res.auth?error
-                    @log.err bg-red "Wrong credentials?"
+                    @log.err "Wrong credentials?"
                 else
-                    @log.log bg-green "Logged in into the DCS network."
+                    @log.success "Logged in into the DCS network."
         # end of parameter normalization
 
         @off \_login

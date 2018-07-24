@@ -1,6 +1,7 @@
 require! '../../../lib/sleep': {sleep}
 require! 'dcs/transports/socket-io': {SocketIOTransport}
 require! '../protocol-actor/client': {ProxyClient}
+require! 'socket.io-client': io
 
 
 export class DcsSocketIOBrowser extends ProxyClient

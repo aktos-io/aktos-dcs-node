@@ -11,11 +11,14 @@ drivers = {}
 
 export create-io-proxies = (opts) ->
     log = new Logger \IoProxyCreator
+    unless opts.node
+        throw new CodingError "Can not find node name."
 
     get-devices = (io-table, namespace='') ->
         device-list = []
         if typeof! io-table is \Object
             for key, sub-table of io-table
+
                 curr-namespace = [namespace, key] |> compact |> join '.'
                 #log.log "Key: ", key, "namespace is: ", curr-namespace
                 if \driver of sub-table
