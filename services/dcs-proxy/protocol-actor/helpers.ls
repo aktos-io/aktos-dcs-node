@@ -1,5 +1,4 @@
-require! 'colors': {bg-red, red, bg-yellow, green, bg-blue}
-require! '../deps': {pack, unpack, Logger}
+require! '../../../lib': {sleep, pack, unpack, Logger, clone}
 require! 'prelude-ls': {split, flatten, split-at, compact}
 
 '''
@@ -94,7 +93,7 @@ export class MessageBinder
         @i++
 
         if @i > @max-try
-            @log.err bg-red "Caching isn't enough, giving up."
+            @log.err "Caching isn't enough, giving up."
             @i = 0
             @cache = data
             @next-size = 0

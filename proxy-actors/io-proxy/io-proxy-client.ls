@@ -3,7 +3,10 @@ require! '../../src/signal': {Signal}
 require! '../../lib/sleep': {sleep}
 require! '../../src/filters': {FpsExec}
 require! '../../src/topic-match': {topic-match}
-require! 'uuid4'
+
+_x = 0
+uuid4 = -> "some-random-#{_x++}"
+#require! 'uuid4'
 
 
 export class IoProxyClient extends Actor
@@ -81,7 +84,7 @@ export class IoProxyClient extends Actor
 
     read: (callback) !->
         err, msg <~ @send-request {route: "#{@route}"}, {+read}
-        callback err, msg 
+        callback err, msg
 
     filtered-write: (value, callback) !->
         err, msg <~ @send-request {route: "#{@route}"}, {val: value}

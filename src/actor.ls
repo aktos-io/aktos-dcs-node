@@ -3,7 +3,6 @@ require! '../lib/debug-tools': {brief}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
 require! 'prelude-ls': {split, flatten, keys, unique, is-it-NaN}
-require! uuid4
 require! './topic-match': {topic-match: route-match}
 
 /*
