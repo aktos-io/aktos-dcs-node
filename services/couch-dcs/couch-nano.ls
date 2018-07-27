@@ -28,16 +28,19 @@ export class CouchNano extends EventEmitter
         @db = nano {url: @cfg.url, parseUrl: no}
         @connection = new Signal!
         @first-connection-made = no
+        @connecting = no
 
         @on \connected, ~>
             @connection.go!
             @connected = yes
             @retry-timeout = 100ms
             @first-connection-made = yes
+            @connecting = no
             #console.log "couch-nano says: connected"
 
         @on \disconnected, ~>
             @connected = no
+            @connecting = no
             #console.log "couch-nano says: disconnected!"
 
         @retry-timeout = 100ms
@@ -51,19 +54,27 @@ export class CouchNano extends EventEmitter
 
         unless typeof! callback is \Function => callback = (->)
 
-        #console.log "request opts : ", opts
         err, res, headers <~ @db.request opts
         if (err?.statusCode in [UNAUTHORIZED, FORBIDDEN]) or err?code is 'ECONNREFUSED'
             if @first-connection-made
                 @trigger \disconnected, {err}
-            @log.log "Retrying connection because:", (err.reason or err.description)
+            @log.info "Retrying connection because:", (err.reason or err.description)
             sleep @retry-timeout, ~>
-                @log.log "Retrying connection..."
-                @_connect (err) ~>
-                    unless err
-                        @log.log "Connection successful"
-                    else
-                        @log.warn "Connection failed"
+                unless @connecting
+                    @connecting = yes
+                    @log.info "Retrying connection..."
+                    @_connect (err) ~>
+                        unless err
+                            @log.success "Connection successful"
+                        else
+                            @log.warn "Connection failed"
+                        if @retry-timeout < @max-delay
+                            @retry-timeout *= 2
+                        # retry the last request (irrespective of err)
+                        @request opts, callback
+                else
+                    #@log.debug "Retrying without connecting..."
+                    # TODO: Cleanup Me
                     if @retry-timeout < @max-delay
                         @retry-timeout *= 2
                     # retry the last request (irrespective of err)
@@ -113,11 +124,11 @@ export class CouchNano extends EventEmitter
         if typeof! callback isnt \Function then callback = (->)
         err, res <~ @get null
         if err
-            console.error "Connection has error:", err
+            @log.error "Connection has error:", err
         else
             unless @security-is-okay
-                @log.log bg-red "You MUST create the '_security' document in your db."
-                throw "Insecure DB!"
+                @log.error "Are you sure you have the **CORRECT** '#{@db-name}/_security' document?"
+                throw "Anyway, #{@db-name} seems public so we won't continue!"
 
             @trigger \connected
             console.log "-----------------------------------------"
@@ -311,7 +322,7 @@ export class CouchNano extends EventEmitter
                 #@log.debug "Setting cookie for ", url
                 j.set-cookie cookie, url
             catch
-                console.log "Error while updating cookie for follow.js: ", e 
+                console.log "Error while updating cookie for follow.js: ", e
 
         options = default-opts `merge` opts
         feed = new follow.Feed options
