@@ -58,7 +58,7 @@ export class DcsSocketIOBrowser extends ProxyClient
             @send-response msg, {err, res: res.auth}
 
         public-login-allowed = yes
-        @on \logged-out, (reason) ~>
+        try-relogin = ~>
             @log.log "This is a logout"
             db.del \token
             if (reason?.code is \GRACEFUL) and public-login-allowed
@@ -67,3 +67,9 @@ export class DcsSocketIOBrowser extends ProxyClient
                 @log.log "...logging in..."
                 err, res <~ @login {user: 'public', password: 'public'}
                 console.log "automatic login: err, res: ", err, res
+
+        @on \logged-out, (reason) ~>
+            try-relogin reason
+
+        @on \kicked-out, ~>
+            try-relogin!
