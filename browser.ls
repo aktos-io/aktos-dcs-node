@@ -5,7 +5,7 @@ require! './services/dcs-proxy/socket-io/browser': {DcsSocketIOBrowser}
 require! './services/couch-dcs/client': {CouchDcsClient}
 require! './src/topic-match': {topic-match}
 
-module.exports = {
+global.dcs = module.exports = {
     Actor
     Signal, SignalBranch
     DcsSocketIOBrowser
