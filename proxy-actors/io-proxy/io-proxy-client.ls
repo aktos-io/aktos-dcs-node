@@ -80,7 +80,11 @@ export class IoProxyClient extends Actor
 
     write: (value, callback) !->
         @fps.exec ~>
-            @filtered-write value, callback
+            @fps.pause!
+            @filtered-write value, (...args) ~>
+                @fps.resume!
+                if callback?
+                    that ...args
 
     read: (callback) !->
         err, msg <~ @send-request {route: "#{@route}"}, {+read}
