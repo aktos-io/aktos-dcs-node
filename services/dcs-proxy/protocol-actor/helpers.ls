@@ -58,7 +58,7 @@ export class MessageBinder
         @i = 0
         @cache = ""
         @heartbeat = 0
-        const @timeout = 400ms
+        const @timeout = 1400ms # needs a high value for extremely slow connections
         @max-try = 1200_chunks
         @next-size = 0
 
