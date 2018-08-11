@@ -35,6 +35,9 @@ export class ActorManager
         for actor in @actors when actor.id isnt sender
             #@log.log "looking for #{msg.to} to be matched in #{actor.subscriptions}"
             if msg.to `route-match` actor.subscriptions
+                if msg._exclude
+                    if that is actor.id => continue
+                    delete msg._exclude 
                 #@log.log "putting message: #{msg.from}.#{msg.seq} -> actor: #{actor.id}", actor.subscriptions.join(',')
                 delay = Date.now! - due-date
                 if delay > 100ms

@@ -151,6 +151,7 @@ export class ProxyClient extends Actor
                             if msg.cc
                                 msg2 = clone msg
                                 msg2.to = msg.cc
+                                msg2._exclude = msg.to # already sent above
                                 @send-enveloped msg2
                             return
                         @send-enveloped msg
