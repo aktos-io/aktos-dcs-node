@@ -17,10 +17,11 @@ export class IoProxyClient extends Actor
         @fps = new FpsExec (opts.fps or 20fps), this
         @value = undefined
         @last-update = 0
+        @debug = opts.debug
+        #@log.log "IoProxyClient initialized with #{@id} for route #{@route}"
 
-        #@log.debug "Subscribed to @route: #{@route}, #{@me}"
         @on-topic "#{@route}", (msg) ~>
-            #@log.log "#{@route}.write received: ", msg
+            #@log.log "#{@route} received: ", msg
             if msg.data.err
                 @trigger \error, {message: that}
             else
@@ -92,9 +93,9 @@ export class IoProxyClient extends Actor
 
     filtered-write: (value, callback) !->
         err, msg <~ @send-request {route: "#{@route}"}, {val: value}
+        #@log.log "Write response: ", msg
         error = err or msg?.data.err
         unless err
-            #@log.debug "Write succeeded."
             @value = msg.data.res
         if typeof! callback is \Function
             callback error
