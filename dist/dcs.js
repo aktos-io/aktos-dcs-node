@@ -10013,6 +10013,7 @@ out$.IoProxyClient = IoProxyClient = (function(superclass){
     this.fps = new FpsExec(opts.fps || 20, this);
     this.value = undefined;
     this.lastUpdate = 0;
+    this.debug = opts.debug;
     this.onTopic(this.route + "", function(msg){
       var that, value;
       if (that = msg.data.err) {
@@ -10487,6 +10488,7 @@ out$.ProxyClient = ProxyClient = (function(superclass){
             if (msg.cc) {
               msg2 = clone(msg);
               msg2.to = msg.cc;
+              msg2._exclude = msg.to;
               this$.sendEnveloped(msg2);
             }
             return;
@@ -10616,7 +10618,7 @@ out$.MessageBinder = MessageBinder = (function(){
     this.i = 0;
     this.cache = "";
     this.heartbeat = 0;
-    this.timeout = 400;
+    this.timeout = 1400;
     this.maxTry = 1200;
     this.nextSize = 0;
   }
@@ -17095,7 +17097,7 @@ out$.ActorManager = ActorManager = (function(){
     }, this.actors);
   };
   prototype.distribute = function(msg, sender){
-    var dueDate, i$, ref$, len$, actor, delay, results$ = [];
+    var dueDate, i$, ref$, len$, actor, that, delay, results$ = [];
     if (msg.debug) {
       this.log.debug("Distributing message: ", brief(msg));
     }
@@ -17104,6 +17106,12 @@ out$.ActorManager = ActorManager = (function(){
       actor = ref$[i$];
       if (actor.id !== sender) {
         if (routeMatch(msg.to, actor.subscriptions)) {
+          if (that = msg._exclude) {
+            if (that === actor.id) {
+              continue;
+            }
+            delete msg._exclude;
+          }
           delay = Date.now() - dueDate;
           if (delay > 100) {
             this.log.warn("System load is high? Message is delivered after " + delay + "ms");
