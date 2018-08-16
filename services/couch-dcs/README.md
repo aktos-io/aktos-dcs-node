@@ -2,7 +2,7 @@
 
 This server and client libraries are created to be able to use CouchDB over DCS network.
 
-In addition to changing transport layer from HTTP to DCS, this library aims to [address some CouchDB limitations](./addressing-couchdb-limitations.md).
+In addition to changing transport layer from HTTP to DCS, this library aims to [address some CouchDB limitations](./doc/addressing-couchdb-limitations.md).
 
 ## Usage
 
