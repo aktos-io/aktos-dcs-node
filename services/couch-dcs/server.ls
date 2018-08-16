@@ -76,11 +76,10 @@ export class CouchDcsServer extends Actor
 
             ..connect!
 
-            /*
+
             ..follow (change) ~>
-                @log.log (bg-green "<<<<<<>>>>>>"), "publishing change on #{@name}:", change.id
-                @send "#{event-route}.change.all"
-            */
+                @log.log (bg-yellow "<<<<<<>>>>>>"), "change on #{@name}:", change.id
+
 
             ..get-all-views (err, res) ~>
                 for let view in res
@@ -90,6 +89,7 @@ export class CouchDcsServer extends Actor
                         @log.log (bg-green "<<<_view_>>>"), "..publishing #{topic}", change.id
                         @log.todo "Take authorization into account while publishing changes!"
                         @send {to: topic, -debug}, change
+            
 
             ..start-heartbeat!
 

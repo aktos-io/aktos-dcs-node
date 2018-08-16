@@ -317,12 +317,10 @@ export class CouchNano extends EventEmitter
 
         do update-cookie = ~>
             try
-                url = @cfg.url
                 cookie = request.cookie @cookie.0
-                #@log.debug "Setting cookie for ", url
-                j.set-cookie cookie, url
+                j.set-cookie cookie, @cfg.url
             catch
-                console.log "Error while updating cookie for follow.js: ", e
+                @log.error "Error while updating cookie for follow.js: ", e
 
         options = default-opts `merge` opts
         feed = new follow.Feed options
@@ -358,7 +356,9 @@ export class CouchNano extends EventEmitter
             #@log.debug "Cookie is refreshed. We should be still able to follow."
             update-cookie!
 
-        update-cookie!
+        if @cookie?.0?
+            update-cookie!
+
         feed.follow!
 
     get-all-views: (callback) ->
