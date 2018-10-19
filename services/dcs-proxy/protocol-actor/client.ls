@@ -180,7 +180,12 @@ export class ProxyClient extends Actor
             error = err or res?auth?error or (res?auth?session?logout is \yes)
             # error: if present, it means we didn't logged in succesfully.
             unless error
-                @session = res.auth.session
+                @session =
+                    try
+                        res.auth.session
+                    catch
+                        @log.error "FIXME: We have empty session: ", res
+                        {}
                 #@log.debug "Current @session.routes: ", @subscriptions
                 #@log.debug "Routes from server: ", @session.routes
                 @subscriptions ++= @session.routes
