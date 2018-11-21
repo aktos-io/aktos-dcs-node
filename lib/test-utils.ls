@@ -1,3 +1,22 @@
+''' 
+Example test:
+  
+make-tests 'foo-lib', tests = 
+    'hello world': ->
+        orig = {hello: 'world'}
+        _new = {hi: 'there'}
+
+        expect foo orig, _new        
+        .to-equal {thats: 'nice'}
+        
+    'upps': ->
+        docs = <[ some things here ]>
+
+        expect (-> foo docs)
+        .to-throw "Huston, we have a problem!"
+
+'''
+
 jsondiffpatch = require 'jsondiffpatch'
 require! \expect
 require! './packing': {clone}
