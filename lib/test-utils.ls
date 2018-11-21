@@ -14,6 +14,13 @@ make-tests 'foo-lib', tests =
 
         expect (-> foo docs)
         .to-throw "Huston, we have a problem!"
+        
+    'skipped test': -> 
+        return false 
+        
+        # doing some serious tests here 
+        
+        # Skipped tests will drop a warning into the console.
 
 '''
 
