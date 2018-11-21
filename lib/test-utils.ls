@@ -1,3 +1,29 @@
+''' 
+Example test:
+  
+make-tests 'foo-lib', tests = 
+    'hello world': ->
+        orig = {hello: 'world'}
+        _new = {hi: 'there'}
+
+        expect foo orig, _new        
+        .to-equal {thats: 'nice'}
+        
+    'upps': ->
+        docs = <[ some things here ]>
+
+        expect (-> foo docs)
+        .to-throw "Huston, we have a problem!"
+        
+    'skipped test': -> 
+        return false 
+        
+        # doing some serious tests here 
+        
+        # Skipped tests will drop a warning into the console.
+
+'''
+
 jsondiffpatch = require 'jsondiffpatch'
 require! \expect
 require! './packing': {clone}
