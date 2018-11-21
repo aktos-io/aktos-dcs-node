@@ -22,6 +22,13 @@ make-tests 'foo-lib', tests =
         
         # Skipped tests will drop a warning into the console.
 
+    'problematic test': -> 
+        # this test is not passing @_o
+        # let's make-tests start this test in debug mode while it keeps failing:
+        debugger if @_o        
+        
+        ...
+
 '''
 
 jsondiffpatch = require 'jsondiffpatch'
@@ -59,7 +66,13 @@ export make-tests = (lib-name, tests) ->
             right = encodeURIComponent actual
             console.log "Visual Diff: http://benjamine.github.io/jsondiffpatch/demo/index.html?desc=Expected..Actual&left=#{left}&right=#{right}"
 
+            try
+                # Run the failed test with debug mode enabled
+                @_o = {name}
+                res = test.call this
+
             throw  "- FAILED on test: #{name}"
+
 
 
         if typeof! res is \Undefined
