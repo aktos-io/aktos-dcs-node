@@ -44,6 +44,7 @@ run-test = (name, test) ->
     catch
         console.error   "- FAILED on test: #{name}"
         if (typeof! e.matcherResult isnt \Object) or not e.matcherResult.actual
+            e.test-name = name 
             throw e
 
         actual = JSON.stringify(e.matcherResult.actual)
