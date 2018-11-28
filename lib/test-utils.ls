@@ -42,18 +42,19 @@ run-test = (name, test) ->
     try
         res = test.call this
     catch
-        console.error   "- FAILED on test: #{name}"
         if (typeof! e.matcherResult isnt \Object) or not e.matcherResult.actual
-            e.test-name = name 
+            # Errors related to test setup (exception inside test function)
             throw e
+
+        e.test-name = name
+        console.error "FAILED test: #{name}", e
 
         actual = JSON.stringify(e.matcherResult.actual)
         expected = JSON.stringify(e.matcherResult.expected)
-        console.log     "- result  \t: ", actual
         console.log     "- expected\t: ", expected
-
-        d = jsondiffpatch.diff e.matcherResult.actual, e.matcherResult.expected
-        console.error "diff: "
+        console.log     "- result  \t: ", actual
+        console.error " - diff \t: "
+        d = jsondiffpatch.diff e.matcherResult.expected, e.matcherResult.actual
         console.error (JSON.stringify d, null, 2)
 
         # Visual diff
@@ -61,7 +62,8 @@ run-test = (name, test) ->
         right = encodeURIComponent actual
         console.log "Visual Diff: http://benjamine.github.io/jsondiffpatch/demo/index.html?desc=Expected..Actual&left=#{left}&right=#{right}"
 
-        throw  "- FAILED on test: #{name}"
+        # Re-throw the exception
+        throw  e
 
 
 
@@ -81,7 +83,6 @@ run-test = (name, test) ->
             console.log     "- expected\t: ", expected
             console.warn "DEPRECATED: ----------- convert to 'expect' method --------------"
             throw   "- FAILED on test: #{name}"
-
         else
             #console.log "...passed from test: #{name}."
 
@@ -95,5 +96,5 @@ export make-tests = (lib-name, tests) ->
     unless typeof! tests is \Object
         tests = {test: tests}
     for name, test of flattenObj tests
-        run-test name, test
+        run-test "#{lib-name}/#{name}", test
     console.log "... End of #{lib-name}"
