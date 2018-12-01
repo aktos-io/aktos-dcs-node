@@ -233,9 +233,10 @@ export class Actor extends EventEmitter
             if @_state.kill-finished
                 @log.warn "Got response activity after killed?", error, message
                 return
-            if error is \TIMEOUT
-                @log.warn "Request is timed out. Timeout was #{timeout}ms, seq: #{enveloped.seq}. req was:", brief enveloped
-                #debugger
+            unless callback
+                if error is \TIMEOUT
+                    @log.warn "Request is timed out. Timeout was #{timeout}ms, seq: #{enveloped.seq}. req was:", brief enveloped
+                    #debugger
             # Got the full messages (or error) at this point.
             @unsubscribe meta.to
 
