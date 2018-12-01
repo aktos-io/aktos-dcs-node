@@ -55,6 +55,7 @@ export class Logger extends EventEmitter
         @name = source-name
         @mgr = new LogManager!
         @prefix = null
+        @error = @err
 
     get-prefix: (color) ->
         get-prefix ("#{if @prefix => "#{@prefix}/" else ''}#{@name}"), color
@@ -84,7 +85,7 @@ export class Logger extends EventEmitter
                 log.call console, my, "font-weight: normal;" ..._args
 
     success: (...args) ~>
-        console.error.apply console, ([@get-prefix bg-green] ++ args)
+        console.log.apply console, ([@get-prefix bg-green] ++ args)
 
     err: (...args) ~>
         console.error.apply console, ([@get-prefix bg-red] ++ args)
@@ -95,10 +96,10 @@ export class Logger extends EventEmitter
         console.warn.apply console, [@get-prefix(bg-yellow), yellow('[WARNING]')] ++ args
 
     info: (...args) ~>
-        console.info.apply console, [@get-prefix!, cyan('[INFO]')] ++ args
+        console.info.apply console, [@get-prefix!, cyan('[I]')] ++ args
 
     todo: (...args) ~>
-        console.info.apply console, [@get-prefix!, magenta('[TODO]')] ++ args
+        console.warn.apply console, [@get-prefix!, magenta('[TODO]')] ++ args
 
     debug: (...args) ~>
-        console.info.apply console, [@get-prefix!, yellow('[DEBUG]')] ++ args
+        console.warn.apply console, [@get-prefix!, yellow('[D]')] ++ args

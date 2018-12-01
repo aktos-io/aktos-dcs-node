@@ -1,6 +1,6 @@
 require! 'socket.io': socketio
 require! '../deps': {Logger}
-require! 'dcs/transports/socket-io': {SocketIOTransport}
+require! '../../../transports/socket-io': {SocketIOTransport}
 require! '../protocol-actor/handler': {ProxyHandler}
 
 

@@ -26,6 +26,7 @@ export class CouchDcsClient extends Actor
             if msg.data.routes `topic-match` opts.route
                 @route = opts.route
                 #@log.info "setting route as #{@route}"
+                @trigger \logged-in
             else
                 @log.warn "We won't be able to connect to #{opts.route},
                     not found in ", msg.data.routes
@@ -61,8 +62,10 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
-
-        err, msg <~ @__request {put: doc}
+        cmd = {put: doc}
+        if opts.debug
+            cmd <<< {opts: debug: true}
+        err, msg <~ @__request cmd
 
         error = err or msg?.data.err
         response = msg?.data?.res

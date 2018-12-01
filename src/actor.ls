@@ -3,7 +3,6 @@ require! '../lib/debug-tools': {brief}
 require! './actor-manager': {ActorManager}
 require! './signal': {Signal}
 require! 'prelude-ls': {split, flatten, keys, unique, is-it-NaN}
-require! uuid4
 require! './topic-match': {topic-match: route-match}
 
 /*
@@ -105,6 +104,7 @@ export class Actor extends EventEmitter
         @_state = {}
         @_partial_msg_states = {}
         @_request_concat_cache = {}
+        @_last_login = 0
         @mgr.register-actor this
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
@@ -136,7 +136,7 @@ export class Actor extends EventEmitter
         # FIXME:
         # this timeout should be maximum 1000ms but when another blocking data
         # receive operation is taking place, this timeout is exceeded
-        timeout = 30_000ms # longest duration
+        timeout = 5_000ms # maximum timeout without target's first response
         # /FIXME
 
         if typeof! opts is \String
@@ -182,7 +182,7 @@ export class Actor extends EventEmitter
                     last-part-sent := yes
 
         do
-            response-signal = new Signal {debug: enveloped.debug, name: "Req Sig:#{enveloped.seq}"}
+            response-signal = new Signal {debug: enveloped.debug, name: "ReqSig:#{enveloped.seq}"}
             #@log.debug "Adding request id #{request-id} to request queue: ", @request-queue
             @request-queue[request-id] = response-signal
             error = null
@@ -192,6 +192,10 @@ export class Actor extends EventEmitter
             request-date = Date.now! # for debugging (benchmarking) purposes
             <~ :lo(op) ~>
                 #@log.debug "Request timeout is: #{timeout}"
+                # -------------------------------------------------------
+                # IMPORTANT: DO NOT remove this line to prevent "UNFINISHED" error
+                response-signal.clear!
+                # -------------------------------------------------------
                 err, msg <~ response-signal.wait timeout
                 if err
                     #@log.err "We have timed out"
@@ -202,9 +206,9 @@ export class Actor extends EventEmitter
                     part-handler msg
 
                     if request-date?
-                        if request-date + 1000ms < Date.now!
+                        if request-date + 200ms < Date.now!
                             @log.debug "First response is too late for seq:#{enveloped.seq} latency:
-                            #{Date.now! - request-date}ms"
+                            #{Date.now! - request-date}ms, req: ", enveloped
                         request-date := undefined # disable checking
 
                     if msg.timeout
@@ -229,11 +233,12 @@ export class Actor extends EventEmitter
             if @_state.kill-finished
                 @log.warn "Got response activity after killed?", error, message
                 return
-            if error is \timeout
+            if error is \TIMEOUT
                 @log.warn "Request is timed out. Timeout was #{timeout}ms, seq: #{enveloped.seq}. req was:", brief enveloped
                 #debugger
             # Got the full messages (or error) at this point.
             @unsubscribe meta.to
+
             #@log.debug "Removing request id: #{request-id}"
             delete @request-queue[request-id]
 
@@ -302,10 +307,10 @@ export class Actor extends EventEmitter
             # this is a response to this actor.
             if @request-queue[msg.re]
                 # this is a response
-                if @debug
+                if @debug or msg.debug
                     @log.debug "We were expecting this response: ", msg
-                    @log.debug "Current request queue: ", @request-queue
-                @request-queue[msg.re]?.go msg
+                    @log.debug "Current request queue: ", keys @request-queue
+                @request-queue[msg.re]?.go null, msg
             else
                 @log.err "This is not a message we were expecting (or interested in)?
                      is it timed out already? I'm #{@me})", msg
@@ -388,14 +393,19 @@ export class Actor extends EventEmitter
             @_state.kill-finished = yes
 
     on-every-login: (callback) ->
+        min-period = 1000ms
         @on-topic 'app.dcs.connect', (msg) ~>
-            callback msg
+            if @_last_login + min-period < Date.now!
+                callback msg
+                @_last_login = Date.now!
 
         # request dcs login state on init
         @send-request 'app.dcs.update', (err, msg) ~>
             #@log.info "requesting app.dcs.connect state:"
             if not err and msg?data
-                callback msg
+                if @_last_login + min-period < Date.now!
+                    callback msg
+                    @_last_login = Date.now!
 
 if require.main is module
     console.log "initializing actor test"

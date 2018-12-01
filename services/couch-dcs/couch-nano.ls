@@ -1,4 +1,4 @@
-require! 'prelude-ls': {flatten, join, split}
+require! 'prelude-ls': {flatten, join, split, compact}
 require! 'nano'
 require! 'colors': {bg-red, bg-green, bg-yellow, bg-blue}
 require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
@@ -28,16 +28,19 @@ export class CouchNano extends EventEmitter
         @db = nano {url: @cfg.url, parseUrl: no}
         @connection = new Signal!
         @first-connection-made = no
+        @connecting = no
 
         @on \connected, ~>
             @connection.go!
             @connected = yes
             @retry-timeout = 100ms
             @first-connection-made = yes
+            @connecting = no
             #console.log "couch-nano says: connected"
 
         @on \disconnected, ~>
             @connected = no
+            @connecting = no
             #console.log "couch-nano says: disconnected!"
 
         @retry-timeout = 100ms
@@ -51,19 +54,27 @@ export class CouchNano extends EventEmitter
 
         unless typeof! callback is \Function => callback = (->)
 
-        #console.log "request opts : ", opts
         err, res, headers <~ @db.request opts
         if (err?.statusCode in [UNAUTHORIZED, FORBIDDEN]) or err?code is 'ECONNREFUSED'
             if @first-connection-made
                 @trigger \disconnected, {err}
-            @log.log "Retrying connection because:", (err.reason or err.description)
+            @log.info "Retrying connection because:", (err.reason or err.description)
             sleep @retry-timeout, ~>
-                @log.log "Retrying connection..."
-                @_connect (err) ~>
-                    unless err
-                        @log.log "Connection successful"
-                    else
-                        @log.warn "Connection failed"
+                unless @connecting
+                    @connecting = yes
+                    @log.info "Retrying connection..."
+                    @_connect (err) ~>
+                        unless err
+                            @log.success "Connection successful"
+                        else
+                            @log.warn "Connection failed"
+                        if @retry-timeout < @max-delay
+                            @retry-timeout *= 2
+                        # retry the last request (irrespective of err)
+                        @request opts, callback
+                else
+                    #@log.debug "Retrying without connecting..."
+                    # TODO: Cleanup Me
                     if @retry-timeout < @max-delay
                         @retry-timeout *= 2
                     # retry the last request (irrespective of err)
@@ -113,11 +124,11 @@ export class CouchNano extends EventEmitter
         if typeof! callback isnt \Function then callback = (->)
         err, res <~ @get null
         if err
-            console.error "Connection has error:", err
+            @log.error "Connection has error:", err
         else
             unless @security-is-okay
-                @log.log bg-red "You MUST create the '_security' document in your db."
-                throw "Insecure DB!"
+                @log.error "Are you sure you have the **CORRECT** '#{@db-name}/_security' document?"
+                throw "Anyway, #{@db-name} seems public so we won't continue!"
 
             @trigger \connected
             console.log "-----------------------------------------"
@@ -197,7 +208,13 @@ export class CouchNano extends EventEmitter
         # ------------------------------------
         # normalize parameters
         # ------------------------------------
-        [ddoc, viewname] = split '/', ddoc-viewname
+        try
+            [ddoc, viewname] = split '/', ddoc-viewname
+        catch
+            @log.debug "We have an error in @view: ", e
+            @log.debug "...view name: ", ddoc-viewname
+            return callback e, null
+
         if typeof! opts is \Function
             callback = opts
             opts = {}
@@ -299,10 +316,11 @@ export class CouchNano extends EventEmitter
                 jar: j
 
         do update-cookie = ~>
-            url = @cfg.url
-            cookie = request.cookie @cookie.0
-            #@log.debug "Setting cookie for ", url
-            j.set-cookie cookie, url
+            try
+                cookie = request.cookie @cookie.0
+                j.set-cookie cookie, @cfg.url
+            catch
+                @log.error "Error while updating cookie for follow.js: ", e
 
         options = default-opts `merge` opts
         feed = new follow.Feed options
@@ -338,17 +356,37 @@ export class CouchNano extends EventEmitter
             #@log.debug "Cookie is refreshed. We should be still able to follow."
             update-cookie!
 
-        update-cookie!
+        if @cookie?.0?
+            update-cookie!
+
         feed.follow!
 
     get-all-views: (callback) ->
         views = []
         err, res <~ @all-docs {startkey: "_design/", endkey: "_design0", +include_docs}
         unless err
-            for res
-                name = ..id.split '/' .1
-                continue if name is \autoincrement
-                #@log.log "all design documents: ", ..doc
-                for let view-name of eval ..doc.javascript .views
-                    views.push "#{name}/#{view-name}"
-        callback err, views
+            for res or []
+                try
+                    name = ..id.split '/' .1
+                    continue if name is \autoincrement
+                    #@log.log "all design documents: ", ..doc
+                    for let view-name of eval ..doc.javascript .views
+                        views.push "#{name}/#{view-name}"
+                catch
+                    @log.err "Something went wrong with ", .., e
+
+        callback err, compact views
+
+    update-all-views: (callback) ->
+        error = null
+        err, views <~ @get-all-views
+        if views.length is 0
+            return callback "No views can be found."
+        i = 0
+        <~ :lo(op) ~>
+            name = views[i]
+            #@log.info "...updating view: #{name}"
+            err, res <~ @view name, {limit: 1}
+            return op! if ++i is views.length
+            lo(op)
+        callback error

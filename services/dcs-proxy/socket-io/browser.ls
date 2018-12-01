@@ -1,6 +1,21 @@
 require! '../../../lib/sleep': {sleep}
-require! 'dcs/transports/socket-io': {SocketIOTransport}
+require! '../../../transports/socket-io': {SocketIOTransport}
 require! '../protocol-actor/client': {ProxyClient}
+require! 'socket.io-client': io
+
+class Storage
+    ->
+        console.warn "DEVELOPER MODE: Using in-memory storage for DcsSocketIOBrowser"
+        @memory = {}
+
+    set: (key, value) ->
+        @memory[key] = value
+
+    del: (key) ->
+        delete @memory[key]
+
+    get: (key) ->
+        @memory[key]
 
 
 export class DcsSocketIOBrowser extends ProxyClient
@@ -19,7 +34,7 @@ export class DcsSocketIOBrowser extends ProxyClient
         super transport, do
             name: \SocketIOBrowser
 
-        db = opts.db
+        db = opts.db or (new Storage)
         if db.get \token
             #### there is a token currently, use token to sign in
             #@log.log "logging in with token: ", that
@@ -57,7 +72,7 @@ export class DcsSocketIOBrowser extends ProxyClient
             @send-response msg, {err, res: res.auth}
 
         public-login-allowed = yes
-        @on \logged-out, (reason) ~>
+        try-relogin = ~>
             @log.log "This is a logout"
             db.del \token
             if (reason?.code is \GRACEFUL) and public-login-allowed
@@ -66,3 +81,9 @@ export class DcsSocketIOBrowser extends ProxyClient
                 @log.log "...logging in..."
                 err, res <~ @login {user: 'public', password: 'public'}
                 console.log "automatic login: err, res: ", err, res
+
+        @on \logged-out, (reason) ~>
+            try-relogin reason
+
+        @on \kicked-out, ~>
+            try-relogin!

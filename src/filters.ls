@@ -7,9 +7,19 @@ export class FpsExec
         @period = opts.period or (1000ms / fps)
         @timer = null
         @last-exec = 0
+        @paused = no
 
     now: ->
         new Date! .get-time!
+
+    pause: ->
+        @paused = yes
+
+    resume: ->
+        if @_fn?
+            that ...@_args
+            @_fn = null
+        @paused = no
 
     exec: (func, ...args) ->
         # do not send repetative messages in the time window
@@ -20,8 +30,13 @@ export class FpsExec
             clear-timeout @timer
             if @debug => console.info "FpsExec is skipping an execution."
         @timer = sleep time-to-exec, ~>
-            func ...args
-            @last-exec = @now!
+            unless @paused
+                func ...args
+                @last-exec = @now!
+            else
+                #console.log "...............skipped because paused."
+                @_fn = func
+                @_args = args
 
 
 /*

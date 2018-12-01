@@ -65,6 +65,9 @@ export function merge-all (obj1, ...sources)
 
 
 
+export based-on = (a, b) ->
+    # inverse argument order of merge
+    (b or {}) `merge` (a or {})
 
 
 tests =
