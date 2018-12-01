@@ -7,11 +7,23 @@ export class DriverAbstract extends EventEmitter
     ->
         super!
         @rq = {}  # read queue
+        @io = {}  # io lookup table, format: {"name": object}
+
+    initialize: (handle, emit) ->
+        console.log "TODO: Handle initialized:", handle
+        # emit(err, res)
+        if handle.watch
+            console.log "...adding #{handle.route} to discrete watch list."
+            <~ :lo(op) ~>
+                <~ sleep handle.watch
+                err, res <~ @_safe_read handle
+                emit err, res
+                lo(op)
 
     write: (handle, value, respond) ->
         # respond(err)
-        # if there is no error returned, broadcasting is the new value
-        # is handled by io-proxy-handler
+        # if there is no error returned, broadcasting the new value is handled
+        # by io-proxy-handler
         ...
 
     _safe_read: (handle, respond) ->
@@ -38,17 +50,6 @@ export class DriverAbstract extends EventEmitter
     read: (handle, respond) ->
         # respond(err, res)
         ...
-
-    watch-changes: (handle, emit) ->
-        # if handle.watch is true, this method is called on initialization.
-        # emit(err, res)
-        if handle.watch
-            console.log "...adding #{handle.route} to discrete watch list."
-            <~ :lo(op) ~>
-                <~ sleep handle.watch
-                err, res <~ @_safe_read handle
-                emit err, res
-                lo(op)
 
     start: ->
         console.log "...driver is requested to start, but doing nothing."

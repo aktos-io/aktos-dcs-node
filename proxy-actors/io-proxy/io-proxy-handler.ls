@@ -108,8 +108,9 @@ export class IoProxyHandler extends Actor
                 #console.log "write error status: ", err
                 respond err
 
-            # driver decides whether to watch changes of this handle or not.
-            driver.watch-changes handle, broadcast-value
+            # Initialize handle (do handle specific settings on the target)
+            driver.initialize handle, broadcast-value
+
 
         @on-topic "#{@name}", (msg) ~>
             if \val of msg.data
