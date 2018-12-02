@@ -73,20 +73,29 @@ export class DriverAbstract extends EventEmitter
         ...
 
     start: ->
+        @starting = true
         console.log "...driver is requested to start, but doing nothing."
 
     stop: ->
         console.log "...driver is requested to stop, but doing nothing."
 
-    started: ->
-        @trigger \connect
-        @connected = yes
-
-    stopped: ->
-        @trigger \disconnect
-        @connected = no
+    connected: ~
+        ->
+            @_connected
+        (val) ->
+            if val
+                @_connected = yes
+                @started = yes
+                @trigger \connect
+            else
+                @_connected = no
+                @started = no
+                @starting = no
+                @trigger \disconnect
 
     parse-addr: (addr) ->
+        # A static method for parsing addresses.
+        # TODO: Move to a separate library.
         /* return type:
 
             {

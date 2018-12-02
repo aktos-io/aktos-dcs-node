@@ -33,9 +33,10 @@ export class RpiGPIODriver extends DriverAbstract
         @io[handle.name].read respond
 
     start: ->
-        @trigger \started
+        @connected = yes
 
     stop: ->
+        @connected = no
         console.log "Stopping RpiGPIODriver..."
         for name, gpio of @io
             console.log "...unexporting #{name}"
@@ -64,3 +65,9 @@ export class RpiGPIODriverSimulator extends DriverAbstract
         # we are requested to read the handle value from the target
         #console.log "do something to read the handle:", handle
         respond null, @io[handle.name]
+
+    start: ->
+        @connected = yes
+
+    stop: ->
+        @connected = no 
