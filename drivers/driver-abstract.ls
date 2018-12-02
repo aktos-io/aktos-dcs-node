@@ -3,6 +3,27 @@ require! '../src/signal': {Signal}
 require! '../lib/sleep': {sleep}
 require! 'prelude-ls': {empty}
 
+/* Types of drivers:
+
+According to concurrency:
+
+    1. Concurrent read/write
+
+        A device might be able to handle its io concurrently, such as:
+        * Raspberry GPIO
+        * A database/webservice
+        * More than one device in the backend
+
+    2. Sequential read/write
+
+        A device might not let concurrent read/writes (most of the devices) that
+        can only handle one telegram at a time, such as
+        * Most of the PLC's (especially which uses RS485 or like)
+
+TODO: This distinction should be declared on `start` time.
+
+*/
+
 export class DriverAbstract extends EventEmitter
     ->
         super!
