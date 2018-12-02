@@ -41,3 +41,26 @@ export class RpiGPIODriver extends DriverAbstract
             console.log "...unexporting #{name}"
             gpio.unexport!
         console.log "Stopped."
+
+export class RpiGPIODriverSimulator extends DriverAbstract
+    initialize: (handle, emit) ->
+        console.log "Simulator initialized #{handle.name}"
+        @io[handle.name] = {value: false, count: 0}
+
+    write: (handle, value, respond) ->
+        # we got a write request to the target
+        #console.log "we got ", value, "to write as ", handle
+        @io[handle.name]
+            ..value = value
+            ..count++
+        # display all io status:
+        status = []
+        for name, state of @io
+            status.push "#{name}: #{state.value} (#{state.count})"
+        console.log status.join('\t')
+        respond null
+
+    read: (handle, respond) ->
+        # we are requested to read the handle value from the target
+        #console.log "do something to read the handle:", handle
+        respond null, @io[handle.name]
