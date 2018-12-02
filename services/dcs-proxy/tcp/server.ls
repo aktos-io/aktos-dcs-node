@@ -3,6 +3,8 @@ require! 'colors': {yellow, green, red, blue, bg-green}
 require! '../protocol-actor/handler':{ProxyHandler}
 require! '../deps': {Logger}
 require! 'dcs/transports/tcp': {TcpHandlerTransport}
+require! '../../../src/auth-db': {AuthDB}
+export AuthDB
 
 
 export class DcsTcpServer
