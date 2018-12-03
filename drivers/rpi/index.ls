@@ -64,10 +64,10 @@ export class RpiGPIODriverSimulator extends DriverAbstract
     read: (handle, respond) ->
         # we are requested to read the handle value from the target
         #console.log "do something to read the handle:", handle
-        respond null, @io[handle.name]
+        respond null, @io[handle.name].value
 
     start: ->
         @connected = yes
 
     stop: ->
-        @connected = no 
+        @connected = no
