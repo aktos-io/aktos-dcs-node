@@ -39,36 +39,33 @@ export class TcpTransport extends EventEmitter
         @socket
             ..setKeepAlive yes, 1000ms
             ..setTimeout 1000ms
-
             ..on \connect, ~>
                 NetKeepAlive.setKeepAliveInterval @socket, 1000ms
                 NetKeepAlive.setKeepAliveProbes @socket, 1
                 #@log.log "Connected. Try to unplug the connection"
-                @connected = yes  # should be BEFORE "connect" trigger
-                @trigger \connect
-
+                @connected = yes
             ..on \close, ~>
-                if @connected
-                    @connected = no
-                    #@log.log "Connection is closed."
-                    @trigger \disconnect
-
+                @connected = no
             ..on \data, (data) ~>
                 @trigger \data, data
-
             ..on \end, ~>
-                if @connected
-                    @connected = no
-                    @trigger \disconnect
-
+                @connected = no
             ..on \error, (err) ~>
-                if @connected
-                    @connected = no
-                    @trigger \disconnect
+                @connected = no
 
         unless opts.manual-start
             # start automatically
             @start!
+
+    connected: ~
+        -> @_connected
+        (val) ->
+            prev = @_connected
+            @_connected = val # should be assigned before any trigger
+            if not val and prev
+                @trigger \disconnect
+            if val and not prev
+                @trigger \connect
 
     start: ->
         #@log.log "Starting connection"
