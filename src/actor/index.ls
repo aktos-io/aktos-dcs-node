@@ -1,10 +1,11 @@
 require! '../../lib': {sleep, pack, EventEmitter, Logger, merge}
 require! '../../lib/debug-tools': {brief}
-require! '../actor-manager': {ActorManager}
+require! './actor-manager': {ActorManager}
 require! '../signal': {Signal}
 require! 'prelude-ls': {split, flatten, keys, unique, is-it-NaN}
 require! '../topic-match': {topic-match: route-match}
 require! './request'
+
 export class TopicTypeError extends Error
     (@message, @route) ->
         super ...
@@ -192,6 +193,7 @@ export class Actor extends EventEmitter implements request
             for id, signal of @request-queue
                 #@log.debug "...Removing signal: ", id
                 signal.reset!
+                delete @request-queue[id]
             @trigger \kill, reason
             @_state.kill-finished = yes
 
