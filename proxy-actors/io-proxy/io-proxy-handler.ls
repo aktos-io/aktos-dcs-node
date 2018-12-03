@@ -58,7 +58,7 @@ export class IoProxyHandler extends Actor
         # Initialize handle (do handle specific settings on the target)
         driver.initialize handle, broadcast-value
 
-        @on-topic "#{@name}", (msg) ~>
+        @on-topic route, (msg) ~>
             if \val of msg.data
                 #@log.debug "triggering 'write'."
                 new-value = msg.data.val
