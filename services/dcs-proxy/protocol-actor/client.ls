@@ -195,7 +195,7 @@ export class ProxyClient extends Actor
                 @send 'app.dcs.connect', @session
                 @trigger \logged-in, @session, ~>
                     # clear plaintext passwords
-                    credentials := {token: @session.token}
+                    credentials := {token: @session?.token}
             else
                 @trigger \disconnect
 
