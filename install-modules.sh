@@ -19,9 +19,14 @@ prompt_yes_no () {
 }
 
 DIR=$(dirname "$(readlink -f "$0")")
-PREFERENCES="modules.txt"
+PREFERENCES="$1"
 
-if [ ! -f "$DIR/$PREFERENCES" ]; then
+if [ -z $PREFERENCES ]; then
+    echo "Usage: $(basename $0) /path/to/preferences.txt"
+    exit
+fi
+
+if [ ! -f "$PREFERENCES" ]; then
     echo
     echo "Select Modules to Install"
     echo "-----------------------------------"
@@ -45,14 +50,14 @@ if [ ! -f "$DIR/$PREFERENCES" ]; then
     done < <(find . -name "node_modules" -prune -a ! -name "node_modules" -o -name "package.json" | tac )
 
     echo
-    echo "Saving Preferences to ./$PREFERENCES"
+    echo "Saving Preferences to $PREFERENCES"
     echo "----------------------------------------------"
-    echo -e $modules > "$DIR/$PREFERENCES"
+    echo -e $modules > "$PREFERENCES"
 else
     echo
     echo "Using $PREFERENCES file..."
     echo "-----------------------------------"
-    cat "$DIR/$PREFERENCES"
+    cat "$PREFERENCES"
 fi
 
 echo
@@ -70,4 +75,4 @@ while IFS='' read -r module || [[ -n "$module" ]]; do
     echo "package-lock=false"  > .npmrc
 
     npm install
-done < "$DIR/$PREFERENCES"
+done < "$PREFERENCES"

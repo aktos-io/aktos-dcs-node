@@ -3,15 +3,48 @@ require! '../src/signal': {Signal}
 require! '../lib/sleep': {sleep}
 require! 'prelude-ls': {empty}
 
+/* Types of drivers:
+
+According to concurrency:
+
+    1. Concurrent read/write
+
+        A device might be able to handle its io concurrently, such as:
+        * Raspberry GPIO
+        * A database/webservice
+        * More than one device in the backend
+
+    2. Sequential read/write
+
+        A device might not let concurrent read/writes (most of the devices) that
+        can only handle one telegram at a time, such as
+        * Most of the PLC's (especially which uses RS485 or like)
+
+TODO: This distinction should be declared on `start` time.
+
+*/
+
 export class DriverAbstract extends EventEmitter
     ->
         super!
         @rq = {}  # read queue
+        @io = {}  # io lookup table, format: {"name": object}
+
+    initialize: (handle, emit) ->
+        console.log "TODO: Handle initialized:", handle
+        # emit(err, res)
+        if handle.watch
+            console.log "...adding #{handle.route} to discrete watch list."
+            <~ :lo(op) ~>
+                <~ sleep handle.watch
+                err, res <~ @_safe_read handle
+                emit err, res
+                lo(op)
 
     write: (handle, value, respond) ->
         # respond(err)
-        # if there is no error returned, broadcasting is the new value
-        # is handled by io-proxy-handler
+        # if there is no error returned, broadcasting the new value is handled
+        # by io-proxy-handler
         ...
 
     _safe_read: (handle, respond) ->
@@ -39,32 +72,30 @@ export class DriverAbstract extends EventEmitter
         # respond(err, res)
         ...
 
-    watch-changes: (handle, emit) ->
-        # if handle.watch is true, this method is called on initialization.
-        # emit(err, res)
-        if handle.watch
-            console.log "...adding #{handle.route} to discrete watch list."
-            <~ :lo(op) ~>
-                <~ sleep handle.watch
-                err, res <~ @_safe_read handle
-                emit err, res
-                lo(op)
-
     start: ->
+        @starting = true
         console.log "...driver is requested to start, but doing nothing."
 
     stop: ->
         console.log "...driver is requested to stop, but doing nothing."
 
-    started: ->
-        @trigger \connect
-        @connected = yes
-
-    stopped: ->
-        @trigger \disconnect
-        @connected = no
+    connected: ~
+        ->
+            @_connected
+        (val) ->
+            if val
+                @_connected = yes
+                @started = yes
+                @trigger \connect
+            else
+                @_connected = no
+                @started = no
+                @starting = no
+                @trigger \disconnect
 
     parse-addr: (addr) ->
+        # A static method for parsing addresses.
+        # TODO: Move to a separate library.
         /* return type:
 
             {

@@ -28,12 +28,12 @@ io.on \read, (value) ~>
 
 Important part for a proxy handler is the driver. Driver performs the whole work.
 
-Usage:
+Writing a driver:
 
 ```ls
-require! 'dcs': {IoProxyHandler, DriverAbstract}
+require! 'dcs': {DriverAbstract}
 
-class TwitterDriver extends DriverAbstract
+export class TwitterDriver extends DriverAbstract
     write: (handle, value, respond) ->
         # we got a write request to the target
         console.log "we got ", value, "to write as ", handle
@@ -58,6 +58,14 @@ class TwitterDriver extends DriverAbstract
                 emit err, res
                 <~ sleep handle.watch
                 lo(op)
+
+```
+
+Usage:
+
+```ls
+require! 'dcs': {IoProxyHandler}
+require! '/path/to/twitter-driver': {TwitterDriver}
 
 # Handle may have any format that its driver is able to understand.
 handle =
