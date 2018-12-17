@@ -56,7 +56,7 @@ export class IoProxyHandler extends Actor
             respond err
 
         # Initialize handle (do handle specific settings on the target)
-        driver.initialize handle, broadcast-value
+        driver.init-handle handle, broadcast-value
 
         @on-topic route, (msg) ~>
             if \val of msg.data

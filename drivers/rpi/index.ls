@@ -12,7 +12,7 @@ handle =
 */
 
 export class RpiGPIODriver extends DriverAbstract
-    initialize: (handle, emit) ->
+    init-handle: (handle, emit) ->
         if handle.out
             # this is an output
             console.log "#{handle.name} is initialized as output"
@@ -44,7 +44,7 @@ export class RpiGPIODriver extends DriverAbstract
         console.log "Stopped."
 
 export class RpiGPIODriverSimulator extends DriverAbstract
-    initialize: (handle, emit) ->
+    init-handle: (handle, emit) ->
         console.log "Simulator initialized #{handle.name}"
         @io[handle.name] = {value: false, count: 0}
 

@@ -30,7 +30,7 @@ export class DriverAbstract extends EventEmitter
         @rq = {}  # read queue
         @io = {}  # io lookup table, format: {"name": object}
 
-    initialize: (handle, emit) ->
+    init-handle: (handle, emit) ->
         console.log "TODO: Handle initialized:", handle
         # emit(err, res)
         if handle.watch
