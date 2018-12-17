@@ -17,64 +17,59 @@ export class SerialPortTransport extends EventEmitter
         throw 'Port is required' unless opts.port
         super!
 
-        do # prevent process from terminating
-            <~ :lo(op) ~>
-                <~ sleep 99999999
-                lo(op)
-
         @log = new Logger "Serial #{opts.port}"
-
-        @_connected = no
         @_reconnecting = no
         @on \do-reconnect, ~>
-            return @log.warn "Already trying to reconnect" if @_reconnecting
+            if @_reconnecting
+                return @log.warn "Already trying to reconnect"
             @_reconnecting = yes
 
             recv = ''
-            <~ :lo(op) ~>
-                #@log.log "opening port..."
+            #@log.log "opening port..."
+            unless @ser
                 @ser = new SerialPort opts.port, {baudrate: opts.baudrate}
 
-                @ser
-                    ..on \error, (e) ~>
-                        #@log.warn "Error while opening port: ", pack e
-                        <~ sleep 1000ms
-                        @ser = undefined
-                        @_reconnecting = no
-                        @trigger \do-reconnect
+            @ser
+                ..on \error, (e) ~>
+                    #@log.warn "Error while opening port: ", pack e
+                    @ser = null
+                    <~ sleep 1000ms
+                    @_reconnecting = no
+                    @trigger \do-reconnect
 
-                    ..on \open, ~>
-                        @trigger \connect
+                ..on \open, ~>
+                    @connected = yes
 
-                    ..on \data, (data) ~>
-                        recv += data.to-string!
-                        #@log.log "data is: ", JSON.stringify recv
-                        if recv.index-of(opts.split-at) > -1
-                            @trigger \data, recv
-                            recv := ''
+                ..on \data, (data) ~>
+                    recv += data.to-string!
+                    #@log.log "data is: ", JSON.stringify recv
+                    if recv.index-of(opts.split-at) > -1
+                        @trigger \data, recv
+                        recv := ''
 
-                    ..on \close, (e) ~>
-                        #@log.log "something went wrong with the serial port...", e
-                        @trigger \disconnect
-                        <~ sleep 1000ms
-                        @_reconnecting = no
-                        @trigger \do-reconnect
-
+                ..on \close, (e) ~>
+                    #@log.log "something went wrong with the serial port...", e
+                    @connected = no
+                    <~ sleep 1000ms
+                    @_reconnecting = no
+                    @trigger \do-reconnect
             @_reconnecting = no
-
-        @on do
-            connect: ~>
-                @_connected = yes
-
-            disconnect: ~>
-                @_connected = no
-
         @trigger \do-reconnect
+
+    connected: ~
+        ->
+            @_connected
+        (val) ->
+            @_connected = val
+            if @_connected
+                @trigger \connect
+            else
+                @trigger \disconnect
 
     write: (data, callback) ->
         callback = (->) unless typeof! callback is \Function
 
-        if @_connected
+        if @connected
             #@log.log "writing data..."
             @ser.write data, ~>
                 #@log.log "written data"
@@ -83,8 +78,6 @@ export class SerialPortTransport extends EventEmitter
             #@log.warn "not connected, not writing."
             callback do
                 message: 'not connected'
-                resolved: (callback) ~>
-                    @once \connect, callback
 
 if require.main is module
     # do short circuit Rx and Tx pins
@@ -106,8 +99,8 @@ if require.main is module
         logger.log "sending \"something * 5\"..."
         err <~ port.write ('something' * 5) + '\n'
         if err
-            logger.err "something went wrong while writing, waiting for resolution..."
-            <~ err.resolved
+            logger.err "something went wrong while writing: ", err
+            <~ port.once \connect
             logger.log "error is resolved, continuing"
             lo(op)
         else
