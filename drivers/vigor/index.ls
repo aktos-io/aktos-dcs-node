@@ -2,7 +2,7 @@ require! '../driver-abstract': {DriverAbstract}
 require! '../../': {sleep}
 require! '../../transports/serial-port': {SerialPortTransport}
 require! '../../lib/event-emitter': {EventEmitter}
-require! 'prelude-ls': {map, flatten}
+require! 'prelude-ls': {map, flatten, split-at}
 
 STX = 0x02
 ETX = 0x03
@@ -37,18 +37,27 @@ str-to-arr = (.split "")
 
 to-ascii = (.map (.char-code-at 0))
 
+to-str = -> String.from-char-code it
+
 as-ascii-arr = (-> it |> str-to-arr |> to-ascii)
+
+ascii-to-str = ->
+    it.map(to-str).join('')
+
+ascii-to-int = ->
+    it |> ascii-to-str |> parse-int
 
 checksum = (arr) ->
     # see "How to calculate checksum of a protocol" section
     a = 0
     for arr
-        continue if .. is STX
+        continue if .. in [STX, ACK]
         a += ..
         break if .. is ETX
     a
         |> to-hexstr
         |> last-two-chars
+        |> (.to-upper-case!)
         |> as-ascii-arr
 
 # checksum tests
@@ -58,9 +67,9 @@ ch = y |> checksum |> _visual
 expected = "39 33"
 if ch isnt expected => throw "Checksum does not calculated correctly: expected: '#{expected}', got: #{ch}"
 
-y = as-hex "02 30 30 35 31 30 30 38 31 30 31 03 66 33"
+y = as-hex "02 30 30 35 31 30 30 38 31 30 31 03 46 33"
 ch = y |> checksum |> _visual
-expected = "66 33"
+expected = "46 33"
 if ch isnt expected => throw "Checksum does not calculated correctly: expected: '#{expected}', got: #{ch}"
 
 # See "Command list" in the datasheet
@@ -70,13 +79,16 @@ COMMANDS =
     force-on: "70"
     force-off: "71"
 
+for k, v of COMMANDS
+    COMMANDS[k] = v |> zero-pad(2) |> as-ascii-arr
+
 STATUS_CODES =
-    "00": {+ok, desc: "OK"}
-    "10": {-ok, desc: "Ascii code error"}
-    "11": {-ok, desc: "Checksum error"}
-    "12": {-ok, desc: "Command undefined"}
-    "14": {-ok, desc: "Stop, parity, frame error or overrun"}
-    "28": {-ok, desc: "Address out of range"}
+    "00": "OK"
+    "10": "Ascii code error"
+    "11": "Checksum error"
+    "12": "Command undefined"
+    "14": "Stop, parity, frame error or overrun"
+    "28": "Address out of range"
 
 START_ADDRESS = {
     'x': 0x0,          # input relay (x0..x777)
@@ -95,30 +107,71 @@ START_ADDRESS = {
     'conval': 0x1c00,  # content value (d0..d8191) (16 bit)
     }
 
-for k, v of COMMANDS
-    COMMANDS[k] = v |> zero-pad(2) |> as-ascii-arr
-
-
 class VigorComm extends EventEmitter
     (opts) ->
         super!
         @transport = opts.transport
 
-        @station-number = opts.station-number |> to-hexstr _, 2 |> as-ascii-arr
+        @station-number = opts.station-number
         @recv = []
         bytes-after-etx = 2 # according to datasheet
 
+        checksum-len = 2
+        i = null
         @transport.on \data, (data) ~>
+            # TODO: timeout should be 300ms between data portions
             for data
+                if .. is ETX
+                    # we expect 2 more bytes (for checksum)
+                    i := checksum-len
+                else if i?
+                    # this is one of last two bytes
+                    i--
                 @recv.push ..
-            console.log "recv: ", @recv
+                if i is 0
+                    # fire @receive handler when a full telegram is received
+                    @receive @recv
+                    @recv := []
+                    i := null
 
-    data-read-raw: (start_address, bytes) ->
-        bytes_hexstr = self.to_hexstr(bytes, 2)
-        st_addr_hexstr = self.to_hexstr(start_address, 4)
-        telegram_data = self.node_address + self.sdr.code_str + st_addr_hexstr + bytes_hexstr
-        telegram = self.make_command(telegram_data)
-        return self.exec_command(telegram, 4, self.sdr)
+    receive: (telegram) ->
+        #console.log "received telegram: ", ascii-to-str telegram
+        try
+            res = @validate telegram
+            @receive-handler? res
+            @receive-handler = null
+            @last = null
+        catch
+            @error e
+        @last = null
+
+
+    validate: (telegram) ->
+        # validates the telegram, returns containing data if passes
+        if telegram.0 isnt ACK
+            throw "Response is not ACK"
+
+        node-addr = ascii-to-int [telegram.1, telegram.2]
+        if node-addr isnt @station-number
+            throw "Station number is not correct"
+
+        sent-func-code = ascii-to-str [@last.3, @last.4]
+        recv-func-code = ascii-to-str [telegram.3, telegram.4]
+        if sent-func-code isnt recv-func-code
+            throw "Unexpected function code in response: #{recv-func-code}"
+
+        err-code = ascii-to-str [telegram.5, telegram.6]
+        unless err-code is "00"
+            throw "Non-zero error returned: #{STATUS_CODES[err-code]}"
+
+        check-code = telegram.slice telegram.length - 2
+        if check-code.join('') isnt checksum(telegram).join('')
+            throw "Checksum is not correct"
+
+        return ascii-to-int telegram.splice (6 + 1), (telegram.length - 1 - 3 - 6)
+
+    error: (msg) ->
+        console.log "error: ", msg
 
     make-telegram: (cmd, start-addr, length) ->
         # format: STX + STATION_NUM + COMMAND + START_ADDR + LENGTH + ETX + CHECKSUM
@@ -128,14 +181,23 @@ class VigorComm extends EventEmitter
         LENGTH = length
             |> to-hexstr _, 2
             |> as-ascii-arr
-        _telegram = flatten [STX, @station-number, COMMANDS[cmd], START_ADDR, LENGTH, ETX]
+        STATION_NUM = @station-number
+            |> to-hexstr _, 2
+            |> as-ascii-arr
+        _telegram = flatten [STX, STATION_NUM, COMMANDS[cmd], START_ADDR, LENGTH, ETX]
         return flatten _telegram ++ checksum(_telegram)
 
-    read: ->
-        telegram = @make-telegram "read", (START_ADDRESS.m + 1), 1
-        console.log "full telegram:", telegram.map((.to-string 16)).map(zero-pad(2)).join('')
-        <~ @transport.once \connect
-        @transport.write telegram
+    read: (name, offset, length, handler) ->
+        # rw: "read" or "write"
+        # start-addr: number or name of predefined memory name
+        @last = @make-telegram "read", (START_ADDRESS[name] + offset), length
+        @receive-handler = handler
+        @transport.write @last
+
+    write: (name, offset, data, callback) ->
+        # data is an array of bytes
+        # name is one of "x, y, m ..."
+        @execute "write", name, offset,
 
 ser = new SerialPortTransport do
     port: '/dev/ttyUSB0'
@@ -145,11 +207,13 @@ ser = new SerialPortTransport do
     stopBits: 1
     split-at: null
 
+<~ ser.once \connect
 v = new VigorComm do
     transport: ser
     station-number: 0
 
-v.read!
+v.read "y", 0, 1, (data) ->
+    console.log "response of y0", data
 
 /* Handle format:
 
