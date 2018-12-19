@@ -2,7 +2,7 @@ require! '../driver-abstract': {DriverAbstract}
 require! '../../': {sleep}
 require! '../../transports/serial-port': {SerialPortTransport}
 require! '../../lib/event-emitter': {EventEmitter}
-require! 'prelude-ls': {map, flatten, split-at}
+require! 'prelude-ls': {map, flatten, split-at, compact}
 
 STX = 0x02
 ETX = 0x03
@@ -35,7 +35,7 @@ to-hexstr = (num, padding) ->
 
 str-to-arr = (.split "")
 
-to-ascii = (.map (.char-code-at 0))
+to-ascii = (.map (.to-upper-case!.char-code-at 0))
 
 to-str = -> String.from-char-code it
 
@@ -134,16 +134,24 @@ class VigorComm extends EventEmitter
                     @recv := []
                     i := null
 
+        @queue = []
+
     receive: (telegram) ->
-        #console.log "received telegram: ", ascii-to-str telegram
+        console.log "received telegram: ", ascii-to-str telegram
         try
             res = @validate telegram
-            @receive-handler? res
-            @receive-handler = null
-            @last = null
+            err = null
         catch
-            @error e
+            res = null
+            err = e
+
+        @receive-handler? err, res
+        @receive-handler = null
+
         @last = null
+        @_executing = no
+        if @queue.length > 0
+            @execute!
 
 
     validate: (telegram) ->
@@ -168,13 +176,16 @@ class VigorComm extends EventEmitter
         if check-code.join('') isnt checksum(telegram).join('')
             throw "Checksum is not correct"
 
-        return ascii-to-int telegram.splice (6 + 1), (telegram.length - 1 - 3 - 6)
+        if telegram.length > 10
+            return ascii-to-int telegram.splice (6 + 1), (telegram.length - 1 - 3 - 6)
+        else
+            return null
 
     error: (msg) ->
         console.log "error: ", msg
 
-    make-telegram: (cmd, start-addr, length) ->
-        # format: STX + STATION_NUM + COMMAND + START_ADDR + LENGTH + ETX + CHECKSUM
+    make-telegram: (cmd, start-addr, length, data) ->
+        # format: STX + STATION_NUM + COMMAND + START_ADDR + LENGTH + DATA? + ETX + CHECKSUM
         START_ADDR = start-addr
             |> to-hexstr _, 4
             |> as-ascii-arr
@@ -184,20 +195,35 @@ class VigorComm extends EventEmitter
         STATION_NUM = @station-number
             |> to-hexstr _, 2
             |> as-ascii-arr
-        _telegram = flatten [STX, STATION_NUM, COMMANDS[cmd], START_ADDR, LENGTH, ETX]
+        DATA = unless data
+            null
+        else
+            data.map (-> it |> to-hexstr _, 2 |> as-ascii-arr)
+        _telegram = flatten compact [STX, STATION_NUM, COMMANDS[cmd], START_ADDR, LENGTH, DATA, ETX]
         return flatten _telegram ++ checksum(_telegram)
+
+    execute: ->
+        unless @_executing
+            @_executing = yes
+            [telegram, handler] = @queue.shift!
+            @last = telegram
+            @receive-handler = handler
+            console.log "sending telegram: ", telegram.map((-> to-hexstr it, 2)).join(' ')
+            @transport.write @last
 
     read: (name, offset, length, handler) ->
         # rw: "read" or "write"
         # start-addr: number or name of predefined memory name
-        @last = @make-telegram "read", (START_ADDRESS[name] + offset), length
-        @receive-handler = handler
-        @transport.write @last
+        telegram = @make-telegram "read", (START_ADDRESS[name] + offset), length
+        @queue.push [telegram, handler]
+        @execute!
 
     write: (name, offset, data, callback) ->
         # data is an array of bytes
         # name is one of "x, y, m ..."
-        @execute "write", name, offset,
+        telegram = @make-telegram "write", (START_ADDRESS[name] + offset), data.length, data
+        @queue.push [telegram, callback]
+        @execute!
 
 ser = new SerialPortTransport do
     port: '/dev/ttyUSB0'
@@ -212,8 +238,11 @@ v = new VigorComm do
     transport: ser
     station-number: 0
 
-v.read "y", 0, 1, (data) ->
+v.read "y", 0, 1, (err, data) ->
     console.log "response of y0", data
+
+v.write "y", 3, [0], (err) ->
+    console.log "write res: ", err
 
 /* Handle format:
 
