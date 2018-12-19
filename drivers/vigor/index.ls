@@ -152,7 +152,6 @@ class VigorComm extends EventEmitter
         if @queue.length > 0
             @execute!
 
-
     validate: (telegram) ->
         # validates the telegram, returns containing data if passes
         if telegram.0 isnt ACK
@@ -225,26 +224,30 @@ class VigorComm extends EventEmitter
         telegram = @make-telegram "write", (START_ADDRESS[name] + offset), data.length, data
         @execute [telegram, callback]
 
-    bit-write: (cmd, name, component-num) ->
+    bit-telegram: (cmd, name, component-num) ->
         STATION_NUM = @station-number
             |> to-hexstr _, 2
             |> as-ascii-arr
 
         byte-offset = parse-int component-num / 8
         bit-offset = component-num % 8
-        console.log "bit offset: ", bit-offset
         BIT_ADDR = ((START_ADDRESS[name] + byte-offset) * 8) + bit-offset
             |> to-hexstr _, 4
             |> as-ascii-arr
         _telegram = flatten [STX, STATION_NUM, COMMANDS[cmd], BIT_ADDR, ETX]
         return flatten _telegram ++ checksum(_telegram)
 
-    bit-set: (name, num, callback) ->
-        telegram = @bit-write "forceOn", name, num
-        @execute [telegram, callback]
+    bit-read: (name, num, callback) ->
+        byte-offset = parse-int num / 8
+        bit-offset = num % 8
+        @read name, byte-offset, 1, (err, res) ->
+            unless err
+                res = res .>>. bit-offset
+            callback err, res
 
-    bit-reset: (name, num, callback) ->
-        telegram = @bit-write "forceOff", name, num
+    bit-write: (name, num, val, callback) ->
+        cmd = if val => "forceOn" else "forceOff"
+        telegram = @bit-telegram cmd, name, num
         @execute [telegram, callback]
 
 ser = new SerialPortTransport do
@@ -266,8 +269,11 @@ v.read "y", 0, 1, (err, data) ->
 v.write "y", 3, [0], (err) ->
     console.log "write res: ", err
 
-v.bit-reset "y", 20, (err) ->
-    console.log "bit set", err
+v.bit-write "y", 3, off, (err) ->
+    console.log "bit write res:", err
+
+v.bit-read "y", 3, (err, data) ->
+    console.log "bit get: ", err, data
 
 /* Handle format:
 
