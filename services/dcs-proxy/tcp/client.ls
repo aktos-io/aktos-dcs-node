@@ -1,5 +1,5 @@
 require! '../protocol-actor/client': {ProxyClient}
-require! 'dcs/transports/tcp': {TcpTransport}
+require! '../../../transports/tcp': {TcpTransport}
 require! '../deps': {sleep}
 
 export class DcsTcpClient extends ProxyClient
@@ -26,4 +26,3 @@ export class DcsTcpClient extends ProxyClient
             if @connected
                 <~ sleep 3000ms
                 @trigger \_login
-
