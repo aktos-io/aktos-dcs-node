@@ -2,7 +2,7 @@ require! '../driver-abstract': {DriverAbstract}
 require! '../../': {sleep}
 require! '../../transports/serial-port': {SerialPortTransport}
 require! '../../lib/event-emitter': {EventEmitter}
-require! 'prelude-ls': {map, flatten, split-at, compact}
+require! 'prelude-ls': {map, flatten, split-at, compact, round}
 
 STX = 0x02
 ETX = 0x03
@@ -147,7 +147,6 @@ class VigorComm extends EventEmitter
 
         @receive-handler? err, res
         @receive-handler = null
-
         @last = null
         @_executing = no
         if @queue.length > 0
@@ -186,13 +185,13 @@ class VigorComm extends EventEmitter
 
     make-telegram: (cmd, start-addr, length, data) ->
         # format: STX + STATION_NUM + COMMAND + START_ADDR + LENGTH + DATA? + ETX + CHECKSUM
+        STATION_NUM = @station-number
+            |> to-hexstr _, 2
+            |> as-ascii-arr
         START_ADDR = start-addr
             |> to-hexstr _, 4
             |> as-ascii-arr
         LENGTH = length
-            |> to-hexstr _, 2
-            |> as-ascii-arr
-        STATION_NUM = @station-number
             |> to-hexstr _, 2
             |> as-ascii-arr
         DATA = unless data
@@ -202,7 +201,10 @@ class VigorComm extends EventEmitter
         _telegram = flatten compact [STX, STATION_NUM, COMMANDS[cmd], START_ADDR, LENGTH, DATA, ETX]
         return flatten _telegram ++ checksum(_telegram)
 
-    execute: ->
+    execute: (query) ->
+        if query
+            @queue.push that
+
         unless @_executing
             @_executing = yes
             [telegram, handler] = @queue.shift!
@@ -215,15 +217,35 @@ class VigorComm extends EventEmitter
         # rw: "read" or "write"
         # start-addr: number or name of predefined memory name
         telegram = @make-telegram "read", (START_ADDRESS[name] + offset), length
-        @queue.push [telegram, handler]
-        @execute!
+        @execute [telegram, handler]
 
     write: (name, offset, data, callback) ->
         # data is an array of bytes
         # name is one of "x, y, m ..."
         telegram = @make-telegram "write", (START_ADDRESS[name] + offset), data.length, data
-        @queue.push [telegram, callback]
-        @execute!
+        @execute [telegram, callback]
+
+    bit-write: (cmd, name, component-num) ->
+        STATION_NUM = @station-number
+            |> to-hexstr _, 2
+            |> as-ascii-arr
+
+        byte-offset = parse-int component-num / 8
+        bit-offset = component-num % 8
+        console.log "bit offset: ", bit-offset
+        BIT_ADDR = ((START_ADDRESS[name] + byte-offset) * 8) + bit-offset
+            |> to-hexstr _, 4
+            |> as-ascii-arr
+        _telegram = flatten [STX, STATION_NUM, COMMANDS[cmd], BIT_ADDR, ETX]
+        return flatten _telegram ++ checksum(_telegram)
+
+    bit-set: (name, num, callback) ->
+        telegram = @bit-write "forceOn", name, num
+        @execute [telegram, callback]
+
+    bit-reset: (name, num, callback) ->
+        telegram = @bit-write "forceOff", name, num
+        @execute [telegram, callback]
 
 ser = new SerialPortTransport do
     port: '/dev/ttyUSB0'
@@ -243,6 +265,9 @@ v.read "y", 0, 1, (err, data) ->
 
 v.write "y", 3, [0], (err) ->
     console.log "write res: ", err
+
+v.bit-reset "y", 20, (err) ->
+    console.log "bit set", err
 
 /* Handle format:
 
