@@ -41,8 +41,8 @@ as-ascii-arr = (-> it |> str-to-arr |> to-ascii)
 ascii-to-str = ->
     it.map(to-str).join('')
 
-ascii-to-int = ->
-    it |> ascii-to-str |> parse-int
+ascii-to-int = (x, base=10)->
+    x |> ascii-to-str |> parse-int _, base
 
 checksum = (arr) ->
     # see "How to calculate checksum of a protocol" section
@@ -172,7 +172,12 @@ export class VigorComm extends EventEmitter
             throw "Checksum is not correct"
 
         if telegram.length > 10
-            return ascii-to-int telegram.splice (6 + 1), (telegram.length - 1 - 3 - 6)
+            # this is a read response
+            raw-data = telegram.splice (6 + 1), (telegram.length - 1 - 3 - 6)
+            bytes = []
+            for i from 0 til raw-data.length by 2
+                bytes.push ascii-to-int [raw-data[i], raw-data[i+1]], 16
+            return bytes
         else
             return null
 
@@ -272,7 +277,11 @@ if require.main is module
     v.read "y", 0, 1, (err, data) ->
         console.log "response of y0", data
 
-    v.write "y", 3, [0], (err) ->
+    v.write "y", 3, [0xaa, 0x55], (err) ->
+        console.log "write res: ", err
+
+    <~ sleep 1000ms
+    v.write "y", 3, [0, 0], (err) ->
         console.log "write res: ", err
 
     i = true
