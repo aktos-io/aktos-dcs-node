@@ -1,6 +1,7 @@
 require! '../../lib/event-emitter': {EventEmitter}
 require! 'prelude-ls': {map, flatten, split-at, compact}
 
+
 STX = 0x02
 ETX = 0x03
 ACK = 0x06
@@ -237,7 +238,8 @@ export class VigorComm extends EventEmitter
         return flatten _telegram ++ checksum(_telegram)
 
     bit-read: (io, callback) ->
-        [name, num] = split-at 1, io
+        # format: "x3.5"
+        [name, num] = split-at 1, io.replace '.', ''
         num = parse-int num
         byte-offset = parse-int num / 8
         bit-offset = num % 8
@@ -247,7 +249,7 @@ export class VigorComm extends EventEmitter
             callback err, res
 
     bit-write: (io, val, callback) ->
-        [name, num] = split-at 1, io
+        [name, num] = split-at 1, io.replace '.', ''
         num = parse-int num
         cmd = if val => "forceOn" else "forceOff"
         telegram = @bit-telegram cmd, name, num
