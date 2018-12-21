@@ -1,5 +1,6 @@
 require! 'serialport': SerialPort
 require! '../../lib': {pack, sleep, EventEmitter, Logger}
+require! '../../src/signal': {Signal}
 
 /* Example
 
@@ -30,6 +31,7 @@ export class SerialPortTransport extends EventEmitter
         super!
 
         @log = new Logger "Serial #{opts.port}"
+        @reconnect-timeout = new Signal
         @_reconnecting = no
         @on \do-reconnect, ~>
             if @_reconnecting
@@ -44,8 +46,17 @@ export class SerialPortTransport extends EventEmitter
                 dataBits: opts.dataBits
                 parity: opts.parity
 
+
+            @reconnect-timeout.wait 1000ms, (err, opening-err) ~>
+                if err or opening-err
+                    <~ sleep 1000ms
+                    @ser = null
+                    @trigger \do-reconnect
+
             unless @ser
                 @ser = new SerialPort opts.port, ser-opts, (err) ~>
+                    #console.log "initializing ser:", err
+                    @reconnect-timeout.go err
                     unless err
                         @connected = yes
 
@@ -86,10 +97,13 @@ export class SerialPortTransport extends EventEmitter
             @_connected
         (val) ->
             @_connected = val
-            if @_connected
+            if not @_connected0 and @_connected
                 @trigger \connect
-            else
+
+            if @_connected0 and not @_connected 
                 @trigger \disconnect
+
+            @_connected0 = @_connected
 
     write: (data, callback) ->
         if @connected
