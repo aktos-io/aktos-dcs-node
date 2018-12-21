@@ -59,7 +59,7 @@ export class DriverAbstract extends EventEmitter
                 for let @rq[handle.route]
                     .. err, res
             catch
-                console.log "errrrrrrrrrrrrrr"
+                console.log "error while safe reading"
 
             #console.log "removing #{handle.route} handler from @rq"
             delete @rq[handle.route]
@@ -73,11 +73,8 @@ export class DriverAbstract extends EventEmitter
         ...
 
     start: ->
-        @starting = true
-        console.log "...driver is requested to start, but doing nothing."
 
     stop: ->
-        console.log "...driver is requested to stop, but doing nothing."
 
     connected: ~
         ->
