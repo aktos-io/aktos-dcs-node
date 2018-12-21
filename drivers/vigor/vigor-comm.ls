@@ -1,6 +1,6 @@
 require! '../../lib/event-emitter': {EventEmitter}
 require! 'prelude-ls': {map, flatten, split-at, compact}
-
+require! '../../src/signal': {Signal}
 
 STX = 0x02
 ETX = 0x03
@@ -132,21 +132,30 @@ export class VigorComm extends EventEmitter
                     @recv := []
                     i := null
 
+        @transport.on \disconnect, ~>
+            console.warn "VigorDriver: Transport is disconnected."
+
+        @transport.on \connect, ~>
+            console.warn "VigorDriver: Transport is connected."
+
         @queue = []
+        @respond-signal = new Signal
 
     receive: (telegram) ->
         #console.log "received telegram: ", ascii-to-str telegram
+        err = null
+        res = null
         try
             res = @validate telegram
-            err = null
         catch
-            res = null
             err = e
+        @respond-signal.go!
+        @respond err, res
 
+    respond: (err, res) ->
         @receive-handler? err, res
         @receive-handler = null
         @last = null
-        @_executing = no
         if @queue.length > 0
             @execute!
 
@@ -200,17 +209,23 @@ export class VigorComm extends EventEmitter
         _telegram = flatten compact [STX, STATION_NUM, COMMANDS[cmd], START_ADDR, LENGTH, DATA, ETX]
         return flatten _telegram ++ checksum(_telegram)
 
+    busy: ~
+        -> @receive-handler?
+
     execute: (query) ->
         if query
             @queue.push that
 
-        unless @_executing
-            @_executing = yes
+        unless @busy
             [telegram, handler] = @queue.shift!
             @last = telegram
             @receive-handler = handler
             #console.log "sending telegram: ", telegram.map((-> to-hexstr it, 2)).join(' ')
             @transport.write @last
+            err <~ @respond-signal.wait 500ms
+            #console.log "respond signal waited: ", err
+            if err
+                @respond err
 
     read: (name, offset, length, handler) ->
         # rw: "read" or "write"
