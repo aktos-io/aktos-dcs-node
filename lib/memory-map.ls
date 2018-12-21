@@ -136,6 +136,7 @@ export class BlockRead
             for j of @bits[i]
                 if @bits[i][j] isnt @bits0[i]?[j]
                     #console.log "bit #{i}#{j} is changed to: ", @bits[i][j]
-                    @handlers[make-io-addr @prefix, i, j]? @bits[i][j]
+                    addr = make-io-addr @prefix, i, j
+                    @handlers[addr]? err=null, @bits[i][j]
 
         @bits0 = JSON.parse JSON.stringify @bits
