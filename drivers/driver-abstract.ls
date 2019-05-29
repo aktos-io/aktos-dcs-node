@@ -31,15 +31,7 @@ export class DriverAbstract extends EventEmitter
         @io = {}  # io lookup table, format: {"name": object}
 
     init-handle: (handle, emit) ->
-        console.log "TODO: Handle initialized:", handle
-        # emit(err, res)
-        if handle.watch
-            console.log "...adding #{handle.route} to discrete watch list."
-            <~ :lo(op) ~>
-                <~ sleep handle.watch
-                err, res <~ @_safe_read handle
-                emit err, res
-                lo(op)
+        ...
 
     write: (handle, value, respond) ->
         # respond(err)
