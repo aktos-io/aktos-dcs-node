@@ -71,7 +71,6 @@ export class SiemensS7Driver extends DriverAbstract
                 if @connected => @trigger \disconnect
             else
                 @log.info "Read some data: ", data 
-                unless @connected => @trigger \connect
                 # detect and send changes
                 for addr, _value of data
                     {handle, callback} = @watches[addr]
