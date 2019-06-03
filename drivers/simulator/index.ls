@@ -5,6 +5,8 @@ export class IoSimulatorDriver extends DriverAbstract
         super!
         @memory = {}
 
+    init-handle: (handle, emit) -> 
+
     read: (handle, callback) ->
         #console.log "IoSimulatorDriver: read from address: ", address, "amount: ", amount
         callback err=null, (@memory[handle.route] or false)
