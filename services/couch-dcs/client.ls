@@ -32,7 +32,22 @@ export class CouchDcsClient extends Actor
                     not found in ", msg.data.routes
 
     __request: (data, callback) ->
-        @send-request {@route, debug: data.opts?.debug}, data, callback
+        _err = null 
+        _res = null
+        retry = 0 
+        limit = 3
+        <~ :lo(op) ~> 
+            err, res <~ @send-request {@route, debug: data.opts?.debug}, data
+            _err := err 
+            _res := res 
+            if _err and retry++ < limit
+                <~ sleep 100ms 
+                lo(op)
+            else
+                return op!   
+        if retry > 0 
+            @log.warn "Retry is #{retry} and error is #{_err}"
+        callback _err, _res 
 
     get: (doc-id, opts, callback) ->
         # normalize parameters
