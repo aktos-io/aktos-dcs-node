@@ -1,6 +1,7 @@
 require! '../../src/actor': {Actor}
 require! '../../src/topic-match': {topic-match}
 require! '../../src/errors':{CodingError}
+require! '../../lib/sleep':{sleep}
 require! 'prelude-ls': {first}
 
 '''
