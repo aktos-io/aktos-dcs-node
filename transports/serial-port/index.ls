@@ -20,7 +20,7 @@ export class SerialPortTransport extends EventEmitter
         '''
         default-opts =
             baudrate: 9600baud
-            split-at: '\n'  # string or function (useful for binary protocols)
+            split-at: null  # string or function (useful for binary protocols)
 
         opts = default-opts <<< opts
         throw 'Port is required' unless opts.port
@@ -38,6 +38,8 @@ export class SerialPortTransport extends EventEmitter
             #@log.log "opening port..."
             ser-opts = clone opts 
             delete ser-opts.split-at
+            ser-opts.baudRate = ser-opts.baudrate
+            delete ser-opts.baudrate
 
             @reconnect-timeout.wait 1000ms, (err, opening-err) ~>
                 if err or opening-err
@@ -114,6 +116,7 @@ if require.main is module
     port = new SerialPortTransport {
         baudrate: 9600baud
         port: '/dev/ttyUSB0'
+        split-at: '\n'
         }
         ..on \connect, ->
             logger.log "app says serial port is connected"
