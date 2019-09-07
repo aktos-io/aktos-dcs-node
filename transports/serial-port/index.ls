@@ -1,27 +1,23 @@
 require! 'serialport': SerialPort
-require! '../../lib': {pack, sleep, EventEmitter, Logger}
+require! '../../lib': {pack, sleep, clone, EventEmitter, Logger}
 require! '../../src/signal': {Signal}
 
-/* Example
-
-port = new SerialPortTransport do
-    port: '/dev/ttyUSB0'
-    baudrate: 19200
-    dataBits: 7         # 8, 7
-    parity: 'even'      # 'none', 'even', 'odd'
-    stopBits: 1
-    split-at: null      # null for raw reading
-
-*/
-
-# Documentation for SerialPort: https://serialport.io/docs/en/api-stream#openoptions
 export class SerialPortTransport extends EventEmitter
     (opts) ->
-        """
-        opts =
-            port: '/dev/ttyUSB0' or 'COM1'
-            baudrate: 9600...
-        """
+        '''
+        Options: 
+
+                opts =
+                    # SerialPort options: https://serialport.io/docs/en/api-stream#openoptions
+                    port: '/dev/ttyUSB0' or 'COM1'
+                    baudrate: 9600...
+                    dataBits: 8  
+                    stopBits: 1 
+                    parity: 'even' # or 'none' or 'odd'
+
+                    # This class' options
+                    split-at: null # null for raw reading. Possible options: '\n'
+        '''
         default-opts =
             baudrate: 9600baud
             split-at: '\n'  # string or function (useful for binary protocols)
@@ -40,12 +36,8 @@ export class SerialPortTransport extends EventEmitter
 
             recv = ''
             #@log.log "opening port..."
-            ser-opts =
-                baud-rate: opts.baudrate
-                stop-bits: opts.stop-bits
-                dataBits: opts.dataBits
-                parity: opts.parity
-
+            ser-opts = clone opts 
+            delete ser-opts.split-at
 
             @reconnect-timeout.wait 1000ms, (err, opening-err) ~>
                 if err or opening-err
