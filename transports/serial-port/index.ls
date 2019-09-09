@@ -133,6 +133,9 @@ export class SerialPortTransport extends EventEmitter
             callback? do
                 message: 'not connected'
 
+    drain: (callback) -> 
+        @ser.drain callback
+
     write-read: (data, timeout, callback) -> 
         # callback: (err, res)
         # timeout: milliseconds 
