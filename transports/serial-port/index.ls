@@ -27,6 +27,7 @@ export class SerialPortTransport extends EventEmitter
         default-opts =
             baudrate: 9600baud
             split-at: null  # string or function (useful for binary protocols)
+            timeout: 50ms # `recv` buffer invalidation timeout 
 
         @opts = default-opts <<< @opts
         throw 'Port is required' unless @opts.port
@@ -40,18 +41,22 @@ export class SerialPortTransport extends EventEmitter
                 return @log.warn "Already trying to reconnect"
             @_reconnecting = yes
 
-            recv = ''
+            @recv = ''
+            @_last_receive = null
+
             #@log.log "opening port..."
             ser-opts = clone @opts 
             ser-opts.baudRate = ser-opts.baudrate
             delete ser-opts.split-at
             delete ser-opts.baudrate
 
+            /* debug recv buffer 
             do 
                 <~ :lo(op) ~> 
-                    console.log "recv:", JSON.stringify recv 
+                    console.log "recv:", JSON.stringify @recv 
                     <~ sleep 1000ms 
                     lo(op)
+            */
 
             @reconnect-timeout.wait 1000ms, (err, opening-err) ~>
                 if err or opening-err
@@ -80,20 +85,23 @@ export class SerialPortTransport extends EventEmitter
                     @connected = yes
 
                 ..on \data, (data) ~>
+                    if @_last_receive? and @_last_receive + @opts.timeout < Date.now! 
+                        #@log.info "Cleaning up receive buffer."
+                        @recv = '' 
+                    @_last_receive = Date.now! 
                     unless @opts.split-at
                         @trigger \data, data
                     else
-                        recv += data.to-string!
-                        #@log.log "data is: ", JSON.stringify recv
+                        @recv += data.to-string!
+                        #@log.log "data is: ", JSON.stringify @recv
                         do 
                             re-examination-is-needed = no
-                            index = recv.index-of(@opts.split-at)
+                            index = @recv.index-of(@opts.split-at)
                             if index > -1
                                 re-examination-is-needed = yes 
-                                @trigger \data, recv.substring(0, index)
-                                recv := recv.substring(index + @opts.split-at.length)
-                                if recv?
-                                    @log.log "recv: ", JSON.stringify recv
+                                @trigger \data, @recv.substring(0, index)
+                                @recv = @recv.substring(index + @opts.split-at.length)
+                                # if recv? => @log.log "recv: ", JSON.stringify @recv
                         while re-examination-is-needed
 
                 ..on \close, (e) ~>
@@ -104,6 +112,9 @@ export class SerialPortTransport extends EventEmitter
                     @trigger \do-reconnect
             @_reconnecting = no
         @trigger \do-reconnect
+
+    clear-buffer: -> 
+        @recv = ''
 
     connected: ~
         ->
