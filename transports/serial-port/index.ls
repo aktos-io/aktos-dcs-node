@@ -47,6 +47,12 @@ export class SerialPortTransport extends EventEmitter
             delete ser-opts.split-at
             delete ser-opts.baudrate
 
+            do 
+                <~ :lo(op) ~> 
+                    console.log "recv:", JSON.stringify recv 
+                    <~ sleep 1000ms 
+                    lo(op)
+
             @reconnect-timeout.wait 1000ms, (err, opening-err) ~>
                 if err or opening-err
                     <~ sleep 1000ms
@@ -79,14 +85,16 @@ export class SerialPortTransport extends EventEmitter
                     else
                         recv += data.to-string!
                         #@log.log "data is: ", JSON.stringify recv
-                        index = recv.index-of(@opts.split-at)
-                        if index > -1
-                            @trigger \data, recv.substring(0, index)
-                            recv := recv.substring(index + @opts.split-at.length)
-                            /*
-                            if recv?
-                                @log.log "recv: ", JSON.stringify recv
-                            */
+                        do 
+                            re-examination-is-needed = no
+                            index = recv.index-of(@opts.split-at)
+                            if index > -1
+                                re-examination-is-needed = yes 
+                                @trigger \data, recv.substring(0, index)
+                                recv := recv.substring(index + @opts.split-at.length)
+                                if recv?
+                                    @log.log "recv: ", JSON.stringify recv
+                        while re-examination-is-needed
 
                 ..on \close, (e) ~>
                     #@log.log "something went wrong with the serial port...", e
