@@ -7,8 +7,12 @@ require! './src/signal': {Signal, SignalBranch}
 # Connectors
 # ----------
 # CouchDCS
+/* if dependencies of the followings are optionally installed,
+then they shouldn't be included by default.
+
 require! './services/couch-dcs/client': {CouchDcsClient}
 require! './services/couch-dcs/server': {CouchDcsServer}
+*/
 
 # Dcs Proxy
 require! './services/dcs-proxy/tcp/client': {DcsTcpClient}
@@ -27,7 +31,7 @@ require! './drivers/driver-abstract': {DriverAbstract}
 
 module.exports = {
     Actor, FpsExec, Signal, SignalBranch
-    CouchDcsClient, CouchDcsServer,
+    #CouchDcsClient, CouchDcsServer,
     DcsTcpClient
     EventEmitter, Logger, sleep, merge
     pack, unpack, clone, diff

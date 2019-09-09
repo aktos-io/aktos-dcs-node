@@ -22,7 +22,11 @@ export class SiemensS7Driver extends DriverAbstract
 
         @on \disconnect, ~>
             @connected = no
-
+            
+    init-handle: (handle, callback) -> 
+        if handle.watch
+            @watch-changes handle, callback
+        
     prepare-one-read: (address) ->
         @conn.removeItems!  # remove all items to prepare one reading
         @conn.addItems address
@@ -67,7 +71,6 @@ export class SiemensS7Driver extends DriverAbstract
                 if @connected => @trigger \disconnect
             else
                 @log.info "Read some data: ", data 
-                unless @connected => @trigger \connect
                 # detect and send changes
                 for addr, _value of data
                     {handle, callback} = @watches[addr]

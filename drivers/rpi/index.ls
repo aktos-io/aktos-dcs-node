@@ -1,90 +1,73 @@
-require! '../lib': {sleep}
-require! '..': {Actor}
-require! 'colors': {bg-green, bg-red}
+require! '../driver-abstract': {DriverAbstract}
 require! 'onoff': {Gpio}
+require! '../../': {sleep}
 
-class Io extends Actor
-    (@opts) ->
-        unless @opts.pin? and @opts.name?
-            throw 'pin name and number is required'
+/* Handle format:
 
-        super @opts.name
-        namespace = if @opts.namespace
-            "#{that}"
+handle =
+    name: 'red'
+    gpio: 0
+    out: yes
+
+*/
+
+export class RpiGPIODriver extends DriverAbstract
+    init-handle: (handle, emit) ->
+        if handle.out
+            # this is an output
+            console.log "#{handle.name} is initialized as output"
+            @io[handle.name] = new Gpio handle.gpio, \out
         else
-            'io'
+            console.log "#{handle.name} is initialized as input"
+            @io[handle.name] = new Gpio handle.gpio, 'in', 'both'
+                ..watch emit
 
-        @route = "#{namespace}.#{@opts.name}"
-        @log.log "Initializing pin number #{@opts.pin} with on route: #{@route}"
-        @subscribe @route
+    write: (handle, value, respond) ->
+        # we got a write request to the target
+        #console.log "we got ", value, "to write as ", handle
+        @io[handle.name].write (if value => 1 else 0), respond
 
-        @prev = null
+    read: (handle, respond) ->
+        # we are requested to read the handle value from the target
+        #console.log "do something to read the handle:", handle
+        @io[handle.name].read respond
 
-export class DInput extends Io
-    ->
-        super ...
-        input = new Gpio @opts.pin, 'in', 'both'
+    start: ->
+        @connected = yes
 
-        send-value = (value) ~>
-            if value isnt @prev
-                @log.log "sending prev: #{@prev} -> curr: #{value}"
-                @send {curr: value, prev: @prev}, @route
-                @prev = value
-            else
-                @log.log "Not changed, not sending. curr: #{value}"
+    stop: ->
+        @connected = no
+        console.log "Stopping RpiGPIODriver..."
+        for name, gpio of @io
+            console.log "...unexporting #{name}"
+            gpio.unexport!
+        console.log "Stopped."
 
-        input.read (err, value) ->
-            send-value value
+export class RpiGPIODriverSimulator extends DriverAbstract
+    init-handle: (handle, emit) ->
+        console.log "Simulator initialized #{handle.name}"
+        @io[handle.name] = {value: false, count: 0}
 
-        input.watch (err, value) ~>
-            if err
-                @log.log "Error reading pin."
-                @kill 'READERR'
-                return
-            send-value value
+    write: (handle, value, respond) ->
+        # we got a write request to the target
+        #console.log "we got ", value, "to write as ", handle
+        @io[handle.name]
+            ..value = value
+            ..count++
+        # display all io status:
+        status = []
+        for name, state of @io
+            status.push "#{name}: #{state.value} (#{state.count})"
+        console.log status.join('\t')
+        respond null
 
-        @on \update, ~>
-            @log.log "requested update, sending current status..."
-            input.read (err, value) ~>
-                @send {curr: @prev}, @route
+    read: (handle, respond) ->
+        # we are requested to read the handle value from the target
+        #console.log "do something to read the handle:", handle
+        respond null, @io[handle.name].value
 
-        @on \kill, ~>
-            <~ input.unexport
-            @log.log "pin destroyed."
+    start: ->
+        @connected = yes
 
-
-export class DOutput extends Io
-    ->
-        super ...
-        output = new Gpio @opts.pin, \out
-
-        send-value = (value, reply-to) ~>
-            @log.log "sending prev: #{@prev} -> curr: #{value}"
-            @send {curr: value, prev: @prev}, @route
-            @send-response reply-to, {curr: value, prev: @prev} if reply-to
-            @prev = value
-
-        write = (value, reply-to) ~>
-            value = if value => 1 else 0
-            @log.log "writing: #{value}"
-            output.write value, (err) ~>
-                if err
-                    @log.err "error while writing! (did you check permissions?)"
-                    @kill 'READERR'
-                    @send {error: reason: 'can not write to output'}, @route
-                    return
-                send-value value, reply-to
-
-
-        write (@opts.initial or 0)
-
-        @on \data, (msg) ~>
-            write msg.data.val, msg if msg.data.val?
-
-        @on \update, ~>
-            @log.log "requested update, sending current status..."
-            send-value @prev
-
-        @on \kill, ~>
-            <~ output.unexport
-            @log.log "pin destroyed."
+    stop: ->
+        @connected = no

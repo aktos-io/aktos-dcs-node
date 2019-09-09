@@ -41,7 +41,7 @@ export class IoProxyClient extends Actor
 
         update = (callback) ~>
             unless callback then callback = (->)
-            err, msg <~ @send-request {route: "#{@route}"}, {+update}
+            err, msg <~ @send-request {route: "#{@route}", @timeout}, {+update}
             if err or msg.err
                 @trigger \error, {message: err}
                 callback err
@@ -52,10 +52,13 @@ export class IoProxyClient extends Actor
 
         @on-every-login (msg) ~>
             #@log.debug "Seems logged in right now."
+            retry-limit = 3
             <~ :lo(op) ~>
                 err <~ update
                 if err
-                    @log.warn "Update error, retrying..."
+                    retry-limit--
+                    return op! if retry-limit is 0
+                    @log.warn "Update error, retrying... (left: #{retry-limit})"
                     <~ sleep 1000ms
                     lo(op)
                 else
@@ -88,11 +91,11 @@ export class IoProxyClient extends Actor
                     that ...args
 
     read: (callback) !->
-        err, msg <~ @send-request {route: "#{@route}"}, {+read}
+        err, msg <~ @send-request {@route, @timeout, @debug}, {+read}
         callback err, msg
 
     filtered-write: (value, callback) !->
-        err, msg <~ @send-request {route: "#{@route}"}, {val: value}
+        err, msg <~ @send-request {@route, @timeout, @debug}, {val: value}
         #@log.log "Write response: ", msg
         error = err or msg?.data.err
         unless err

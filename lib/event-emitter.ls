@@ -1,4 +1,4 @@
-require! 'prelude-ls': {reject}
+require! 'prelude-ls': {reject, maximum, map}
 
 
 export class EventEmitter
@@ -20,7 +20,7 @@ export class EventEmitter
                     add-listener name, callback
 
 
-    on: (type, id, callback) !->
+    on: (type, id, callback) ->
         """
         usage:
 
@@ -36,17 +36,25 @@ export class EventEmitter
         """
         if typeof! id is \Function
             callback = id
-            id = null
+            _id = [..id for @_events]
+                |> map parse-int 
+                |> maximum 
+            id = (_id or 0) + 1
 
         add-listener = (type, id, callback) ~>
             @_events[][type].push {id, cb: callback.bind this}
+            return 
+                cancel: ~> 
+                    @cancel id
 
+        control = null 
         switch typeof! type
             when \String =>
-                add-listener type, id, callback
+                control = add-listener type, id, callback
             when \Object =>
                 for name, callback of type
                     add-listener name, id, callback
+        return control 
 
     off: (type) ->
         @_events[type] = []

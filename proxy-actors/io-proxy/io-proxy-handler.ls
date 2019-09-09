@@ -5,60 +5,6 @@ require! '../../lib/logger': {Logger}
 require! '../../src/errors': {CodingError}
 require! '../../lib/memory-map': {IoHandle}
 
-require! 'prelude-ls': {find}
-
-class SingularDriver
-    (@driver) ->
-        @busy = no
-        @log = new Logger \sing.
-        @queue = []
-        @max-busy = 100ms
-
-    run: (method, ...args, callback) !->
-        if @busy
-            #@log.info "busy! adding to queue."
-            @queue.push [method, args, callback]
-            return
-        #@log.log "we are now going busy, args: ", ...args
-        @busy = yes
-        x = sleep @max-busy, ~>
-            @log.warn "FORCE RUNNNING NEXT!"
-            @next!
-        @driver[method] ...args, (...ret) ~>
-            if x
-                clear-timeout x
-                callback ...ret
-                #@log.log "we are free"
-                @next!
-            else
-                @log.err "what happened here?"
-
-    next: ->
-        @busy = no
-        if @queue.length > 0
-            #@log.info "Running from queue"
-            next = @queue.shift!
-            @run next.0, ...next.1, next.2
-
-    read: (...args, callback) ->
-        @run \read, ...args, callback
-
-    write: (...args, callback) ->
-        @run \write, ...args, callback
-
-class LineUp
-    @drivers = []
-    (driver) ->
-        if find (.driver is driver), @@drivers
-            #console.log "Returning exitsting singular driver for: ", driver
-            return that.driver
-        else
-            #console.log "Initialized new Lined up driver for: ", driver
-            #singular = new SingularDriver driver
-            @@drivers.push {driver}
-            return driver
-
-
 export class IoProxyHandler extends Actor
     (handle, _route, driver) ->
         if not driver
@@ -70,8 +16,11 @@ export class IoProxyHandler extends Actor
             # handle is an object to convert into an IoHandle instance
             handle = new IoHandle handle, _route
 
-        route = handle.route
-        route or throw new CodingError "A route MUST be provided to IoProxyHandler."
+        unless driver
+            throw new CodingError "Driver must be provided"
+
+        unless route=(handle.route)
+            throw new CodingError "A route MUST be provided to IoProxyHandler."
         super route
         #@log.info "Initializing #{handle.route}"
 
@@ -93,25 +42,23 @@ export class IoProxyHandler extends Actor
                     prev := value
                     age := Date.now!
 
-        if driver?
-            safe-driver = new LineUp driver
-            # assign handlers internally
-            @on \read, (handle, respond) ~>
-                #console.log "requested read!"
-                err, value <~ safe-driver._safe_read handle
-                #console.log "responding read value: ", err, value
-                respond err, value
+        # assign handlers internally
+        @on \read, (handle, respond) ~>
+            #console.log "requested read!"
+            err, value <~ driver.read handle
+            #console.log "responding read value: ", err, value
+            respond err, value
 
-            @on \write, (handle, value, respond) ~>
-                #console.log "requested write for #{handle.address}, value: ", value
-                err <~ safe-driver.write handle, value
-                #console.log "write error status: ", err
-                respond err
+        @on \write, (handle, value, respond) ~>
+            #console.log "requested write for #{handle.address}, value: ", value
+            err <~ driver.write handle, value
+            #console.log "write error status: ", err
+            respond err
 
-            # driver decides whether to watch changes of this handle or not.
-            driver.watch-changes handle, broadcast-value
+        # Initialize handle (do handle specific settings on the target)
+        driver.init-handle handle, broadcast-value
 
-        @on-topic "#{@name}", (msg) ~>
+        @on-topic route, (msg) ~>
             if \val of msg.data
                 #@log.debug "triggering 'write'."
                 new-value = msg.data.val
@@ -149,7 +96,6 @@ export class IoProxyHandler extends Actor
             #@log.info "Driver is connected, broadcasting current status"
             @trigger \_try_broadcast_state
 
-
         driver.on \disconnect, ~>
             #@log.info "Driver is disconnected, publish the error"
             broadcast-value err="Target is disconnected."
@@ -159,3 +105,6 @@ export class IoProxyHandler extends Actor
                 @trigger \read, handle, broadcast-value
             else
                 @log.info "Driver is not connected, skipping broadcasting."
+
+        if not driver.starting or not driver.started
+            driver.start!

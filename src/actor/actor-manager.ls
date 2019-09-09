@@ -1,7 +1,7 @@
 require! 'prelude-ls': {reject, find}
-require! './topic-match': {topic-match: route-match}
-require! '../lib': {Logger, sleep, hex}
-require! '../lib/debug-tools': {brief}
+require! '../topic-match': {topic-match: route-match}
+require! '../../lib': {Logger, sleep, hex}
+require! '../../lib/debug-tools': {brief}
 
 
 export class ActorManager
@@ -37,10 +37,10 @@ export class ActorManager
             if msg.to `route-match` actor.subscriptions
                 if msg._exclude
                     if that is actor.id => continue
-                    delete msg._exclude 
+                    delete msg._exclude
                 #@log.log "putting message: #{msg.from}.#{msg.seq} -> actor: #{actor.id}", actor.subscriptions.join(',')
                 delay = Date.now! - due-date
-                if delay > 100ms
+                if delay > 10ms
                     @log.warn "System load is high? Message is delivered after #{delay}ms"
                 actor._inbox msg
             else

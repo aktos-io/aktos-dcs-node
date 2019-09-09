@@ -51,6 +51,11 @@ export class ProxyClient extends Actor
         @on \disconnect, ~>
             @subscriptions = reject (~> it `topic-match` @session?.routes), @subscriptions
             @session = null
+            @send 'app.dcs.disconnect'
+
+        @on \connect, ~>
+            @trigger \_login  # triggering procedures on (re)login
+
 
         # DCS to Transport
         @on \receive, (msg) ~>
@@ -91,6 +96,7 @@ export class ProxyClient extends Actor
                 |> @auth.add-token
                 |> pack
                 |> (s) ~>
+                    # add magic header
                     if msg.debug
                         @log.debug "Sending #{msg.seq}->#{msg.to} size: #{s.length}"
                     return (pack {size: s.length}) + s
@@ -107,16 +113,10 @@ export class ProxyClient extends Actor
             ..on \connect, ~>
                 @connected = yes
                 @log.success "My transport is connected, re-logging-in."
-                #@send \app.server.connect
-                @transport-ready = yes
-                @trigger \connect
-                @trigger \_login  # triggering procedures on (re)login
 
             ..on \disconnect, ~>
                 @connected = no
                 @log.warn "My transport is disconnected."
-                @trigger \disconnect
-                @send 'app.dcs.disconnect'
 
             ..on "data", (data) ~>
                 t0 = Date.now!
@@ -155,6 +155,17 @@ export class ProxyClient extends Actor
                                 @send-enveloped msg2
                             return
                         @send-enveloped msg
+
+    connected: ~
+        ->
+            @_connected
+        (curr) ->
+            prev = @_connected
+            @_connected = curr
+            if curr and not prev
+                @trigger \connect
+            if not curr and prev
+                @trigger \disconnect
 
     login: (credentials, callback) ->
         # normalize parameters
@@ -195,9 +206,9 @@ export class ProxyClient extends Actor
                 @send 'app.dcs.connect', @session
                 @trigger \logged-in, @session, ~>
                     # clear plaintext passwords
-                    credentials := {token: @session.token}
+                    credentials := {token: @session?.token}
             else
-                @trigger \disconnect
+                @connected = no
 
             if res?auth?session?logout is \yes
                 @trigger \kicked-out
@@ -211,7 +222,7 @@ export class ProxyClient extends Actor
     logout: (callback) ->
         err, res <~ @auth.logout
         @log.info "Logged out; err, res: ", err, res
-        @trigger \disconnect
+        @connected = no
         reason = res?auth?error
         @trigger \logged-out, reason
         callback err, res

@@ -2,23 +2,23 @@
 
 ## Methods
 ---------------
-* err, value <~ **read** handle
-* err <~ **write** handle, value
+* **read** handle, respond(err, value)
+* **write** handle, value, respond(err)
 * **start**!
 * **stop**!
-* **watch-changes** handle, callback(err, value)
+* **initialize** handle, broadcast(err, value)
 
 ## Events
 ---------------
-* on 'connect': fired once on a successful read
-* on 'disconnect': fired once when a read is failed
+* on 'connect': fired on the successful first read
+* on 'disconnect': fired on the first failed read
 
 ## Parameters
 ---------------
 ### Handle
 
 `handle` is an object where its driver understands its properties.
-However, there are some common properties:
+Suggested property names:
 
 * watch: yes/no: whether watch this variable to generate events on changes or not.
 * out: yes/no: this variable is intended to be an output.

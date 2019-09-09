@@ -1,6 +1,6 @@
 {
-  "name": "serial-port",
-  "version": "1.0.0",
+  "name": "SerialPortTransport",
+  "version": "1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,6 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "serialport": "^5.0.0"
+    "serialport": "^7.1.5"
   }
 }

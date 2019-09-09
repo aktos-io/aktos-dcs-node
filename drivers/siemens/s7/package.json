@@ -9,6 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "nodes7": "git+https://github.com/plcpeople/nodeS7.git"
+    "nodes7": "^0.3.3"
   }
 }
