@@ -77,21 +77,38 @@ data-types =
     mili: (/1000)
 
     # bool
-    #bool: ...
+    bool: (Boolean)
 
 
 export class IoHandle
+    '''
+    This class adds some useful methods to an IO object, such as: 
+
+        .get-meaningful(raw-value): Returns meaningful value
+                                    regarding to the @type. 
+    '''
     (opts={}, route)->
         # add all properties as if they exists in IoHandle
         for k, v of opts
             this[k] = v
         @route = route
+        @id = @route 
 
 
     get-meaningful: (value) ->
-        unless @type
-            ...
-        data-types[@type] value
+        if typeof! @converter
+            @converter value 
+        else 
+            unless @type
+                ...
+            data-types[@type] value
+
+    register-converter: (converter) -> 
+        # `converter`   : Converts from raw value to meaningful value
+        #                 and vice versa 
+        # 
+        # Params        : converter(value, reverse=false)
+        @converter = converter 
 
 
 export parse-io-addr = (full-name) ->
