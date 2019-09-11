@@ -9,11 +9,12 @@ Here is some quick notes about CouchDB usage.
 
 # Recipes
 
-### Create A New Database
+### Create A New Database For A New Customer
 
-1. Create a random user
-2. Create the `_security` doc and make that user db admin (**see** ./security)
-3. Restore the `_design` docs.
+1. Create a new db admin user: [./security.md#create-db-users](./security.md#create-db-users)
+2. Create a new database. 
+3. Create the `_security` doc and make that user db admin in that database: [./security.md#security-per-database](./security.md#security-per-database)
+4. Restore (or populate) the `_design` docs according to your needs.
 
 ### Testing the installation
 
