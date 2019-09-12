@@ -317,6 +317,8 @@ export class CouchNano extends EventEmitter
 
         do update-cookie = ~>
             try
+                unless @cookie?
+                    throw new Error "No cookie found."
                 cookie = request.cookie @cookie.0
                 j.set-cookie cookie, @cfg.url
             catch
