@@ -27,7 +27,6 @@ export class SerialPortTransport extends EventEmitter
         default-opts =
             baudrate: 9600baud
             split-at: null  # string or function (useful for binary protocols)
-            timeout: 50ms # `recv` buffer invalidation timeout 
 
         @opts = default-opts <<< @opts
         throw 'Port is required' unless @opts.port
@@ -85,10 +84,6 @@ export class SerialPortTransport extends EventEmitter
                     @connected = yes
 
                 ..on \data, (data) ~>
-                    if @_last_receive? and @_last_receive + @opts.timeout < Date.now! 
-                        #@log.info "Cleaning up receive buffer."
-                        @recv = '' 
-                    @_last_receive = Date.now! 
                     unless @opts.split-at
                         @trigger \data, data
                     else
@@ -101,7 +96,7 @@ export class SerialPortTransport extends EventEmitter
                                 re-examination-is-needed = yes 
                                 @trigger \data, @recv.substring(0, index)
                                 @recv = @recv.substring(index + @opts.split-at.length)
-                                # if recv? => @log.log "recv: ", JSON.stringify @recv
+                                #if recv? => @log.log "recv: ", JSON.stringify @recv
                         while re-examination-is-needed
 
                 ..on \close, (e) ~>
@@ -180,6 +175,7 @@ export class SerialPortTransport extends EventEmitter
             @once \data, (data) ~> 
                 signal.go err=null, data
 
+            <~ @drain
             @ser.write data
         else
             #@log.warn "not connected, not writing."

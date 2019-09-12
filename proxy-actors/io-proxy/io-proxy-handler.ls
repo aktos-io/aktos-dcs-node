@@ -100,6 +100,13 @@ export class IoProxyHandler extends Actor
             #@log.info "Driver is disconnected, publish the error"
             broadcast-value err="Target is disconnected."
 
+        driver.on \data, (table) ~> 
+            # table format: [{'IO-id': value}, ...]
+            if handle.id of table  
+                value = table[handle.id]
+                if value isnt prev 
+                    broadcast-value err=null, value 
+
         @on '_try_broadcast_state', ~>
             if driver.connected
                 @trigger \read, handle, broadcast-value

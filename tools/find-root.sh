@@ -45,4 +45,4 @@ if [[ -d $DCS_DIR ]]; then
     done < <(find $PROJECT_PATH -type d -name "node_modules" | grep -v "node_modules\/" )
 fi
 
-export NODE_PATH="${DCS_MODULES}:${FOUND_MODULES}:${NODE_PATH}:${PROJECT_PATH}"
+export NODE_PATH="${DCS_MODULES}:${FOUND_MODULES}:${NODE_PATH:-}:${PROJECT_PATH}"
