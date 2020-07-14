@@ -2,7 +2,9 @@ require! 'node-net-reconnect': Reconnect
 require! 'net'
 require! 'colors': {yellow, green, red, blue, bg-green, bg-red}
 require! '../../lib': {sleep, Logger, EventEmitter}
-require! 'net-keepalive': NetKeepAlive
+                
+# Removed, see: https://github.com/Denu8thell/node-net-reconnect/commit/5b0a533d049c861bdac4a24cccb728bb0912aa2b#commitcomment-40525258
+#require! 'net-keepalive': NetKeepAlive
 
 
 export class TcpHandlerTransport extends EventEmitter
@@ -40,8 +42,9 @@ export class TcpTransport extends EventEmitter
             ..setKeepAlive yes, 1000ms
             ..setTimeout 1000ms
             ..on \connect, ~>
-                NetKeepAlive.setKeepAliveInterval @socket, 1000ms
-                NetKeepAlive.setKeepAliveProbes @socket, 1
+                ###NetKeepAlive.setKeepAliveInterval @socket, 1000ms
+                ###NetKeepAlive.setKeepAliveProbes @socket, 1
+
                 #@log.log "Connected. Try to unplug the connection"
                 @connected = yes
             ..on \close, ~>
