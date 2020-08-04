@@ -217,12 +217,13 @@ export class ProxyClient extends Actor
             callback error, res
 
         # trigger logging in if we are connected already.
-        if @connected => @trigger \_login
+        if @connected
+            @trigger \_login
 
     logout: (callback) ->
         err, res <~ @auth.logout
         @log.info "Logged out; err, res: ", err, res
-        @connected = no
+        # @connected = no # => why were we setting @connected to "false"???
         reason = res?auth?error
         @trigger \logged-out, reason
         callback err, res

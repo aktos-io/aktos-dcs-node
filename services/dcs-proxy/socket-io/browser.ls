@@ -54,7 +54,7 @@ export class DcsSocketIOBrowser extends ProxyClient
             @log.info "Disconnected."
 
         @on-topic \app.dcs.do-login, (msg) ~>
-            if msg.debug => debugger
+            if msg.debug then console.warn "Recomending to add a breakpoint here."
             err, res <~ @login msg.data
             if res?.auth?.session?.token
                 #@log.info "Logged in, got token: ", that
@@ -72,10 +72,10 @@ export class DcsSocketIOBrowser extends ProxyClient
             @send-response msg, {err, res: res.auth}
 
         public-login-allowed = yes
-        try-relogin = ~>
+        try-relogin = (reason) ~>
             @log.log "This is a logout"
             db.del \token
-            if (reason?.code is \GRACEFUL) and public-login-allowed
+            if public-login-allowed
                 @log.log "Logged out, perform a public login in 100ms"
                 <~ sleep 100ms
                 @log.log "...logging in..."
