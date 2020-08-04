@@ -102,8 +102,6 @@ export class CouchDcsServer extends Actor
                 #@log.debug "Updating all views."
                 err <~ @db.update-all-views
                 #@log.info "...updating all views done. err: ", err
-                if err
-                    @log.error "...error occurred while updating all views: ", err
                 <~ sleep (poll-period * 60_000_ms_per_minute)
                 lo(op)
 
