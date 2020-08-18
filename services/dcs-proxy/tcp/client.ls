@@ -23,6 +23,5 @@ export class DcsTcpClient extends ProxyClient
         @on \disconnect, ~>
             @log.info "Disconnected."
             @log.info "ProxyClient will try to reconnect."
-            if @connected
-                <~ sleep 3000ms
-                @trigger \_login
+            <~ sleep 3000ms
+            @trigger \_login
