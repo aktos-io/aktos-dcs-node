@@ -24,7 +24,7 @@
   "dependencies": {
     "browserify-livescript": "^0.2.4",
     "colors": "^1.1.2",
-    "jsondiffpatch": "^0.2.5",
+    "jsondiffpatch": "^0.4.1",
     "moment": "^2.20.1",
     "prelude-ls": "^1.1.2",
     "setimmediate": "^1.0.5",
