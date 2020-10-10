@@ -149,12 +149,20 @@ export class Actor extends EventEmitter implements request
                                 #@log.log "received a message to concatenate: ", msg
                                 message `merge` msg
                                 if msg.part is LAST_PART
-                                    handler.call this, message
+                                    try
+                                        handler.call this, message
+                                    catch 
+                                        @log.warn "#{route} handler has an uncaught exception: #{e}"
+                                        @send-response msg, {error: "Uncaught exception: #{e}"}
                                     delete @_request_concat_cache[request-id]
                     @_request_concat_cache[request-id] msg
                 else
                     # simple message, forward as is
-                    handler.call this, msg
+                    try
+                        handler.call this, msg
+                    catch 
+                        @log.warn "#{route} handler has an uncaught exception: #{e}"
+                        @send-response msg, {error: "Uncaught exception: #{e}"}
 
         # for "trigger-topic" method to work
         @_route_handlers[][route].push handler
