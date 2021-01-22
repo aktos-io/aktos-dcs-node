@@ -209,17 +209,19 @@ export class Actor extends EventEmitter implements request
             @_state.kill-finished = yes
 
     on-every-login: (callback) ->
-        min-period = 1000ms
+        min-period = 0ms    # because @_last_login is also set by @action()
+        #@log.debug "Registering on-every-login callback."
         @on-topic 'app.dcs.connect', (msg) ~>
-            if @_last_login + min-period < Date.now!
+            if @_last_login + min-period <= Date.now!
+                #@log.debug "calling the registered on-every-login callback"
                 callback msg
                 @_last_login = Date.now!
 
         # request dcs login state on init
         @send-request 'app.dcs.update', (err, msg) ~>
-            #@log.info "requesting app.dcs.connect state:"
+            #@log.debug "requesting app.dcs.connect state:"
             if not err and msg?data
-                if @_last_login + min-period < Date.now!
+                if @_last_login + min-period <= Date.now!
                     callback msg
                     @_last_login = Date.now!
 
