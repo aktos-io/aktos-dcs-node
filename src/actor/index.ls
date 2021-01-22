@@ -36,6 +36,9 @@ export class Actor extends EventEmitter implements request
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
         # < ~ sleep 0 <= really no need for this?
+        @once-topic 'app.dcs.connect', (msg) ~>
+            # log first login
+            @_last_login = Date.now!
         @action! if typeof! @action is \Function
 
     set-name: (name) ->
