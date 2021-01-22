@@ -208,22 +208,28 @@ export class Actor extends EventEmitter implements request
             @trigger \kill, reason
             @_state.kill-finished = yes
 
-    on-every-login: (callback) ->
-        min-period = 0ms    # because @_last_login is also set by @action()
+    on-every-login: (opts, callback) ->
+        if typeof! opts is \Function 
+            callback = opts 
+            opts = {
+                window: 1000ms # fire on registration if last_login is within this window
+            }        
         #@log.debug "Registering on-every-login callback."
-        @on-topic 'app.dcs.connect', (msg) ~>
-            if @_last_login + min-period <= Date.now!
-                #@log.debug "calling the registered on-every-login callback"
-                callback msg
-                @_last_login = Date.now!
 
-        # request dcs login state on init
+        # Call the function on every 'app.dcs.connect' message
+        @on-topic 'app.dcs.connect', (msg) ~>
+            #@log.debug "calling the registered on-every-login callback"
+            callback msg
+            @_last_login = Date.now!
+
+        # Request a login status on registration, call the function if we are connected.
         @send-request 'app.dcs.update', (err, msg) ~>
             #@log.debug "requesting app.dcs.connect state:"
             if not err and msg?data
-                if @_last_login + min-period <= Date.now!
+                if @_last_login + opts.window <= Date.now!
                     callback msg
                     @_last_login = Date.now!
+
 
 if require.main is module
     console.log "initializing actor test"
