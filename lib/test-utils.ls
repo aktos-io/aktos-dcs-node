@@ -42,11 +42,11 @@ run-test = (name, test) ->
     try
         res = test.call this
     catch
+        e.test-name = name
         if (typeof! e.matcherResult isnt \Object) or not e.matcherResult.actual
             # Errors related to test setup (exception inside test function)
             throw e
 
-        e.test-name = name
         console.error "FAILED test: #{name}", e
 
         actual = JSON.stringify(e.matcherResult.actual)
