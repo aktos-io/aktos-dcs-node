@@ -34,6 +34,9 @@ export merge = (obj1, obj2) ->
 /**/
 
 export function merge obj1, obj2
+    obj1 = obj1 or {}
+    obj2 = obj2 or {}
+
     if (typeof! obj1 is \Array) and (typeof! obj2 is \Array)
         for i in obj2
             try
@@ -274,6 +277,30 @@ tests =
             b: 2
             c:
                 cb: "aa"
+
+        {result, expected}
+
+    'first obj is null': ->
+        a= null
+
+        b=
+          c: 5
+
+        result = a `merge` b
+
+        expected =
+            c: 5
+
+        {result, expected}
+
+    'both objs are null': ->
+        a= null
+
+        b= null
+
+        result = a `merge` b
+
+        expected = {}
 
         {result, expected}
 
