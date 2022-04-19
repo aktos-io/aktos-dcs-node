@@ -16,10 +16,21 @@ new CouchDcsServer do
   user:
     name: 'your-couchdb-username'
     password: 'your-password'
-  url: "IP-OR-ADDRESS-OF-YOUR-COUCHDB-INSTANCE"
+  url: "IP-OR-ADDRESS-OF-YOUR-COUCHDB-INSTANCE" # eg. "http://127.0.0.1:5984"
   database: 'your-db-name'
-  subscribe: '@dbuser'
+  subscribe: '@dbuser'                          # DCS route to be subscribed
 ```
+
+`CouchDcsServer` will handle the default `CouchDcsClient` requests. There are also optional `before-*` and `(after-)*` events. Additional events may be overridden by your `CouchDcsServer` instance. 
+
+* `before-*` Event is triggered before doing anything with the database. This event will send an `ack` (ping back) message to the client by default. 
+* `(after-)*` Event is triggered before results are sent to the client. You can override this event in order to manipulate the final results.
+
+
+Available `before-*` events: `.on \before-get`, `.on \before-put`, `.on \before-transaction`, `.on \before-view`, `.on \before-getAtt`, `.on \before-allDocs`, `.on \before-custom`. 
+
+Available `(after-)*` events: `.on \put`, `.on \get`, `.on \view`, `.on \transaction`
+
 
 2. Create a `CouchDcsClient` instance use it as if it was a regular CouchDB driver:
 
@@ -37,24 +48,29 @@ console.log "response is: ", res
 
 3. In order to make it work, ensure that your user have `db.document-type.**` permissions.
 
-# API
 
-`CouchDcsClient` has the following API:
+`CouchDcsClient` has the following methods:
 
-* `.get docs, [opts, ] callback(err, res)`
+* `.get docs, [opts, ] callback(err, res)`: Get single or multiple documents from database.
     docs format:
         if `String`: fetch only one document, response is the document itself
         if `Array`: fetch multiple documents, response is an array of documents
             Documents are fetched depending on the array elements.
             Element type:
-                `"SOME_ID"`: fetch the latest revision
+                `"SOME_ID"` or `["SOME_ID", undefined]`: fetch the latest revision
                 `["SOME_ID", "SOME_REV"]`: fetch `"SOME_REV"` revision
-                `["SOME_ID", undefined]`: fetch the latest version
 
-* `.put doc, callback(err, res)`
-* `.view 'designName/yourView', [opts, ] callback(err, res)`
-* `.all callback(err, res)`
-* `.getAttachment 'document-id', 'attachment-name', callback(err, res)`
+* `.put doc, [opts,] callback(err, res)`: Put single document to the database.
+
+* `.put-transaction doc, [opts,] callback(err, res)`:
+        1. `on \before-transaction` event is triggered. 
+        2. It is guaranteed that no other transaction is being processed. 
+        3. `on \transaction` event is triggered. If this event is handled succesfully, the document is considered "committed". `doc.transaction` field is set to `"done"`.
+        4. Document is still saved to the database if the `on \transaction` event fails. `doc.transaction` field is set to `"failed"` in this case. 
+
+* `.view 'designName/yourView', [opts, ] callback(err, res)`: Query a view in the database.
+* `.all [opts,] callback(err, res)`: Use "allDocs" api of CouchDB.
+* `.getAttachment 'document-id', 'attachment-name', callback(err, res)`: Retrieve an attachment from a document.
 
 Callbacks will be called with `error, response` parameters.
 
