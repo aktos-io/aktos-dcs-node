@@ -46,6 +46,16 @@ console.log "response is: ", res
     or CouchDB itself
 `res` is the exact response of the request.
 
+### Using CouchDcsClient with `await`
+if you omit the callback while calling `.get`, `.put`, `.view`, `.all-docs`, `.put-transaction`, `.get-attachment`, `.follow`, `.observe`; these methods will return a `Promise` that can be used with `await`:
+
+```ls
+try
+	doc = await db.get 'your-document-id'
+catch
+	console.log "some error ocurred: ", e
+```
+
 3. In order to make it work, ensure that your user have `db.document-type.**` permissions.
 
 
@@ -84,11 +94,6 @@ See ./doc/autoincrement.md
 
 `.timestamp` and `.owner` attributes are set by the server automatically. Custom server side attribute definition will be supported soon.
 
-# Roadmap
-
-- [ ] Add document deduplication support
-- [ ] Provide a way to resume interrupted downloads/uploads
-- [ ] Stream videos directly from database
 
 ## 3. `get` recursively
 
@@ -97,3 +102,11 @@ document with `your_document_id` and the documents with ids that match with
 `recurse` keypath.
 
 Checkout [the tests](../../lib/merge-deps.ls) for examples.
+
+
+# Roadmap/TODO
+
+- [ ] Add document deduplication support
+- [ ] Provide a way to resume interrupted downloads/uploads
+- [ ] Stream videos directly from database
+
