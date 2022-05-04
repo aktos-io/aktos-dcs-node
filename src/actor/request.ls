@@ -1,4 +1,5 @@
 require! '../../lib': {merge}
+require! '../../lib/promisify': {upgrade-promisify}
 
 export do
     send-request: (opts, data, callback) ->
@@ -27,6 +28,8 @@ export do
             # data might be null
             callback = data
             data = null
+
+        callback <~ upgrade-promisify callback
 
         enveloped = meta <<< {from: @me, seq, data, +req, timestamp: Date.now!}
 
