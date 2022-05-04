@@ -45,11 +45,12 @@ export class CouchDcsClient extends Actor
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
-            opts = null 
+            opts = null
+        opts = opts or {}
 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
 
-        err, msg <~ @__request {get: doc-id, opts: (opts or {})}
+        err, msg <~ @__request {get: doc-id, opts: opts}
         res = msg?.data?.res
         err = err or msg?.data.err
         if err
@@ -61,7 +62,8 @@ export class CouchDcsClient extends Actor
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
-            opts = {}
+            opts = null
+        opts = opts or {}
 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
 
@@ -73,7 +75,8 @@ export class CouchDcsClient extends Actor
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
-            opts = {}
+            opts = null
+        opts = opts or {}
         # end of normalization
 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
@@ -94,7 +97,8 @@ export class CouchDcsClient extends Actor
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
-            opts = {}
+            opts = null
+        opts = opts or {}
         # end of normalization
 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
