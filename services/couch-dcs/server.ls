@@ -390,6 +390,8 @@ export class CouchDcsServer extends Actor
                 #@log.log "view message received", pack msg.data
                 <~ insert-chain msg, \before-view
                 err, res <~ @db.view msg.data.view, msg.data.opts
+                if err 
+                    err.view = msg.data.view
                 insert-after \view, msg, err, res
 
             # `getAtt` message (for getting attachments)
