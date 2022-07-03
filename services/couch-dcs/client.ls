@@ -123,6 +123,12 @@ export class CouchDcsClient extends Actor
         err, msg <~ @__request {view: viewName, opts: opts}
         callback (err or msg?.data.err), msg?.data?.res
 
+    find: (query, callback) -> 
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
+        err, msg <~ @__request {find: query}
+        callback (err or msg?.data.err), msg?.data?.res
+
     get-attachment: (doc-id, att-name, opts, callback) ->
         # normalize parameters
         if typeof! opts is \Function

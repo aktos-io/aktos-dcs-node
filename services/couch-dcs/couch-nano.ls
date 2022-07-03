@@ -190,6 +190,14 @@ export class CouchNano extends EventEmitter
             qs: opts
             , callback
 
+    find: (query, callback) -> 
+        @request do
+            db: @db-name
+            path: '_find'
+            method: 'post'
+            body: query
+            , callback
+
     all-docs: (opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 

@@ -394,6 +394,11 @@ export class CouchDcsServer extends Actor
                     err.view = msg.data.view
                 insert-after \view, msg, err, res
 
+            else if \find of msg.data
+                <~ insert-chain msg, \before-find
+                err, res <~ @db.find msg.data.find
+                insert-after \find, msg, err, res
+
             # `getAtt` message (for getting attachments)
             else if \getAtt of msg.data
                 @log.log "get attachment message received", msg.data

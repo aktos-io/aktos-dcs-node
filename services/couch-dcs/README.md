@@ -79,6 +79,7 @@ catch
         4. Document is still saved to the database if the `on \transaction` event fails. `doc.transaction` field is set to `"failed"` in this case. 
 
 * `.view 'designName/yourView', [opts, ] callback(err, res)`: Query a view in the database.
+* `.find query, callback(err,res)`: Returns the results of the [Mango `query`](https://docs.couchdb.org/en/stable/api/database/find.html).
 * `.all [opts,] callback(err, res)`: Use "allDocs" api of CouchDB.
 * `.getAttachment 'document-id', 'attachment-name', callback(err, res)`: Retrieve an attachment from a document.
 
