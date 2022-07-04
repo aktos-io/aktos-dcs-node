@@ -39,7 +39,7 @@ export class Actor extends EventEmitter implements request
         @once-topic 'app.dcs.connect', (msg) ~>
             # log first login
             @_last_login = Date.now!
-        @action! if typeof! @action is \Function
+        @action! if typeof @action is \function
 
     set-name: (name) ->
         @name = name
