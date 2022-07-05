@@ -36,7 +36,10 @@ export class Actor extends EventEmitter implements request
         # this context switch is important. if it is omitted, "action" method
         # will NOT be overwritten within the parent class
         # < ~ sleep 0 <= really no need for this?
-        @action! if typeof! @action is \Function
+        @once-topic 'app.dcs.connect', (msg) ~>
+            # log first login
+            @_last_login = Date.now!
+        @action! if typeof @action is \function
 
     set-name: (name) ->
         @name = name
@@ -149,12 +152,20 @@ export class Actor extends EventEmitter implements request
                                 #@log.log "received a message to concatenate: ", msg
                                 message `merge` msg
                                 if msg.part is LAST_PART
-                                    handler.call this, message
+                                    try
+                                        handler.call this, message
+                                    catch 
+                                        @log.warn "#{route} handler has an uncaught exception: #{e}"
+                                        @send-response msg, {error: "Uncaught exception: #{e}"}
                                     delete @_request_concat_cache[request-id]
                     @_request_concat_cache[request-id] msg
                 else
                     # simple message, forward as is
-                    handler.call this, msg
+                    try
+                        handler.call this, msg
+                    catch 
+                        @log.warn "#{route} handler has an uncaught exception: #{e}"
+                        @send-response msg, {error: "Uncaught exception: #{e}"}
 
         # for "trigger-topic" method to work
         @_route_handlers[][route].push handler
@@ -197,20 +208,28 @@ export class Actor extends EventEmitter implements request
             @trigger \kill, reason
             @_state.kill-finished = yes
 
-    on-every-login: (callback) ->
-        min-period = 1000ms
-        @on-topic 'app.dcs.connect', (msg) ~>
-            if @_last_login + min-period < Date.now!
-                callback msg
-                @_last_login = Date.now!
+    on-every-login: (opts, callback) ->
+        if typeof! opts is \Function 
+            callback = opts 
+            opts = {
+                window: 1000ms # fire on registration if last_login is within this window
+            }        
+        #@log.debug "Registering on-every-login callback."
 
-        # request dcs login state on init
+        # Call the function on every 'app.dcs.connect' message
+        @on-topic 'app.dcs.connect', (msg) ~>
+            #@log.debug "calling the registered on-every-login callback"
+            callback msg
+            @_last_login = Date.now!
+
+        # Request a login status on registration, call the function if we are connected.
         @send-request 'app.dcs.update', (err, msg) ~>
-            #@log.info "requesting app.dcs.connect state:"
+            #@log.debug "requesting app.dcs.connect state:"
             if not err and msg?data
-                if @_last_login + min-period < Date.now!
+                if @_last_login + opts.window <= Date.now!
                     callback msg
                     @_last_login = Date.now!
+
 
 if require.main is module
     console.log "initializing actor test"

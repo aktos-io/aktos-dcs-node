@@ -42,11 +42,12 @@ run-test = (name, test) ->
     try
         res = test.call this
     catch
+        e.test-name = name
         if (typeof! e.matcherResult isnt \Object) or not e.matcherResult.actual
             # Errors related to test setup (exception inside test function)
+            console.error "Something went wrong while running #{name}:", e 
             throw e
 
-        e.test-name = name
         console.error "FAILED test: #{name}", e
 
         actual = JSON.stringify(e.matcherResult.actual)
@@ -96,5 +97,6 @@ export make-tests = (lib-name, tests) ->
     unless typeof! tests is \Object
         tests = {test: tests}
     for name, test of flattenObj tests
-        run-test "#{lib-name}/#{name}", test
+        console.log "Running test: #{lib-name}/#{name}"
+        run-test "#{lib-name}/#{name}", test    
     console.log "... End of #{lib-name}"

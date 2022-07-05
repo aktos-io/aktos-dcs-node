@@ -3,17 +3,8 @@ require! '../../src/topic-match': {topic-match}
 require! '../../src/errors':{CodingError}
 require! '../../lib/sleep':{sleep}
 require! 'prelude-ls': {first}
+require! '../../lib/promisify': {upgrade-promisify}
 
-'''
-usage:
-
-db = new CouchDcsClient route: "@db-proxy"
-
-err, res <~ db.get \my-doc
-unless err
-    console.log "My document is: ", res
-
-'''
 
 export class CouchDcsClient extends Actor
     (opts) ->
@@ -54,8 +45,11 @@ export class CouchDcsClient extends Actor
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
-            opts = {}
-        # end of normalization
+            opts = null
+        opts = opts or {}
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         err, msg <~ @__request {get: doc-id, opts: opts}
         res = msg?.data?.res
         err = err or msg?.data.err
@@ -63,11 +57,16 @@ export class CouchDcsClient extends Actor
             err.message = "#{err.key}: #{err.error}"
         callback err, res
 
+
     all-docs: (opts, callback) ->
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
-            opts = {}
+            opts = null
+        opts = opts or {}
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         # end of normalization
         err, msg <~ @__request {allDocs: opts}
         callback (err or msg?.data.err), msg?.data?.res
@@ -76,8 +75,12 @@ export class CouchDcsClient extends Actor
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
-            opts = {}
+            opts = null
+        opts = opts or {}
         # end of normalization
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         cmd = {put: doc}
         if opts.debug
             cmd <<< {opts: debug: true}
@@ -94,8 +97,12 @@ export class CouchDcsClient extends Actor
         # normalize parameters
         if typeof! opts is \Function
             callback = opts
-            opts = {}
+            opts = null
+        opts = opts or {}
         # end of normalization
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         err, msg <~ @__request {put: doc, +transaction}
         error = err or msg?.data.err
         response = msg?.data?.res
@@ -110,7 +117,16 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         err, msg <~ @__request {view: viewName, opts: opts}
+        callback (err or msg?.data.err), msg?.data?.res
+
+    find: (query, callback) -> 
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
+        err, msg <~ @__request {find: query}
         callback (err or msg?.data.err), msg?.data?.res
 
     get-attachment: (doc-id, att-name, opts, callback) ->
@@ -119,6 +135,8 @@ export class CouchDcsClient extends Actor
             callback = opts
             opts = {}
         # end of normalization
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
 
         err, msg <~ @__request do
             getAtt:
@@ -132,8 +150,13 @@ export class CouchDcsClient extends Actor
         #@log.log "route is: ", route
         err, msg <~ @__request {follow: opts}
         if typeof! callback is \Function
+            callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
             callback (err or msg?.data.err), msg?.data?.res
 
     observe: (route, callback) ->
         @on-topic route, callback
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         callback!
