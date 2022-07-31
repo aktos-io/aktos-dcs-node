@@ -78,6 +78,7 @@ export class CouchNano extends EventEmitter
                     if @retry-timeout < @max-delay
                         @retry-timeout *= 2
                     # retry the last request (irrespective of err)
+                    opts.headers = {}
                     @request opts, callback
             return
         else if err
