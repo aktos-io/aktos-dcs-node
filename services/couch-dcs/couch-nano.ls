@@ -380,6 +380,12 @@ export class CouchNano extends EventEmitter
                 try
                     name = ..id.split '/' .1
                     continue if name is \autoincrement
+
+                    if ..doc.language is 'query'
+                        for view-name of ..doc.views
+                            views.push "#{name}/#{view-name}"
+                        continue
+
                     #@log.log "all design documents: ", ..doc
                     for let view-name of eval ..doc.javascript .views
                         views.push "#{name}/#{view-name}"
