@@ -1,5 +1,13 @@
 # promisify(f) for functions with single result
 # promisify(true, f) to get array of results 
+
+/* Note: 
+
+In order to promisify a class method, do the following: 
+
+    promisify myinstance.read.bind(myinstance)
+
+*/
 export function promisify many-args, f
     unless f?
         f = many-args
@@ -13,7 +21,7 @@ export function promisify many-args, f
         new Promise (resolve, reject) ~>
             args.push (err, ...results) -> 
                 if err
-                    eject err 
+                    reject err 
                 else
                     # resolve with all callback results if many-args is specified
                     resolve (if many-args then results else results[0])
