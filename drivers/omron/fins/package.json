@@ -8,6 +8,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "omron-fins": "git://github.com/patrick--/node-omron-fins.git"
+    "omron-fins": "git://github.com/aktos-io/node-omron-fins"
   }
 }

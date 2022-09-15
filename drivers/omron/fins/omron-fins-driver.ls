@@ -39,8 +39,7 @@ export class OmronFinsDriver extends DriverAbstract
         @log.log bg-yellow "Using #{@target.host}:#{@target.port}"
         @client = fins.FinsClient @target.port, @target.host
 
-        @exec-seq = 1
-        @q = {} # exec queue. Key field is the sequence number.
+        @q = {} # exec queue. Key field is the sequence number (FinsClient.SID).
 
         @client.on \reply, (msg) ~>
             if msg.sid of @q
@@ -71,23 +70,20 @@ export class OmronFinsDriver extends DriverAbstract
         while true
             try await @exec \read, "C0:0", 1
             await sleep 10_000ms
-
    
     exec: (command, ...args) ->> 
         # This is the key function that transforms the discrete .read/.write functions 
-        # into async functions
-        curr = @exec-seq++
-        @q[curr] = new Signal!
-        
-        @client[command] ...args
+        # into async functions        
+        SID = @client[command] ...args
+        @q[SID] = new Signal!
         return new Promise (resolve, reject) ~>
-            @q[curr].wait @timeout, (err, res) ~> 
+            @q[SID].wait @timeout, (err, res) ~> 
                 if err 
                     reject(err)
                     @trigger \disconnected if @connected
                     @connected = no 
                     sleep 0 ~> 
-                        delete @q[curr]
+                        delete @q[SID] if SID of @q
                 else 
                     resolve(res)
                     @trigger \connected unless @connected
