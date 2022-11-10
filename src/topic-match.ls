@@ -22,7 +22,7 @@ export topic-match = (topics, keypaths, opts={}) ->
                     topic-arr = split-dot topic
                     keypath-arr = split-dot keypath
                 catch
-                    console.error "both topic and keypath should be string."
+                    console.error "both topic (#{topic}) and keypath (#{keypath}) should be string:", e
                     return no
 
                 for index in [til max(topic-arr.length, keypath-arr.length)]
