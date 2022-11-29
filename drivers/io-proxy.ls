@@ -38,10 +38,10 @@ export class IoProxy extends Actor
             address: The io address that the driver expects.
 
         Methods:
-            .write(value[, callback(err)]) : Writes the value. Returns Promise if callback is omitted.
+            .write(value[, address]) : Writes the value. `opts.address` is used as `address` if omitted.
 
         Events:
-            .on-change callback(value)
+            .on-change callback(value, timestamp)
             .on-state-change callback({error, busy, initialized})
 
 
@@ -125,15 +125,14 @@ export class IoProxy extends Actor
             unless err
                 unless msg.data.err 
                     # run the handler with the initial read
-                    @_change_handler msg.data.res.value
+                    @_change_handler msg.data.res.value, msg.data.res.last_read
                 @set-error(msg.data.err)
 
                 @_data_route=(msg.data.res.route)
                 if @_data_route not in @subscriptions
                     @on-topic @_data_route, (_msg) ~> 
-                        unless _msg.data.err
-                            @_change_handler _msg.data.value
-                        @set-error _msg.data.err
+                        @_change_handler _msg.data.value, _msg.data.last_read
+                        @set-error false
             else
                 @log.error "Can not refresh registering to: #{@opts.name}.#{@opts.address}"
                 @set-error err 
@@ -217,7 +216,6 @@ export class IoProxy extends Actor
                 error = e 
         @write-is-ongoing = false # must be before the handlers in order to use inside the handlers
         @set-error error
-        @_change_handler @value
 
     read: (address, length=1) -> 
         address ?= @opts.address 
