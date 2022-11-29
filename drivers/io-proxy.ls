@@ -11,6 +11,7 @@ class IoManager
 
         @targets = {}
         @io-proxies = {}
+        @is_heartbeating_in_progress = {} 
 
     register: (target, instance) -> 
         @io-proxies[][target].push instance 
@@ -95,6 +96,16 @@ export class IoProxy extends Actor
     get-last-heartbeat: -> 
         @manager.get-last-heartbeat(@opts.route)
 
+    this-heartbeat-should-run: -> 
+        curr = @manager.is_heartbeating_in_progress[@opts.route] 
+        return not curr? or curr is @id 
+
+    mark-global-heartbeating: -> 
+        @manager.is_heartbeating_in_progress[@opts.route] = @id
+
+    clear-global-heartbeating: -> 
+        @manager.is_heartbeating_in_progress[@opts.route] = null
+
     set-error: (error) !-> 
         if @error? isnt error?
             @_state_change_handler {error}
@@ -102,6 +113,7 @@ export class IoProxy extends Actor
 
         unless error 
             @mark-last-heartbeat!
+            @clear-global-heartbeating!
         @set-busy no 
 
     register: ->
@@ -134,6 +146,7 @@ export class IoProxy extends Actor
 
         @on-every-login ~> 
             @register! 
+
         @on-topic "#{@opts.route}.restart", -> 
             console.log "Target is restarted"
             @set-error false
@@ -151,7 +164,8 @@ export class IoProxy extends Actor
         # note that we ignore the error if the end point has been disconnected
         heartbeat-timeout = 1000ms
         while true
-            if @error or (Date.now! - @get-last-heartbeat!) > heartbeat-timeout
+            if (@error or (Date.now! - @get-last-heartbeat!) > heartbeat-timeout) and @this-heartbeat-should-run!
+                @mark-global-heartbeating!
                 console.log "Needed to check heartbeating by: #{@_data_route}"
                 error = @error
                 for to retry_on_error=3
@@ -161,6 +175,7 @@ export class IoProxy extends Actor
                             throw new Error that 
                         error = null
                         @mark-last-heartbeat! # in order to prevent the other IoProxy instances to perform a parallel heartbeat checking
+                        @clear-global-heartbeating!
                         if @error?
                             @register!
                         break
@@ -187,7 +202,6 @@ export class IoProxy extends Actor
             @_write_queue.push [_value, _address]
 
         @set-busy yes 
-        error = @error 
         while @_write_queue.length > 0
             [value, address] = @_write_queue.shift!
             try 
