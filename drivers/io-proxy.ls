@@ -16,10 +16,8 @@ class IoManager
     register: (target, instance) -> 
         @io-proxies[][target].push instance 
 
-    mark-last-heartbeat: (target, message) -> 
+    mark-last-heartbeat: (target) -> 
         @targets[target] = Date.now!
-        if message
-            console.log "Last heartbeat is updated by:", message
 
     get-last-heartbeat: (target) -> 
         @targets[target] or 0
@@ -90,8 +88,8 @@ export class IoProxy extends Actor
         @_state_change_handler = callback
 
     mark-last-heartbeat: ->
-        #console.log "update heartbeat for: ", @_data_route
-        @manager.mark-last-heartbeat(@opts.route, @_data_route)
+        @manager.mark-last-heartbeat(@opts.route)
+        #console.log "Last heartbeat is updated by:", @_data_route
 
     get-last-heartbeat: -> 
         @manager.get-last-heartbeat(@opts.route)
@@ -107,7 +105,7 @@ export class IoProxy extends Actor
         @manager.is_heartbeating_in_progress[@opts.route] = null
 
     set-error: (error) !-> 
-        if @error? isnt error?
+        if Boolean(@error) isnt Boolean(error)
             @_state_change_handler {error}
         @error = error 
 
