@@ -74,13 +74,16 @@ export class IoProxy extends Actor
 
     on-change: (callback) ->
         @_change_handler = (value, last_read) ~> 
-            unless @is-initialized
-                @is-initialized = yes 
-                @_state_change_handler({+initialized})
-            @set-busy(false)
-            @value = value # in order to use inside the callback
+            if last_read?
+                unless @is-initialized
+                    @is-initialized = yes 
+                    @_state_change_handler({+initialized})
+                @set-busy(false)
+                @value = value # in order to use inside the callback
 
-            callback value, last_read
+                callback value, last_read
+            else
+                console.error "IoProxy #{@_data_route} has skipped an erroneous read: value:", value, "last_read:", last_read
 
 
     on-state-change: (callback) -> 
