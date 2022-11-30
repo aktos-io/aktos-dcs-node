@@ -55,7 +55,7 @@ export class IoProxy extends Actor
 
         @is-initialized = no
         @is-busy = no 
-        @value = undefined 
+        @value = null 
         @_change_handler = ->
         @_state_change_handler = -> 
 
@@ -79,9 +79,11 @@ export class IoProxy extends Actor
                     @is-initialized = yes 
                     @_state_change_handler({+initialized})
                 @set-busy(false)
-                @value = value # in order to use inside the callback
 
-                callback value, last_read
+                if value isnt @value 
+                    callback value, last_read
+
+                @value = value
             else
                 console.error "IoProxy #{@_data_route} has skipped an erroneous read: value:", value, "last_read:", last_read
 
@@ -209,7 +211,6 @@ export class IoProxy extends Actor
                     , [(address or @opts.address), +value]
                 if msg.data.err
                     throw new Error that 
-                @value = value 
                 error = null 
             catch 
                 # There is an error, set the error flag 
