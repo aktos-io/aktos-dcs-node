@@ -55,15 +55,8 @@ export class IoProxy extends Actor
 
         @is-initialized = no
         @is-busy = no 
-        @value = null 
-        @default_change_handler = (value, last_read) ~> 
-            unless @is-initialized
-                @is-initialized = yes 
-                @_state_change_handler({+initialized})
-            @set-busy(false)
-            @value = value
-
-        @_change_handler = @default_change_handler
+        @value = undefined 
+        @_change_handler = ->
         @_state_change_handler = -> 
 
         @refresh = 5_000ms
@@ -81,8 +74,14 @@ export class IoProxy extends Actor
 
     on-change: (callback) ->
         @_change_handler = (value, last_read) ~> 
-            @default_change_handler value, last_read
+            unless @is-initialized
+                @is-initialized = yes 
+                @_state_change_handler({+initialized})
+            @set-busy(false)
+            @value = value # in order to use inside the callback
+
             callback value, last_read
+
 
     on-state-change: (callback) -> 
         @_state_change_handler = callback
