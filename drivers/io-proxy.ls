@@ -72,8 +72,8 @@ export class IoProxy extends Actor
             @_state_change_handler({busy: state})
         @is-busy = state 
 
-    on-change: (callback) ->
-        @_change_handler = (value, last_read) ~> 
+    on-change: (callback) ->>
+        @_change_handler = (value, last_read) ~>>
             if last_read?
                 unless @is-initialized
                     @is-initialized = yes 
@@ -81,7 +81,7 @@ export class IoProxy extends Actor
                 @set-busy(false)
 
                 if value isnt @value 
-                    callback value, last_read
+                    await callback value, last_read
 
                 @value = value
             else
