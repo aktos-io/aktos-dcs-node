@@ -167,7 +167,7 @@ export class IoProxy extends Actor
         while true
             if (@error or (Date.now! - @get-last-heartbeat!) > heartbeat-timeout) and @this-heartbeat-should-run!
                 @mark-global-heartbeating!
-                console.log "Needed to check heartbeating by: #{@_data_route}"
+                #console.log "Needed to check heartbeating by: #{@_data_route}"
                 error = @error
                 for to retry_on_error=3
                     try 
