@@ -54,7 +54,7 @@ export class IoProxy extends Actor
             ..register @opts.route, this 
 
         @is-initialized = no
-        @is-busy = no 
+        @is-busy = null 
         @value = null 
         @_change_handler = ->
         @_state_change_handler = -> 
@@ -68,7 +68,7 @@ export class IoProxy extends Actor
 
     set-busy: (state) -> 
         state = Boolean state 
-        if state? isnt @is-busy?
+        if state isnt @is-busy
             @_state_change_handler({busy: state})
         @is-busy = state 
 
