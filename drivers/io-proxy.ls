@@ -133,6 +133,7 @@ export class IoProxy extends Actor
                 @_data_route=(msg.data.res.route)
                 if @_data_route not in @subscriptions
                     @on-topic @_data_route, (_msg) ~> 
+                        #console.log "#{@_data_route} received a change: #{_msg.data.value}"
                         @_change_handler _msg.data.value, _msg.data.last_read
                         @set-error false
             else
@@ -216,7 +217,15 @@ export class IoProxy extends Actor
                 # There is an error, set the error flag 
                 error = e 
         @write-is-ongoing = false # must be before the handlers in order to use inside the handlers
+        #console.log "#{@_data_route} write operation is ended. last value sent: #{+value}"
         @set-error error
+
+        # Ensure that we received what we have written
+        await sleep 300ms
+        if value isnt @value
+            @value = value 
+            @register!
+
 
     read: (address, length=1) -> 
         address ?= @opts.address 
