@@ -56,6 +56,7 @@ export class IoProxy extends Actor
         @is-initialized = no
         @is-busy = null 
         @value = null 
+        @last_read = null 
         @_change_handler = ->
         @_state_change_handler = -> 
 
@@ -66,6 +67,8 @@ export class IoProxy extends Actor
         @_write_queue = []
         @_data_route = null 
 
+        @_write_verify_timer = null # timer to check if our last write is verified
+
     set-busy: (state) -> 
         state = Boolean state 
         if state isnt @is-busy
@@ -73,17 +76,19 @@ export class IoProxy extends Actor
         @is-busy = state 
 
     on-change: (callback) ->>
-        @_change_handler = (value, last_read) ~>>
+        @_change_handler = (value, last_read, force) ~>>
             if last_read?
                 unless @is-initialized
                     @is-initialized = yes 
                     @_state_change_handler({+initialized})
                 @set-busy(false)
 
-                if value isnt @value 
+                if (value isnt @value) or force
                     await callback value, last_read
 
                 @value = value
+                @last_read = last_read 
+                @_write_verify_timer?.clear?!
             else
                 console.error "IoProxy #{@_data_route} has skipped an erroneous read: value:", value, "last_read:", last_read
 
@@ -127,7 +132,7 @@ export class IoProxy extends Actor
             unless err
                 unless msg.data.err 
                     # run the handler with the initial read
-                    @_change_handler msg.data.res.value, msg.data.res.last_read
+                    @_change_handler msg.data.res.value, msg.data.res.last_read 
                 @set-error(msg.data.err)
 
                 @_data_route=(msg.data.res.route)
@@ -203,28 +208,41 @@ export class IoProxy extends Actor
         else 
             @_write_queue.push [_value, _address]
 
+        @_write_verify_timer?.clear?!
+
         @set-busy yes 
         while @_write_queue.length > 0
             [value, address] = @_write_queue.shift!
             try 
                 @write-is-ongoing = true
+                #t0 = Date.now!
                 msg = await @send-request {route: "#{@opts.route}.write", timeout: (@opts.timeout or 1000ms)}
                     , [(address or @opts.address), +value]
+                #console.log "Response time: #{Date.now! - t0}"
                 if msg.data.err
                     throw new Error that 
                 error = null 
             catch 
                 # There is an error, set the error flag 
                 error = e 
+
         @write-is-ongoing = false # must be before the handlers in order to use inside the handlers
         #console.log "#{@_data_route} write operation is ended. last value sent: #{+value}"
         @set-error error
 
-        # Ensure that we received what we have written
-        await sleep 300ms
-        if value isnt @value
-            @value = value 
-            @register!
+        # Testing this feature: 
+        # ---------------------
+        # 1. Write a code into the PLC that periodically writes zero to a memory area in every 20ms. 
+        # 2. Try to write "1" into that memory area with a checkbox component. 
+        #
+        # Without this verification feature, you will observe that there is no IoProxy.on-change method
+        # is fired (because polling loop on the driver/server side can not see a change within the loop
+        # time) but checkbox is displayed as "checked".
+        #
+        @_write_verify_timer = sleep 500ms, ~> 
+            if value isnt @value 
+                # write operation can not be verified
+                @_change_handler @value, @last_read, force=true
 
 
     read: (address, length=1) -> 
