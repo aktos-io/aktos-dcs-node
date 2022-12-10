@@ -27,7 +27,9 @@ if [[ -f $conf_path ]]; then
 elif [[ -d $conf_path ]]; then
     conf_file="${conf_path}/$PREFERENCES"
 else
-    echo "Configuration file path is required."
+    echo "Configuration file path is required. Example:"
+    echo
+    echo "$0 ./"
     exit 5
 fi
 
