@@ -78,6 +78,7 @@ export class CouchNano extends EventEmitter
                     if @retry-timeout < @max-delay
                         @retry-timeout *= 2
                     # retry the last request (irrespective of err)
+                    opts.headers = {}
                     @request opts, callback
             return
         else if err
@@ -379,6 +380,12 @@ export class CouchNano extends EventEmitter
                 try
                     name = ..id.split '/' .1
                     continue if name is \autoincrement
+
+                    if ..doc.language is 'query'
+                        for view-name of ..doc.views
+                            views.push "#{name}/#{view-name}"
+                        continue
+
                     #@log.log "all design documents: ", ..doc
                     for let view-name of eval ..doc.javascript .views
                         views.push "#{name}/#{view-name}"

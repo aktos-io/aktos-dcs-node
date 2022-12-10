@@ -208,7 +208,8 @@ export class ProxyClient extends Actor
                     # clear plaintext passwords
                     credentials := {token: @session?.token}
             else
-                @connected = no
+                #@connected = no # why were we setting `@connected = no`?
+                null
 
             if res?auth?session?logout is \yes
                 @trigger \kicked-out
@@ -217,6 +218,7 @@ export class ProxyClient extends Actor
             callback error, res
 
         # trigger logging in if we are connected already.
+        @log.info "Connected status: ", @connected
         if @connected
             @trigger \_login
 

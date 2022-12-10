@@ -189,7 +189,7 @@ export class Actor extends EventEmitter implements request
     send-enveloped: (msg) !->
         unless msg.to or (\auth of msg)
             debugger
-            return @log.err "send-enveloped: Message has no route. Not sending.", msg
+            return @log.err "send-enveloped: Message has no route or has no auth key. Not sending.", msg
         <~ set-immediate
         unless msg.timestamp
             msg.timestamp = Date.now!
@@ -206,6 +206,7 @@ export class Actor extends EventEmitter implements request
                 signal.reset!
                 delete @request-queue[id]
             @trigger \kill, reason
+            @killed = true
             @_state.kill-finished = yes
 
     on-every-login: (opts, callback) ->
@@ -229,6 +230,9 @@ export class Actor extends EventEmitter implements request
                 if @_last_login + opts.window <= Date.now!
                     callback msg
                     @_last_login = Date.now!
+
+    trigger-login: -> 
+        @trigger \app.dcs.connect
 
 
 if require.main is module

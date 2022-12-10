@@ -81,7 +81,7 @@ export do
                     part-handler msg
 
                     if request-date?
-                        if request-date + 200ms < Date.now!
+                        if msg.debug and (request-date + 200ms < Date.now!)
                             @log.debug "First response is too late for seq:#{enveloped.seq} latency:
                             #{Date.now! - request-date}ms, req: ", enveloped
                         request-date := undefined # disable checking
