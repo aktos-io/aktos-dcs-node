@@ -67,8 +67,6 @@ export class IoProxy extends Actor
         @_write_queue = []
         @_data_route = null 
 
-        @_write_verify_timer = null # timer to check if our last write is verified
-
     set-busy: (state) -> 
         state = Boolean state 
         if state isnt @is-busy
@@ -76,19 +74,19 @@ export class IoProxy extends Actor
         @is-busy = state 
 
     on-change: (callback) ->>
-        @_change_handler = (value, last_read, force) ~>>
+        @_change_handler = (value, last_read) ~>>
             if last_read?
+                last_read = +last_read
                 unless @is-initialized
                     @is-initialized = yes 
                     @_state_change_handler({+initialized})
                 @set-busy(false)
 
-                if (value isnt @value) or force
+                if value isnt @value
                     await callback value, last_read
 
                 @value = value
                 @last_read = last_read 
-                @_write_verify_timer?.clear?!
             else
                 console.error "IoProxy #{@_data_route} has skipped an erroneous read: value:", value, "last_read:", last_read
 
