@@ -230,20 +230,8 @@ export class IoProxy extends Actor
         #console.log "#{@_data_route} write operation is ended. last value sent: #{+value}"
         @set-error error
 
-        # Testing this feature: 
-        # ---------------------
-        # 1. Write a code into the PLC that periodically writes zero to a memory area in every 20ms. 
-        # 2. Try to write "1" into that memory area with a checkbox component. 
-        #
-        # Without this verification feature, you will observe that there is no IoProxy.on-change method
-        # is fired (because polling loop on the driver/server side can not see a change within the loop
-        # time) but checkbox is displayed as "checked".
-        #
-        @_write_verify_timer = sleep 500ms, ~> 
-            if value isnt @value 
-                # write operation can not be verified
-                @_change_handler @value, @last_read, force=true
-
+        unless error 
+            @_change_handler value, Date.now!
 
     read: (address, length=1) -> 
         address ?= @opts.address 
