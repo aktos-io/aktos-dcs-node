@@ -74,9 +74,9 @@ export class CouchDcsServer extends Actor
                 disconnected: (err) ~>
                     @log.info "Disconnected from db."
 
-            ..connect!
+        <~ @db.connect
 
-
+        @db 
             ..follow (change) ~>
                 @log.log (bg-yellow "<<<<<<>>>>>>"), "change on #{@name}:", change.id
 
