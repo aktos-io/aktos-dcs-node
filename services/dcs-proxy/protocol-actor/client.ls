@@ -144,10 +144,14 @@ export class ProxyClient extends Actor
                             #console.log "subscriptions: ", @subscriptions
                         if msg.re?
                             # directly pass to message owner
-                            #@log.debug "forwarding a Response message to actor: ", msg
                             msg.to = msg.to.replace "@#{@session.user}.", ''
+                            if msg.debug 
+                                @log.debug "forwarding a Response message to actor: ", msg
                             if @mgr.find-actor msg.to
                                 that._inbox msg
+                            else
+                                @send-enveloped msg
+
                             if msg.cc
                                 msg2 = clone msg
                                 msg2.to = msg.cc

@@ -66,12 +66,18 @@ export class ProxyHandler extends Actor
                             if m.re?
                                 # this is a response, check if we were expecting it
                                 #@log.debug "Checking if we are expecting #{m.to}"
+                                if m.res-token
+                                    if typeof! that is \String
+                                        m.res-token = [m.res-token]
+                                else 
+                                    m.res-token = []
+
                                 response-id = "#{m.to}.#{m.re}"
                                 unless @request-table[response-id]
                                     error = "Not our response."
                                     #@log.debug "Dropping response: #{error}, resp: #{response-id}"
                                     throw {type: \NORMAL, message: error}
-                                else if @request-table[response-id] isnt m.res-token
+                                else if @request-table[response-id] not in m.res-token
                                     message = "Response token is not correct, dropping message.
                                         expecting #{@request-table[response-id]}, got: #{m.res-token}"
                                     delete @request-table[response-id]
@@ -80,7 +86,7 @@ export class ProxyHandler extends Actor
                                     unless m.part? or m.part is -1
                                         #"Last part of our expected response, removing from table." |> @log.debug
                                         delete @request-table[response-id]
-                                delete m.res-token  # remove unnecessary data
+                                m.res-token?.pop?!  # remove unnecessary data
 
                                 return m
                         catch
@@ -150,7 +156,8 @@ export class ProxyHandler extends Actor
                                     #@log.debug "adding response route and token for #{m.from}"
                                     token = uuid4!
                                     @request-table["#{m.from}.#{m.seq}"] = token
-                                    m.res-token = token
+                                    m.res-token ?= []
+                                    m.res-token.push token
                                 return m
                             |> @auth.check-routes
                             |> @send-enveloped
