@@ -60,7 +60,6 @@ export class IoProxy extends Actor
         @_change_handler = ->
         @_state_change_handler = -> 
 
-        @refresh = 5_000ms
         @error = no
         @write-is-ongoing = false
 
@@ -125,7 +124,11 @@ export class IoProxy extends Actor
         @set-busy yes 
 
         # Register for changes
-        @send-request {route: "#{@opts.route}.watch", timeout: 1000ms}, [@opts.address], (err, msg) ~> 
+        @send-request {
+            route: "#{@opts.route}.watch", 
+            timeout: @opts.timeout or 1000ms
+            debug: @opts.debug
+            }, [@opts.address], (err, msg) ~> 
             #console.log "watch response:", err, msg 
             unless err
                 unless msg.data.err 
