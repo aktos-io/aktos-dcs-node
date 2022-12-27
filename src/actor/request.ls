@@ -1,4 +1,5 @@
 require! '../../lib': {merge}
+require! '../../lib/debug-tools': {brief}
 
 export do
     send-request: (opts, data, callback) ->>
