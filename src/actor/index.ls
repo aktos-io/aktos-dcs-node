@@ -73,34 +73,6 @@ export class Actor extends EventEmitter implements request
                 next-part = LAST_PART
         return next-part
 
-    send-response: (req, meta, data) ->
-        unless req.req
-            @log.err "No request is required, doing nothing."
-            debugger
-            return
-
-        # normalize parameters
-        if typeof! data is \Undefined
-            data = meta
-            meta = {}
-
-        meta.part = @get-next-part-id meta.part, "#{req.from}.#{req.seq}"
-
-        enveloped = {
-            from: @me
-            to: req.from
-            seq: @msg-seq++
-            data
-            re: req.seq
-            res-token: req.res-token
-            debug: req.debug
-        } <<< meta
-
-
-        if req.debug or meta.debug
-            @log.debug "sending the response for request: ", brief enveloped
-        @send-enveloped enveloped
-
     _inbox: (msg) ->
         #@log.log "Got message to inbox:", (JSON.stringify msg).length
         if @debug or msg.debug => @log.debug "Got msg to inbox: ", brief msg
