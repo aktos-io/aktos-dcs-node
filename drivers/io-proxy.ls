@@ -170,7 +170,7 @@ export class IoProxy extends Actor
 
         # check if we have a connection with the driver server. 
         # note that we ignore the error if the end point has been disconnected
-        heartbeat-timeout = 1000ms
+        heartbeat-timeout = @opts.timeout or 1000ms
         while true
             if (@error or (Date.now! - @get-last-heartbeat!) > heartbeat-timeout) and @this-heartbeat-should-run!
                 @mark-global-heartbeating!
