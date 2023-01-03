@@ -13,19 +13,29 @@ export do
 
             Use one of the following styles:
 
-            * control = @send-request SETTINGS, data, ((err, msg)->)
-            * try 
+            * With callback: 
+            
+                ```
+                control = @send-request SETTINGS, data, ((err, msg)->)
+                ```
+
+                Where the `control` object has the following methods: 
+
+                    on-part: (func) ~>
+                        part-handler := func
+                    on-receive: (func) ~>
+                        complete-handler := func
+                    send-part: (data, last-part=yes) ~>
+
+            * With async/await:
+        
+                ```
+                try 
                     msg = await @send-request "route-to-send", data
                 catch
                     err = e 
+                ```
 
-            Where the `control` object has the following methods: 
-
-                on-part: (func) ~>
-                    part-handler := func
-                on-receive: (func) ~>
-                    complete-handler := func
-                send-part: (data, last-part=yes) ~>
 
         Split request: (TO BE COMPLETED)
         
