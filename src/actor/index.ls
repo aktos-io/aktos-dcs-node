@@ -46,8 +46,9 @@ export class Actor extends EventEmitter implements request
         @log.name = name
 
     subscribe: (routes) ->
-        for route in unique flatten [routes]
-            @subscriptions.push route
+        for route in flatten [routes]
+            if route not in @subscriptions
+                @subscriptions.push route
 
     unsubscribe: (route) ->
         @subscriptions.splice (@subscriptions.index-of route), 1
