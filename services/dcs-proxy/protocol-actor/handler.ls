@@ -97,9 +97,10 @@ export class ProxyHandler extends Actor
                                 throw e
 
                         # Check that
-                        unless m.from `topic-match` "@#{m.user}.**"
-                            message = "Hacking? #{m.from} can' come from #{m.user}"
-                            throw {type: \NORMAL, message}
+                        if m.user
+                            unless m.from `topic-match` "@#{m.user}.**"
+                                message = "Hacking? #{m.from} can't come from #{m.user}"
+                                throw {type: \NORMAL, message}
 
                         # any user can send its own domain messages to
                         # any listener that has been subscribed to its messages. eg:

@@ -40,7 +40,7 @@ export class ActorManager
                     delete msg._exclude
                 #@log.log "putting message: #{msg.from}.#{msg.seq} -> actor: #{actor.id}", actor.subscriptions.join(',')
                 delay = Date.now! - due-date
-                if delay > 10ms
+                if delay > 200ms
                     @log.warn "System load is high? Message is delivered after #{delay}ms"
                 actor._inbox msg
             else
