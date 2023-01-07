@@ -5,6 +5,7 @@ require! '../../lib': {Logger, sleep, pack, EventEmitter, merge, clone}
 require! 'cloudant-follow': follow
 require! '../../src/signal': {Signal}
 require! 'request'
+require! '../../lib/promisify': {upgrade-promisify}
 
 UNAUTHORIZED = 401
 FORBIDDEN = 403
@@ -108,11 +109,16 @@ export class CouchNano extends EventEmitter
     start-heartbeat: ->
         # periodically poll the db so ensure that the cookie stays valid
         # all the time
+        heartbeat-failed = false 
         <~ :lo(op) ~>
             err, res <~ @get-db-info
             if err
                 @log.err "Heartbeat failed: ", err
+                heartbeat-failed = true 
             else
+                if heartbeat-failed 
+                    @log.success "Heartbeat succeeded."
+                    heartbeat-failed = false 
                 size = parse-int res.disk_size / 1024
                 size-str = "#{parse-int size} K"
                 if size / 1024 > 1
@@ -122,7 +128,8 @@ export class CouchNano extends EventEmitter
             lo(op)
 
     connect: (callback) ->
-        if typeof! callback isnt \Function then callback = (->)
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         err, res <~ @get null
         if err
             @log.error "Connection has error:", err
@@ -165,6 +172,8 @@ export class CouchNano extends EventEmitter
         @log.log "DEBUG MODE: connection should be broken by now."
 
     put: (doc, callback) ->
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         @request do
             db: @db-name
             body: doc
@@ -173,6 +182,8 @@ export class CouchNano extends EventEmitter
 
     bulk-docs: (docs, opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
 
         @request do
             db: @db-name
@@ -185,6 +196,8 @@ export class CouchNano extends EventEmitter
     get: (doc-id, opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         @request do
             db: @db-name
             doc: doc-id
@@ -192,6 +205,8 @@ export class CouchNano extends EventEmitter
             , callback
 
     find: (query, callback) -> 
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         @request do
             db: @db-name
             path: '_find'
@@ -201,6 +216,8 @@ export class CouchNano extends EventEmitter
 
     all-docs: (opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
 
         err, res, headers <~ @request do
             db: @db-name
@@ -222,11 +239,16 @@ export class CouchNano extends EventEmitter
         catch
             @log.debug "We have an error in @view: ", e
             @log.debug "...view name: ", ddoc-viewname
-            return callback e, null
+            if callback?
+                return callback e, null
+            else 
+                return Promise.reject e
 
         if typeof! opts is \Function
             callback = opts
             opts = {}
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
 
         err, res, headers <~ @_view ddoc, viewname, {type: \view}, opts
 
@@ -295,6 +317,8 @@ export class CouchNano extends EventEmitter
         if typeof opts is \function
             callback = opts
             opts = {}
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
 
         @request do
             db: @db-name
@@ -373,6 +397,8 @@ export class CouchNano extends EventEmitter
         feed.follow!
 
     get-all-views: (callback) ->
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         views = []
         err, res <~ @all-docs {startkey: "_design/", endkey: "_design0", +include_docs}
         unless err
@@ -395,6 +421,8 @@ export class CouchNano extends EventEmitter
         callback err, compact views
 
     update-all-views: (callback) ->
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
         error = null
         err, views <~ @get-all-views
         if views.length is 0
