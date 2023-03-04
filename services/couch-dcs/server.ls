@@ -309,6 +309,16 @@ export class CouchDcsServer extends Actor
                 # send the response
                 insert-after \put, msg, err, res
 
+            else if \delete of msg.data
+                [doc, rev] = msg.data.delete
+                # insert chain
+                <~ insert-chain msg, \before-delete
+
+                err, res <~ @db.delete doc, rev 
+
+                # send the response
+                insert-after \delete, msg, err, res
+
             # `get` message
             else if \get of msg.data
                 <~ insert-chain msg, \before-get

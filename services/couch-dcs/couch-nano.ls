@@ -180,6 +180,19 @@ export class CouchNano extends EventEmitter
             method: \post
             , callback
 
+    # http://docs.couchdb.org/en/latest/api/document/common.html#delete--db-docid
+    delete: (docName, rev, callback) -> 
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+        unless docName?
+            return callback "Document name is required."
+
+        @request do
+            db: @db-name
+            doc: docName
+            method: \DELETE
+            qs: { rev }
+            , callback
+
     bulk-docs: (docs, opts, callback) ->
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 

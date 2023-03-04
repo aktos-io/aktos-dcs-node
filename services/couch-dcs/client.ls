@@ -93,6 +93,28 @@ export class CouchDcsClient extends Actor
             doc._rev = response.rev
         callback error, response
 
+    delete: (doc, rev, opts, callback) ->
+        # normalize parameters
+        if typeof! opts is \Function
+            callback = opts
+            opts = null
+        opts = opts or {}
+        # end of normalization
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
+        cmd = {delete: [doc, rev]}
+        if opts.debug
+            cmd <<< {opts: debug: true}
+        err, msg <~ @__request cmd
+
+        error = err or msg?.data.err
+        response = msg?.data?.res
+        unless error
+            doc._id = response.id
+            doc._rev = response.rev
+        callback error, response
+
     put-transaction: (doc, opts, callback) ->
         # normalize parameters
         if typeof! opts is \Function
