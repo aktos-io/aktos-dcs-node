@@ -66,6 +66,8 @@ export class IoProxy extends Actor
         @_write_queue = []
         @_data_route = null 
 
+        @opts.timeout ?= 1000ms 
+
     set-busy: (state) -> 
         state = Boolean state 
         if state isnt @is-busy
@@ -126,7 +128,7 @@ export class IoProxy extends Actor
         # Register for changes
         @send-request {
             route: "#{@opts.route}.watch", 
-            timeout: @opts.timeout or 1000ms
+            timeout: @opts.timeout
             debug: @opts.debug
             }, [@opts.address], (err, msg) ~> 
             #console.log "watch response:", err, msg 
@@ -170,7 +172,7 @@ export class IoProxy extends Actor
 
         # check if we have a connection with the driver server. 
         # note that we ignore the error if the end point has been disconnected
-        heartbeat-timeout = @opts.timeout or 1000ms
+        heartbeat-timeout = @opts.timeout
         while true
             if (@error or (Date.now! - @get-last-heartbeat!) > heartbeat-timeout) and @this-heartbeat-should-run!
                 @mark-global-heartbeating!
@@ -178,7 +180,7 @@ export class IoProxy extends Actor
                 error = @error
                 for to retry_on_error=3
                     try 
-                        msg = await @send-request {route: "#{@opts.route}.heartbeat", timeout: 1000ms}, null
+                        msg = await @send-request {route: "#{@opts.route}.heartbeat", timeout: @opts.timeout}, null
                         if msg.data.err 
                             throw new Error that 
                         error = null
@@ -217,7 +219,7 @@ export class IoProxy extends Actor
             try 
                 @write-is-ongoing = true
                 #t0 = Date.now!
-                msg = await @send-request {route: "#{@opts.route}.write", timeout: (@opts.timeout or 1000ms)}
+                msg = await @send-request {route: "#{@opts.route}.write", timeout: @opts.timeout}
                     , [(address or @opts.address), +value]
                 #console.log "Response time: #{Date.now! - t0}"
                 if msg.data.err
@@ -239,7 +241,7 @@ export class IoProxy extends Actor
 
         return new Promise (_resolve, _reject) ~>> 
             try 
-                msg = await @send-request "#{@opts.route}.read", [address, length]
+                msg = await @send-request {to: "#{@opts.route}.read", timeout: @opts.timeout}, [address, length]
                 if msg.data.err
                     throw new Error that
                 _resolve(msg.data.res)
