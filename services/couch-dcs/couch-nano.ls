@@ -12,6 +12,16 @@ FORBIDDEN = 403
 
 export class CouchNano extends EventEmitter
     """
+    Configuration: 
+
+        new CouchNano {
+            url: http://1.2.3.4:5984 # The database URL 
+            user:
+                name: couchdb_user_name
+                password: couchdb_user_password
+            database: the_database_name # Optional. If omitted, you must use .set-db(name) before every request.
+        }
+
     Events:
 
         * connected
@@ -22,10 +32,12 @@ export class CouchNano extends EventEmitter
     """
     (@cfg) ->
         super!
-        @log = new Logger "db:#{@cfg.database}"
+        @log = new Logger "db:#{@cfg.user.name}"
         @username = @cfg.user.name
         @password = @cfg.user.password
         @db-name = @cfg.database
+        unless @cfg.database
+            @_database_name_should_be_provided_everytime = true 
         @db = nano {url: @cfg.url, parseUrl: no}
         @connection = new Signal!
         @first-connection-made = no
@@ -46,7 +58,7 @@ export class CouchNano extends EventEmitter
 
         @retry-timeout = 100ms
         @max-delay = 12_000ms
-        @security-is-okay = no
+
 
     request: (opts, callback) ~>
         opts.headers = {} unless opts.headers
@@ -91,7 +103,12 @@ export class CouchNano extends EventEmitter
             if headers['set-cookie']
                 @cookie = that
                 @trigger \refresh-cookie
+
+        if @_database_name_should_be_provided_everytime
+            @set-db null 
+
         callback err, res, headers
+
 
     get-db-info: (callback) ->
         if typeof! callback isnt \Function
@@ -134,10 +151,6 @@ export class CouchNano extends EventEmitter
         if err
             @log.error "Connection has error:", err
         else
-            unless @security-is-okay
-                @log.error "Are you sure you have the **CORRECT** '#{@db-name}/_security' document?"
-                throw "Anyway, #{@db-name} seems public so we won't continue!"
-
             @trigger \connected
             console.log "-----------------------------------------"
             console.log "Connection to #{res.db_name} is successful, disk_size
@@ -146,9 +159,39 @@ export class CouchNano extends EventEmitter
 
         callback err, res
 
-    _connect: (callback) ->
-        @security-is-okay = yes
+    check-security: (db-name) -> 
+        db-name = db-name or @db-name
 
+        unless db-name => return @log.log "Database name is required to check _security."
+
+        err, res, headers <~ @db.request {            
+            db: db-name
+            doc: '_security'
+        }
+        if err?code is 'ECONNREFUSED'
+            return @log.log "Connection is refused, could not check _security"
+
+        unless (err?.statusCode in [UNAUTHORIZED, FORBIDDEN]) 
+            throw new Error "#{db-name}/_security document is not properly configured!" 
+        else 
+            @log.success "All good with #{db-name}/_security"
+
+    login: (callback) -> 
+        @_connect callback
+
+    get-all-dbs: (opts, callback) -> 
+        # https://docs.couchdb.org/en/stable/api/server/common.html#get--_all_dbs
+        [callback, opts] = [opts, {}] if typeof! opts is \Function
+
+        callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
+        @request do
+            path: '_all_dbs'
+            method: \get
+            qs: opts
+            , callback
+
+    _connect: (callback) ->
         if typeof! callback isnt \Function then callback = (->)
         @log.log "Authenticating as #{@username}"
         @cookie = null
@@ -164,15 +207,18 @@ export class CouchNano extends EventEmitter
 
         callback err
 
+    set-db: (database-name) -> 
+        @db-name = database-name
+
     invalidate: ->
         # Debug Start
         # make cookie a garbage, thus break the session
-        @log.log "DEBUG MODE: will break connection by invalidating the cookie"
         @cookie = "something-obviously-not-a-valid-cookie"
-        @log.log "DEBUG MODE: connection should be broken by now."
 
     put: (doc, callback) ->
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+
+        unless @db-name => return callback error="Database name is required."
 
         @request do
             db: @db-name
@@ -186,6 +232,8 @@ export class CouchNano extends EventEmitter
         unless docName?
             return callback "Document name is required."
 
+        unless @db-name => return callback error="Database name is required."
+
         @request do
             db: @db-name
             doc: docName
@@ -197,6 +245,7 @@ export class CouchNano extends EventEmitter
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+        unless @db-name => return callback error="Database name is required."
 
         @request do
             db: @db-name
@@ -210,6 +259,7 @@ export class CouchNano extends EventEmitter
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+        unless @db-name => return callback error="Database name is required."
 
         @request do
             db: @db-name
@@ -219,6 +269,7 @@ export class CouchNano extends EventEmitter
 
     find: (query, callback) -> 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+        unless @db-name => return callback error="Database name is required."
 
         @request do
             db: @db-name
@@ -231,6 +282,7 @@ export class CouchNano extends EventEmitter
         [callback, opts] = [opts, {}] if typeof! opts is \Function
 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+        unless @db-name => return callback error="Database name is required."
 
         err, res, headers <~ @request do
             db: @db-name
@@ -268,6 +320,8 @@ export class CouchNano extends EventEmitter
         callback err, (res?rows or [])
 
     _view: (ddoc, viewName, meta, qs, callback) ->
+        unless @db-name => return callback error="Database name is required."
+
         relax = @request
         dbName = @db-name
         ``
@@ -332,6 +386,7 @@ export class CouchNano extends EventEmitter
             opts = {}
 
         callback <~ upgrade-promisify callback # returns a promise if "callback" is omitted
+        unless @db-name => return callback error="Database name is required."
 
         @request do
             db: @db-name
@@ -349,6 +404,8 @@ export class CouchNano extends EventEmitter
         if typeof! opts is \Function
             callback = opts
             opts = {}
+
+        unless @db-name => return callback error="Database name is required."
 
         j = request.jar!
         default-opts =
